@@ -1,0 +1,2361 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>VaarKaart — Pleziervaart Navigator</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#0a1628" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="VaarKaart" />
+  <meta name="description" content="GPS navigatie voor de pleziervaart met RWS boeien, getijden en eigen zeekaarten" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Teko:wght@300;400;500;600&family=Source+Sans+3:wght@300;400;600&display=swap');
+
+    :root {
+      --navy:     #0a1628;
+      --deep:     #0d1f3c;
+      --water:    #0e3d5e;
+      --teal:     #00c8c8;
+      --amber:    #f5a623;
+      --danger:   #e84545;
+      --white:    #e8f0f8;
+      --muted:    #7a9ab8;
+      --card:     rgba(13, 31, 60, 0.92);
+      --border:   rgba(0,200,200,0.18);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Source Sans 3', sans-serif;
+      background: var(--navy);
+      color: var(--white);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── HEADER ── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      height: 56px;
+      background: var(--deep);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      z-index: 1000;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-icon {
+      width: 32px; height: 32px;
+      background: var(--teal);
+      clip-path: polygon(50% 0%, 80% 25%, 100% 50%, 80% 75%, 50% 100%, 20% 75%, 0% 50%, 20% 25%);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+    }
+
+    .brand-name {
+      font-family: 'Teko', sans-serif;
+      font-size: 26px;
+      font-weight: 500;
+      letter-spacing: 2px;
+      color: var(--white);
+    }
+    .brand-name span { color: var(--teal); }
+
+    .header-stats {
+      display: flex;
+      gap: 24px;
+    }
+
+    .stat {
+      text-align: center;
+    }
+    .stat-val {
+      font-family: 'Teko', sans-serif;
+      font-size: 20px;
+      font-weight: 400;
+      color: var(--teal);
+      line-height: 1;
+    }
+    .stat-label {
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    /* ── MAIN LAYOUT ── */
+    .main {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* ── SIDEBAR ── */
+    .sidebar {
+      width: 260px;
+      min-width: 260px;
+      background: var(--deep);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      overflow-y: auto;
+      transition: width 0.3s ease, min-width 0.3s ease;
+      position: relative;
+    }
+    .sidebar.collapsed {
+      width: 0 !important;
+      min-width: 0 !important;
+      overflow: hidden;
+    }
+    .sidebar-toggle {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 9999;
+      background: var(--deep);
+      border: 1px solid var(--teal);
+      color: var(--teal);
+      padding: 6px 12px;
+      cursor: pointer;
+      font-family: 'Teko', sans-serif;
+      font-size: 15px;
+      letter-spacing: 1px;
+      border-radius: 6px;
+      transition: background 0.2s;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+      white-space: nowrap;
+    }
+    .sidebar-toggle:hover { background: rgba(0,200,200,0.2); }
+
+    .sidebar-section {
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sidebar-title {
+      font-family: 'Teko', sans-serif;
+      font-size: 13px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--teal);
+      margin-bottom: 12px;
+    }
+
+    /* GPS Panel */
+    .gps-card {
+      background: rgba(0,200,200,0.07);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+    }
+
+    .gps-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .gps-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--muted);
+      flex-shrink: 0;
+      transition: background 0.3s;
+    }
+    .gps-dot.active { background: var(--teal); box-shadow: 0 0 8px var(--teal); animation: pulse 2s infinite; }
+    .gps-dot.error  { background: var(--danger); }
+
+    @keyframes pulse {
+      0%,100% { opacity:1; } 50% { opacity:0.4; }
+    }
+
+    .gps-text { font-size: 13px; color: var(--muted); }
+
+    .coord-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--white);
+      margin: 3px 0;
+    }
+    .coord-label { color: var(--muted); }
+
+    /* Buttons */
+    .btn {
+      width: 100%;
+      padding: 10px 14px;
+      border: none;
+      border-radius: 6px;
+      font-family: 'Teko', sans-serif;
+      font-size: 16px;
+      letter-spacing: 1.5px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .btn-primary {
+      background: var(--teal);
+      color: var(--navy);
+    }
+    .btn-primary:hover { background: #00e0e0; transform: translateY(-1px); }
+
+    .btn-danger {
+      background: var(--danger);
+      color: white;
+    }
+    .btn-danger:hover { background: #ff5555; }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--teal);
+      border: 1px solid var(--border);
+    }
+    .btn-ghost:hover { background: rgba(0,200,200,0.1); }
+
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+    /* Recording indicator */
+    .rec-indicator {
+      display: none;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      background: rgba(232,69,69,0.15);
+      border: 1px solid rgba(232,69,69,0.4);
+      border-radius: 5px;
+      font-size: 12px;
+      color: var(--danger);
+      margin-bottom: 8px;
+    }
+    .rec-indicator.visible { display: flex; }
+    .rec-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); animation: pulse 1s infinite; }
+
+    /* Routes list */
+    .routes-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 220px;
+      overflow-y: auto;
+    }
+
+    .route-item {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .route-item:hover { background: rgba(0,200,200,0.08); border-color: var(--teal); }
+    .route-item.active { border-color: var(--teal); background: rgba(0,200,200,0.12); }
+
+    .route-name {
+      font-family: 'Teko', sans-serif;
+      font-size: 15px;
+      color: var(--white);
+    }
+    .route-meta {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .route-actions {
+      display: flex;
+      gap: 4px;
+      margin-top: 6px;
+    }
+
+    .btn-sm {
+      padding: 3px 8px;
+      font-size: 11px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: 'Source Sans 3', sans-serif;
+      transition: all 0.2s;
+    }
+    .btn-sm:hover { color: var(--white); border-color: var(--teal); }
+    .btn-sm.del:hover { color: var(--danger); border-color: var(--danger); }
+
+    .empty-msg {
+      font-size: 12px;
+      color: var(--muted);
+      text-align: center;
+      padding: 16px 0;
+    }
+
+    /* Layer toggle */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .toggle-label { font-size: 13px; }
+
+    .toggle {
+      position: relative;
+      width: 40px; height: 22px;
+    }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute; inset: 0;
+      background: rgba(255,255,255,0.1);
+      border-radius: 22px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    .slider:before {
+      content: '';
+      position: absolute;
+      width: 16px; height: 16px;
+      left: 3px; top: 3px;
+      background: var(--muted);
+      border-radius: 50%;
+      transition: 0.3s;
+    }
+    .toggle input:checked + .slider { background: rgba(0,200,200,0.3); }
+    .toggle input:checked + .slider:before { transform: translateX(18px); background: var(--teal); }
+
+    /* ── MAP ── */
+    #map {
+      flex: 1;
+      z-index: 1;
+    }
+
+    /* Leaflet custom styles */
+    .leaflet-container { background: #071020; }
+
+    /* Custom position marker */
+    .boat-marker {
+      width: 40px; height: 40px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24px;
+      filter: drop-shadow(0 0 8px rgba(0,200,200,0.8));
+    }
+
+    /* Compass */
+    .compass {
+      position: absolute;
+      bottom: 30px;
+      right: 16px;
+      z-index: 500;
+      width: 60px; height: 60px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Teko', sans-serif;
+      font-size: 18px;
+      color: var(--teal);
+    }
+    .compass-n {
+      color: var(--danger);
+      font-weight: 600;
+    }
+
+    /* Speed badge */
+    .speed-badge {
+      position: absolute;
+      bottom: 100px;
+      right: 16px;
+      z-index: 500;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 12px;
+      text-align: center;
+      min-width: 70px;
+    }
+    .speed-num {
+      font-family: 'Teko', sans-serif;
+      font-size: 28px;
+      color: var(--amber);
+      line-height: 1;
+    }
+    .speed-unit {
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 1px;
+    }
+
+    /* Notification */
+    .notify {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(60px);
+      background: var(--deep);
+      border: 1px solid var(--teal);
+      color: var(--white);
+      padding: 10px 20px;
+      border-radius: 30px;
+      font-size: 13px;
+      z-index: 9999;
+      transition: transform 0.3s ease, opacity 0.3s ease;
+      opacity: 0;
+      white-space: nowrap;
+    }
+    .notify.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+    /* Getijden */
+    .getij-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 7px 10px;
+      margin-bottom: 5px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 12px;
+    }
+    .getij-item.hoog { border-left: 3px solid #4fc3f7; }
+    .getij-item.laag { border-left: 3px solid #f5a623; }
+    .getij-type { font-family: 'Teko', sans-serif; font-size: 15px; }
+    .getij-type.hoog { color: #4fc3f7; }
+    .getij-type.laag { color: #f5a623; }
+    .getij-tijd { color: var(--white); font-weight: 600; }
+    .getij-hoogte { color: var(--muted); font-size: 11px; }
+    .getij-over { font-size: 10px; color: var(--muted); text-align:right; }
+
+    scrollbar-width: thin;
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="brand">
+    <div class="brand-icon">⚓</div>
+    <div class="brand-name">VAAR<span>KAART</span></div>
+  </div>
+  <div class="header-stats">
+    <div class="stat">
+      <div class="stat-val" id="hdr-dist">0.0</div>
+      <div class="stat-label">km gevaren</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val" id="hdr-pts">0</div>
+      <div class="stat-label">routepunten</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val" id="hdr-routes">0</div>
+      <div class="stat-label">opgeslagen</div>
+    </div>
+  </div>
+</header>
+
+<div class="main">
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+
+    <!-- GPS -->
+    <div class="sidebar-section">
+      <div class="sidebar-title">⚡ GPS Positie</div>
+      <div class="gps-card">
+        <div class="gps-status">
+          <div class="gps-dot" id="gps-dot"></div>
+          <div class="gps-text" id="gps-text">Wacht op GPS…</div>
+        </div>
+        <div class="coord-row">
+          <span class="coord-label">Breedte</span>
+          <span id="coord-lat">—</span>
+        </div>
+        <div class="coord-row">
+          <span class="coord-label">Lengte</span>
+          <span id="coord-lon">—</span>
+        </div>
+        <div class="coord-row">
+          <span class="coord-label">Nauwkeurigheid</span>
+          <span id="coord-acc">—</span>
+        </div>
+      </div>
+      <br/>
+      <button class="btn btn-ghost" id="btn-center" onclick="centerOnMe()">🎯 Centreer op mij</button>
+    </div>
+
+    <!-- Route opnemen -->
+    <div class="sidebar-section">
+      <div class="sidebar-title">📍 Route</div>
+
+      <div class="rec-indicator" id="rec-indicator">
+        <div class="rec-dot"></div>
+        <span>Opname actief</span>
+      </div>
+
+      <button class="btn btn-primary" id="btn-start" onclick="startRecording()">▶ Start opname</button>
+      <button class="btn btn-danger" id="btn-stop" disabled onclick="stopRecording()">⏹ Stop & sla op</button>
+      <button class="btn btn-ghost" id="btn-clear" onclick="clearCurrent()">✕ Wis huidig spoor</button>
+    </div>
+
+    <!-- Kaartlagen -->
+    <div class="sidebar-section">
+      <div class="sidebar-title">🗺 Lagen</div>
+
+      <div class="toggle-row">
+        <span class="toggle-label">OpenSeaMap vaarwegen</span>
+        <label class="toggle">
+          <input type="checkbox" id="toggle-sea" checked onchange="toggleSeaMap(this.checked)">
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-row">
+        <span class="toggle-label">Satelliet ondergrond</span>
+        <label class="toggle">
+          <input type="checkbox" id="toggle-sat" onchange="toggleSatellite(this.checked)">
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-row">
+        <span class="toggle-label">RWS boeien & bakens</span>
+        <label class="toggle">
+          <input type="checkbox" id="toggle-boeien" onchange="toggleBoeien(this.checked)">
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-row">
+        <span class="toggle-label">Stroompijlen op kaart</span>
+        <label class="toggle">
+          <input type="checkbox" id="toggle-stroom" checked onchange="toggleStroomlaag(this.checked)">
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-row">
+        <span class="toggle-label">Dieptekaart (kleur)</span>
+        <label class="toggle">
+          <input type="checkbox" id="toggle-diepte-kleur" onchange="toggleDiepteKleur(this.checked)">
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-row">
+        <span class="toggle-label">Dieptecijfers (RWS)</span>
+        <label class="toggle">
+          <input type="checkbox" id="toggle-diepte-cijfers" onchange="toggleDiepteCijfers(this.checked)">
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div id="diepte-legenda" style="display:none;margin-top:6px;padding:7px 10px;background:rgba(0,0,0,0.2);border-radius:6px;">
+        <div style="font-size:10px;color:var(--muted);margin-bottom:4px;letter-spacing:1px;">DIEPTE T.O.V. NAP</div>
+        <div style="display:flex;height:12px;border-radius:3px;overflow:hidden;border:1px solid rgba(255,255,255,0.1);">
+          <div style="flex:1;background:#ffff88;"></div>
+          <div style="flex:1;background:#c8f0b4;"></div>
+          <div style="flex:1;background:#64d2c8;"></div>
+          <div style="flex:1;background:#32a0dc;"></div>
+          <div style="flex:1;background:#1464b4;"></div>
+          <div style="flex:1;background:#053278;"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--muted);margin-top:3px;">
+          <span>droog</span><span>&lt;1m</span><span>2m</span><span>4m</span><span>8m</span><span>diep</span>
+        </div>
+      </div>
+
+      <div id="dieptecijfers-status" style="display:none;font-size:11px;color:var(--muted);margin-top:4px;"></div>
+      <div id="boeien-status" style="display:none;font-size:11px;color:var(--muted);margin-top:4px;"></div>
+    </div>
+
+    <!-- Eigen kaarten -->
+    <div class="sidebar-section">
+      <div class="sidebar-title">🗺 Eigen Zeekaarten</div>
+
+      <!-- Drag & drop zone -->
+      <div id="kaart-dropzone" style="
+        border:2px dashed rgba(0,200,200,0.4);border-radius:8px;padding:12px;
+        text-align:center;cursor:pointer;margin-bottom:10px;
+        background:rgba(0,200,200,0.04);transition:background 0.2s;"
+        onclick="document.getElementById('kaart-bestand').click()"
+        ondragover="event.preventDefault();this.style.background='rgba(0,200,200,0.15)'"
+        ondragleave="this.style.background='rgba(0,200,200,0.04)'"
+        ondrop="handleKaartDrop(event)">
+        <div style="font-size:20px;margin-bottom:2px;">🗺</div>
+        <div style="font-size:12px;color:var(--teal);">Sleep PNG/JPG hier</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:1px;">of klik om te kiezen</div>
+        <input type="file" id="kaart-bestand" accept=".bmp,.png,.jpg,.jpeg"
+          style="display:none" onchange="verwerkKaartBestand(this.files[0])">
+      </div>
+
+      <div id="kaart-bestandsnaam" style="font-size:11px;color:var(--teal);margin-bottom:8px;display:none;"></div>
+
+      <div style="font-size:11px;color:var(--muted);margin-bottom:6px;">Hoekcoördinaten (decimale graden)</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:8px;">
+        <div>
+          <div style="font-size:10px;color:var(--muted);">NW Breedte</div>
+          <input id="coord-nw-lat" type="number" step="0.0001" placeholder="53.2000"
+            style="width:100%;padding:4px 6px;background:rgba(255,255,255,0.07);border:1px solid var(--border);border-radius:4px;color:var(--white);font-size:12px;">
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--muted);">NW Lengte</div>
+          <input id="coord-nw-lon" type="number" step="0.0001" placeholder="5.1000"
+            style="width:100%;padding:4px 6px;background:rgba(255,255,255,0.07);border:1px solid var(--border);border-radius:4px;color:var(--white);font-size:12px;">
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--muted);">ZO Breedte</div>
+          <input id="coord-zo-lat" type="number" step="0.0001" placeholder="53.0000"
+            style="width:100%;padding:4px 6px;background:rgba(255,255,255,0.07);border:1px solid var(--border);border-radius:4px;color:var(--white);font-size:12px;">
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--muted);">ZO Lengte</div>
+          <input id="coord-zo-lon" type="number" step="0.0001" placeholder="5.5000"
+            style="width:100%;padding:4px 6px;background:rgba(255,255,255,0.07);border:1px solid var(--border);border-radius:4px;color:var(--white);font-size:12px;">
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <div style="font-size:11px;color:var(--muted);">Doorzichtigheid</div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <input type="range" id="kaart-opacity" min="10" max="100" value="90"
+            style="width:80px;" oninput="document.getElementById('kaart-opacity-val').textContent=this.value+'%'">
+          <span id="kaart-opacity-val" style="font-size:11px;color:var(--teal);width:30px;">90%</span>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" id="btn-kaart-laden" disabled onclick="laadEigenKaart()" style="margin-bottom:8px;">📂 Kaart toevoegen</button>
+      <div id="kaart-status" style="font-size:11px;color:var(--muted);margin-bottom:8px;"></div>
+
+      <!-- Lijst van geladen kaarten -->
+      <div id="kaarten-lijst" style="display:flex;flex-direction:column;gap:5px;"></div>
+    </div>
+
+    <!-- Getijden -->
+    <!-- Stroom bovenaan, los van getijden -->
+    <div class="sidebar-section" style="background:rgba(0,200,200,0.04);">
+      <div class="sidebar-title">🌊 Stroom & Getijden</div>
+
+      <!-- Grote stroompijl -->
+      <div style="display:flex;align-items:center;justify-content:center;gap:16px;padding:12px 0 8px;">
+        <div style="text-align:center;">
+          <div id="stroom-pijl" style="font-size:48px;line-height:1;transition:transform 0.8s ease;color:#4fc3f7;display:block;">➤</div>
+          <div id="stroom-richting" style="font-size:11px;color:var(--muted);margin-top:4px;">Laden…</div>
+        </div>
+        <div style="text-align:left;">
+          <div id="stroom-snelheid" style="font-family:'Teko',sans-serif;font-size:32px;color:#4fc3f7;line-height:1;">— kn</div>
+          <div id="stroom-station" style="font-size:10px;color:var(--muted);margin-top:2px;"></div>
+          <div id="stroom-tijd" style="font-size:10px;color:var(--muted);"></div>
+        </div>
+      </div>
+
+      <!-- Getijden -->
+      <div id="getij-loading" style="font-size:12px;color:var(--muted);margin-top:4px;">Wacht op positie…</div>
+      <div id="getij-station" style="font-size:11px;color:var(--muted);margin-bottom:6px;display:none;"></div>
+      <div id="getij-lijst" style="display:none;"></div>
+      <div id="getij-error" style="display:none;font-size:11px;color:var(--amber);"></div>
+
+      <!-- Verborgen elementen die JS verwacht -->
+      <div id="stroom-card" style="display:none;"></div>
+      <div id="stroom-status" style="display:none;"></div>
+    </div>
+
+    <!-- Opgeslagen routes -->
+    <div class="sidebar-section">
+      <div class="sidebar-title">💾 Opgeslagen routes</div>
+      <div class="routes-list" id="routes-list">
+        <div class="empty-msg">Nog geen routes opgeslagen</div>
+      </div>
+    </div>
+
+    <!-- GPX Waypoints -->
+    <div class="sidebar-section">
+      <div class="sidebar-title">📌 GPX Waypoints</div>
+      <div id="gpx-dropzone" style="
+        border:2px dashed rgba(245,166,35,0.4);border-radius:8px;padding:12px;
+        text-align:center;cursor:pointer;margin-bottom:8px;
+        background:rgba(245,166,35,0.04);transition:background 0.2s;"
+        onclick="document.getElementById('gpx-bestand').click()"
+        ondragover="event.preventDefault();this.style.background='rgba(245,166,35,0.15)'"
+        ondragleave="this.style.background='rgba(245,166,35,0.04)'"
+        ondrop="handleGpxDrop(event)">
+        <div style="font-size:20px;margin-bottom:2px;">📌</div>
+        <div style="font-size:12px;color:var(--amber);">Sleep GPX bestand hier</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:1px;">of klik om te kiezen</div>
+        <input type="file" id="gpx-bestand" accept=".gpx"
+          style="display:none" onchange="laadGpx(this.files[0])">
+      </div>
+      <div id="gpx-status" style="font-size:11px;color:var(--muted);margin-bottom:6px;"></div>
+      <div id="gpx-lijst" style="display:flex;flex-direction:column;gap:4px;max-height:200px;overflow-y:auto;"></div>
+      <button class="btn btn-ghost" id="btn-gpx-wis" style="display:none;margin-top:6px;font-size:12px;" onclick="wisGpx()">✕ Wis alle waypoints</button>
+    </div>
+
+  </aside>
+
+  <!-- MAP -->
+  <div id="map" style="position:relative;">
+    <button class="sidebar-toggle" id="sidebar-toggle" onclick="toggleSidebar()">◀ Menu</button>
+    <div class="speed-badge">
+      <div class="speed-num" id="speed-num">0.0</div>
+      <div class="speed-unit">KN</div>
+    </div>
+    <div class="compass">
+      <span class="compass-n">N</span>
+    </div>
+  </div>
+</div>
+
+<div class="notify" id="notify"></div>
+
+<script>
+// ── MAP SETUP ──────────────────────────────────────────────
+const map = L.map('map', {
+  center: [52.37, 4.90],
+  zoom: 13,
+  zoomControl: false
+});
+
+L.control.zoom({ position: 'topright' }).addTo(map);
+
+// Base layers
+const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© OpenStreetMap',
+  maxZoom: 19
+});
+
+const satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+  attribution: '© Esri',
+  maxZoom: 19
+});
+
+// OpenSeaMap layer
+const seaLayer = L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', {
+  attribution: '© OpenSeaMap',
+  maxZoom: 18,
+  opacity: 0.9
+});
+
+// Lichte nautische ondergrond
+const lightLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+  attribution: '© CartoDB',
+  maxZoom: 19
+});
+
+lightLayer.addTo(map);
+seaLayer.addTo(map);
+
+// Zorg dat de kaart nooit zwart is — herstel basiskaart als tiles falen
+map.on('tileerror', () => {
+  if (!map.hasLayer(lightLayer) && !map.hasLayer(satLayer)) {
+    lightLayer.addTo(map);
+  }
+});
+
+// ── STATE ─────────────────────────────────────────────────
+let posMarker = null;
+let accuracyCircle = null;
+let recording = false;
+let currentTrack = [];
+let currentPolyline = null;
+let savedRoutes = JSON.parse(localStorage.getItem('vaarkaart_routes') || '[]');
+let watchId = null;
+let lastPos = null;
+let totalDist = 0;
+let currentSatOn = false;
+
+// ── GPS ───────────────────────────────────────────────────
+const boatIcon = L.divIcon({
+  className: '',
+  html: '<div class="boat-marker">⛵</div>',
+  iconSize: [40, 40],
+  iconAnchor: [20, 20]
+});
+
+function startGPS() {
+  if (!navigator.geolocation) {
+    setGPSStatus('error', 'Geen GPS beschikbaar');
+    return;
+  }
+  watchId = navigator.geolocation.watchPosition(onPosition, onGPSError, {
+    enableHighAccuracy: true,
+    maximumAge: 2000,
+    timeout: 10000
+  });
+}
+
+function onPosition(pos) {
+  const { latitude: lat, longitude: lon, accuracy, speed } = pos.coords;
+
+  document.getElementById('gps-dot').className = 'gps-dot active';
+  document.getElementById('gps-text').textContent = 'GPS actief';
+  document.getElementById('coord-lat').textContent = lat.toFixed(5) + '°';
+  document.getElementById('coord-lon').textContent = lon.toFixed(5) + '°';
+  document.getElementById('coord-acc').textContent = Math.round(accuracy) + ' m';
+
+  // Speed in knots
+  const knots = speed ? (speed * 1.94384).toFixed(1) : '0.0';
+  document.getElementById('speed-num').textContent = knots;
+
+  // Marker
+  if (!posMarker) {
+    posMarker = L.marker([lat, lon], { icon: boatIcon, zIndexOffset: 1000 }).addTo(map);
+    map.setView([lat, lon], 14);
+  } else {
+    posMarker.setLatLng([lat, lon]);
+  }
+
+  // Accuracy circle
+  if (accuracyCircle) map.removeLayer(accuracyCircle);
+  accuracyCircle = L.circle([lat, lon], {
+    radius: accuracy,
+    color: '#00c8c8',
+    fillColor: '#00c8c8',
+    fillOpacity: 0.06,
+    weight: 1
+  }).addTo(map);
+
+  // Getijden en stroom laden op basis van positie
+  laadGetijden(lat, lon);
+  laadStroomsnelheid(lat, lon);
+
+  // Recording
+  if (recording) {
+    const point = [lat, lon];
+    currentTrack.push(point);
+
+    if (lastPos) {
+      const d = haversine(lastPos[0], lastPos[1], lat, lon);
+      totalDist += d;
+    }
+    lastPos = [lat, lon];
+
+    if (currentPolyline) {
+      currentPolyline.setLatLngs(currentTrack);
+    } else {
+      currentPolyline = L.polyline(currentTrack, {
+        color: '#f5a623',
+        weight: 7,
+        opacity: 1,
+        lineCap: 'round',
+        lineJoin: 'round'
+      }).addTo(map);
+    }
+
+    document.getElementById('hdr-dist').textContent = (totalDist / 1000).toFixed(1);
+    document.getElementById('hdr-pts').textContent = currentTrack.length;
+  }
+}
+
+function onGPSError(err) {
+  setGPSStatus('error', 'GPS fout: ' + err.message);
+}
+
+function setGPSStatus(type, msg) {
+  document.getElementById('gps-dot').className = 'gps-dot ' + type;
+  document.getElementById('gps-text').textContent = msg;
+}
+
+function centerOnMe() {
+  if (posMarker) {
+    map.setView(posMarker.getLatLng(), 15);
+  } else {
+    notify('Nog geen GPS positie bekend');
+  }
+}
+
+// ── RECORDING ─────────────────────────────────────────────
+function startRecording() {
+  recording = true;
+  currentTrack = [];
+  totalDist = 0;
+  lastPos = null;
+
+  if (currentPolyline) { map.removeLayer(currentPolyline); currentPolyline = null; }
+
+  document.getElementById('btn-start').disabled = true;
+  document.getElementById('btn-stop').disabled = false;
+  document.getElementById('rec-indicator').classList.add('visible');
+  document.getElementById('hdr-dist').textContent = '0.0';
+  document.getElementById('hdr-pts').textContent = '0';
+  notify('Opname gestart ▶');
+}
+
+function stopRecording() {
+  if (currentTrack.length < 2) {
+    notify('Minimaal 2 punten nodig voor opslaan');
+    recording = false;
+    resetRecordUI();
+    return;
+  }
+
+  const name = 'Route ' + new Date().toLocaleDateString('nl-NL', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
+  const route = {
+    id: Date.now(),
+    name,
+    points: [...currentTrack],
+    distKm: (totalDist / 1000).toFixed(2),
+    date: new Date().toISOString()
+  };
+
+  savedRoutes.unshift(route);
+  localStorage.setItem('vaarkaart_routes', JSON.stringify(savedRoutes));
+  recording = false;
+  resetRecordUI();
+  renderRoutesList();
+  document.getElementById('hdr-routes').textContent = savedRoutes.length;
+  notify('Route opgeslagen: ' + name);
+}
+
+function clearCurrent() {
+  recording = false;
+  currentTrack = [];
+  totalDist = 0;
+  if (currentPolyline) { map.removeLayer(currentPolyline); currentPolyline = null; }
+  resetRecordUI();
+  document.getElementById('hdr-dist').textContent = '0.0';
+  document.getElementById('hdr-pts').textContent = '0';
+  notify('Huidig spoor gewist');
+}
+
+function resetRecordUI() {
+  document.getElementById('btn-start').disabled = false;
+  document.getElementById('btn-stop').disabled = true;
+  document.getElementById('rec-indicator').classList.remove('visible');
+}
+
+// ── ROUTES LIST ───────────────────────────────────────────
+let shownPolylines = {};
+
+function renderRoutesList() {
+  const el = document.getElementById('routes-list');
+  document.getElementById('hdr-routes').textContent = savedRoutes.length;
+
+  if (!savedRoutes.length) {
+    el.innerHTML = '<div class="empty-msg">Nog geen routes opgeslagen</div>';
+    return;
+  }
+
+  el.innerHTML = savedRoutes.map((r, i) => `
+    <div class="route-item" id="ri-${r.id}">
+      <div class="route-name">⚓ ${r.name}</div>
+      <div class="route-meta">${r.distKm} km · ${r.points.length} pts · ${new Date(r.date).toLocaleDateString('nl-NL')}</div>
+      <div class="route-actions">
+        <button class="btn-sm" onclick="toggleRoute(${r.id})">👁 Toon</button>
+        <button class="btn-sm" onclick="flyToRoute(${r.id})">🔍 Zoom</button>
+        <button class="btn-sm del" onclick="deleteRoute(${r.id})">✕ Verwijder</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function toggleRoute(id) {
+  const route = savedRoutes.find(r => r.id === id);
+  if (!route) return;
+
+  if (shownPolylines[id]) {
+    map.removeLayer(shownPolylines[id]);
+    delete shownPolylines[id];
+    document.getElementById('ri-' + id)?.classList.remove('active');
+  } else {
+    const colors = ['#00c8c8','#f5a623','#a78bfa','#34d399','#fb923c'];
+    const color = colors[Object.keys(shownPolylines).length % colors.length];
+    shownPolylines[id] = L.polyline(route.points, {
+      color, weight: 3, opacity: 0.8
+    }).addTo(map);
+    document.getElementById('ri-' + id)?.classList.add('active');
+  }
+}
+
+function flyToRoute(id) {
+  const route = savedRoutes.find(r => r.id === id);
+  if (!route || !route.points.length) return;
+  const bounds = L.latLngBounds(route.points);
+  map.fitBounds(bounds, { padding: [30, 30] });
+}
+
+function deleteRoute(id) {
+  if (shownPolylines[id]) {
+    map.removeLayer(shownPolylines[id]);
+    delete shownPolylines[id];
+  }
+  savedRoutes = savedRoutes.filter(r => r.id !== id);
+  localStorage.setItem('vaarkaart_routes', JSON.stringify(savedRoutes));
+  renderRoutesList();
+  notify('Route verwijderd');
+}
+
+// ── DIEPTELAGEN ───────────────────────────────────────────
+
+// Gekleurde dieptelaag — PDOK luchtfoto toont Waddenzee geulen perfect
+// + OpenSeaMap dieptelaag bovenop voor dieptecijfers
+const diepteKleurAchtergrond = L.tileLayer.wms(
+  'https://service.pdok.nl/hwh/luchtfotorgb/wms/v1_0',
+  { layers: 'Actueel_ortho25', format: 'image/png', transparent: false, attribution: '© PDOK Luchtfoto', maxZoom: 19 }
+);
+
+// OpenSeaMap heeft eigen dieptelaag met goede details voor NL kustwater
+const diepteSeaLayer = L.tileLayer('https://tiles.openseamap.org/depth/{z}/{x}/{y}.png', {
+  attribution: '© OpenSeaMap depth',
+  opacity: 0.9,
+  maxZoom: 18,
+  errorTileUrl: '',
+});
+
+let diepteKleurAan = false;
+let diepteKleurMoveTimer = null;
+const diepteKleurLayer = L.layerGroup();
+
+async function laadDiepteKleur() {
+  diepteKleurLayer.clearLayers();
+  const statusEl = document.getElementById('dieptecijfers-status');
+
+  const zoom = map.getZoom();
+  if (zoom < 10) {
+    if (statusEl) { statusEl.style.display = 'block'; statusEl.textContent = '🔍 Zoom in naar niveau 10+ voor dieptepunten'; }
+    return;
+  }
+
+  const b = map.getBounds();
+  const bbox = `${b.getWest()},${b.getSouth()},${b.getEast()},${b.getNorth()}`;
+
+  // Probeer meerdere PDOK endpoints
+  const urls = [
+    `https://service.pdok.nl/rws/vaarpuntenwolk/wfs/v1_0?service=WFS&version=2.0.0&request=GetFeature&typeName=vaarpuntenwolk:vaarpuntenwolk&outputFormat=application/json&bbox=${bbox},EPSG:4326&srsName=EPSG:4326&count=400`,
+    `https://corsproxy.io/?${encodeURIComponent(`https://service.pdok.nl/rws/vaarpuntenwolk/wfs/v1_0?service=WFS&version=2.0.0&request=GetFeature&typeName=vaarpuntenwolk:vaarpuntenwolk&outputFormat=application/json&bbox=${bbox},EPSG:4326&srsName=EPSG:4326&count=400`)}`,
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://service.pdok.nl/rws/vaarpuntenwolk/wfs/v1_0?service=WFS&version=2.0.0&request=GetFeature&typeName=vaarpuntenwolk:vaarpuntenwolk&outputFormat=application/json&bbox=${bbox},EPSG:4326&srsName=EPSG:4326&count=400`)}`
+  ];
+
+  let data = null;
+  for (const url of urls) {
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+      if (!res.ok) continue;
+      const text = await res.text();
+      const json = JSON.parse(text);
+      if (json?.features?.length > 0) { data = json; break; }
+    } catch(e) { continue; }
+  }
+
+  if (!data?.features?.length) {
+    if (statusEl) { statusEl.style.display='block'; statusEl.textContent = '⚠ Geen dieptedata — luchtfoto toont geulen'; }
+    return;
+  }
+
+  data.features.forEach(f => {
+    if (!f.geometry) return;
+    const [lon, lat] = f.geometry.coordinates;
+    const props = f.properties || {};
+    const raw = props.diepte ?? props.DIEPTE ?? props.value ?? null;
+    if (raw === null) return;
+    const diepteM = Math.abs(raw) / 10;
+
+    const kleur = diepteM < 0.5 ? '#ffff44'
+                : diepteM < 1.5 ? '#aaee88'
+                : diepteM < 3.0 ? '#44cccc'
+                : diepteM < 6.0 ? '#2288dd'
+                : '#0044aa';
+
+    const r = zoom < 12 ? 50 : zoom < 13 ? 30 : zoom < 14 ? 18 : 10;
+
+    L.circleMarker([lat, lon], { radius: r, fillColor: kleur, fillOpacity: 0.8, stroke: false })
+      .bindPopup(`<b>${diepteM.toFixed(1)} m</b> onder NAP`)
+      .addTo(diepteKleurLayer);
+  });
+
+  if (statusEl) { statusEl.style.display='block'; statusEl.textContent = `📏 ${data.features.length} dieptepunten`; }
+}
+
+function toggleDiepteKleur(aan) {
+  const legenda = document.getElementById('diepte-legenda');
+  if (aan) {
+    diepteKleurAan = true;
+    // Satelliet achtergrond — toont Waddenzee geulen direct zichtbaar
+    map.removeLayer(lightLayer);
+    diepteKleurAchtergrond.addTo(map);
+    diepteSeaLayer.addTo(map);
+    diepteKleurLayer.addTo(map);
+    seaLayer.addTo(map);
+    legenda.style.display = 'block';
+    laadDiepteKleur();
+    map.on('moveend zoomend', herlaadDiepteKleurOpBeweging);
+    notify('Dieptekaart aan — luchtfoto + dieptepunten');
+  } else {
+    diepteKleurAan = false;
+    map.removeLayer(diepteKleurAchtergrond);
+    map.removeLayer(diepteSeaLayer);
+    map.removeLayer(diepteKleurLayer);
+    // Zorg dat basiskaart weer zichtbaar is
+    if (!map.hasLayer(satLayer)) lightLayer.addTo(map);
+    if (document.getElementById('toggle-sea').checked) seaLayer.addTo(map);
+    map.off('moveend zoomend', herlaadDiepteKleurOpBeweging);
+    if (!document.getElementById('toggle-diepte-cijfers').checked)
+      legenda.style.display = 'none';
+  }
+}
+
+function herlaadDiepteKleurOpBeweging() {
+  clearTimeout(diepteKleurMoveTimer);
+  diepteKleurMoveTimer = setTimeout(laadDiepteKleur, 700);
+}
+
+// Dieptecijfers — OpenSeaMap seamark laag bevat al dieptecijfers
+// Aparte dieptetile laag bestaat niet publiekelijk beschikbaar
+function toggleDiepteCijfers(aan) {
+  const statusEl = document.getElementById('dieptecijfers-status');
+  const legenda  = document.getElementById('diepte-legenda');
+  if (aan) {
+    // Zorg dat OpenSeaMap laag aan staat
+    if (!map.hasLayer(seaLayer)) seaLayer.addTo(map);
+    document.getElementById('toggle-sea').checked = true;
+    legenda.style.display = 'block';
+    statusEl.style.display = 'block';
+    // Zoom naar niveau 14+ voor dieptecijfers in OpenSeaMap
+    if (map.getZoom() < 13) {
+      map.setZoom(14);
+      statusEl.textContent = '📏 Ingezoomd naar zoom 14 — dieptecijfers zichtbaar in kaart';
+    } else {
+      statusEl.textContent = '📏 Dieptecijfers in OpenSeaMap laag (kleine zwarte cijfers)';
+    }
+    notify('Zoom in op de Waddenzee — dieptecijfers staan in de kaartlaag');
+  } else {
+    statusEl.style.display = 'none';
+    if (!document.getElementById('toggle-diepte-kleur').checked)
+      legenda.style.display = 'none';
+  }
+}
+
+// ── LAYERS ────────────────────────────────────────────────
+function toggleSeaMap(on) {
+  on ? seaLayer.addTo(map) : map.removeLayer(seaLayer);
+}
+
+function toggleSatellite(on) {
+  currentSatOn = on;
+  if (on) {
+    map.removeLayer(lightLayer);
+    map.removeLayer(osmLayer);
+    satLayer.addTo(map);
+    if (document.getElementById('toggle-sea').checked) seaLayer.addTo(map);
+  } else {
+    map.removeLayer(satLayer);
+    lightLayer.addTo(map);
+    if (document.getElementById('toggle-sea').checked) seaLayer.addTo(map);
+  }
+}
+
+// ── UTILS ─────────────────────────────────────────────────
+function haversine(lat1, lon1, lat2, lon2) {
+  const R = 6371000;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+let notifyTimer;
+function notify(msg) {
+  const el = document.getElementById('notify');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(notifyTimer);
+  notifyTimer = setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+// ── DIEPTELAGEN ───────────────────────────────────────────
+
+// OpenSeaMap dieptecontourlaag
+const diepteContourLayer = L.tileLayer(
+  'https://tiles.openseamap.org/depth/{z}/{x}/{y}.png',
+  { attribution: '© OpenSeaMap depth', maxZoom: 18, opacity: 0.9 }
+);
+
+// RWS bodemhoogte WMS via PDOK (binnenwateren)
+const diepteWMSLayer = L.tileLayer.wms(
+  'https://service.pdok.nl/rws/bodemhoogte/wms/v1_0',
+  { layers: 'bodemhoogte', format: 'image/png', transparent: true,
+    attribution: '© RWS/PDOK', opacity: 0.7, maxZoom: 19 }
+);
+
+// EMODnet bathymetrie voor Noordzee en kustwateren
+const diepteEmodnetLayer = L.tileLayer.wms(
+  'https://ows.emodnet-bathymetry.eu/wms',
+  { layers: 'emodnet:mean_atlas_land,emodnet:contours', format: 'image/png',
+    transparent: true, attribution: '© EMODnet', opacity: 0.75, maxZoom: 18 }
+);
+
+let diepteAan = false;
+
+function toggleDiepte(aan) {
+  diepteAan = aan;
+  if (aan) {
+    diepteEmodnetLayer.addTo(map);
+    diepteWMSLayer.addTo(map);
+    diepteContourLayer.addTo(map);
+    notify('Dieptecijfers laden…');
+  } else {
+    map.removeLayer(diepteContourLayer);
+    map.removeLayer(diepteWMSLayer);
+    map.removeLayer(diepteEmodnetLayer);
+  }
+}
+
+// ── RWS BOEIEN ────────────────────────────────────────────
+let boeiLayer = L.layerGroup();
+let boeiLoaded = false;
+
+// IALA kleurcodering op basis van markeertype
+function getBoeiKleur(type) {
+  if (!type) return '#ffffff';
+  const t = type.toLowerCase();
+  if (t.includes('rood') || t.includes('port') || t.includes('bb'))   return '#e84545';
+  if (t.includes('groen') || t.includes('stb') || t.includes('star')) return '#34d399';
+  if (t.includes('geel') || t.includes('special'))                    return '#f5a623';
+  if (t.includes('zwart') || t.includes('north') || t.includes('cardinal')) return '#aaaaaa';
+  if (t.includes('rood-groen') || t.includes('preferred'))            return '#a78bfa';
+  return '#00c8c8';
+}
+
+function getBoeiEmoji(type) {
+  if (!type) return '🔵';
+  const t = type.toLowerCase();
+  if (t.includes('rood') || t.includes('port'))  return '🔴';
+  if (t.includes('groen') || t.includes('stb'))  return '🟢';
+  if (t.includes('geel') || t.includes('special')) return '🟡';
+  return '⚪';
+}
+
+const PROXIES = [
+  url => url, // direct (werkt via localhost en GitHub Pages)
+  url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+  url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+  url => `https://proxy.cors.sh/${url}`,
+];
+
+async function fetchMetProxy(wfsUrl) {
+  // Eerst direct proberen (werkt als app via http:// wordt geserveerd)
+  try {
+    const res = await fetch(wfsUrl, { signal: AbortSignal.timeout(6000) });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.features) return data;
+    }
+  } catch(e) {}
+
+  // Dan via proxy's
+  for (const proxyFn of PROXIES) {
+    try {
+      const res = await fetch(proxyFn(wfsUrl), { signal: AbortSignal.timeout(10000) });
+      if (!res.ok) continue;
+      const text = await res.text();
+      const data = JSON.parse(text);
+      if (data && data.features) return data;
+    } catch (e) {
+      console.warn('Proxy mislukt:', e.message);
+    }
+  }
+  return null;
+}
+
+async function laadBoeien() {
+  const statusEl = document.getElementById('boeien-status');
+  statusEl.style.display = 'block';
+  statusEl.style.color = 'var(--muted)';
+  statusEl.textContent = '⏳ Boeien laden…';
+
+  const bbox = getBbox();
+
+  // PDOK endpoint — betrouwbaarder dan directe RWS endpoint
+  const wfsBase = 'https://service.pdok.nl/rws/vaarwegmarkeringennld/wfs/v1_0';
+  const types = [
+    { name: 'vaarwegmarkeringennld:vaarweg_markering_drijvend', label: 'drijvend' },
+    { name: 'vaarwegmarkeringennld:vaarweg_markering_vast',     label: 'vast' },
+  ];
+
+  let totaal = 0;
+  boeiLayer.clearLayers();
+
+  for (const { name: typeName, label } of types) {
+    statusEl.textContent = `⏳ ${label === 'drijvend' ? 'Boeien' : 'Bakens'} laden…`;
+
+    const wfsUrl = `${wfsBase}?service=WFS&version=2.0.0&request=GetFeature` +
+      `&typeName=${typeName}&outputFormat=application/json` +
+      `&bbox=${bbox},EPSG:4326&srsName=EPSG:4326&count=500`;
+
+    const data = await fetchMetProxy(wfsUrl);
+    if (!data || !data.features) continue;
+
+    totaal += data.features.length;
+    data.features.forEach(f => {
+      if (!f.geometry) return;
+
+      // Punt of haal centroide op
+      let lat, lon;
+      if (f.geometry.type === 'Point') {
+        [lon, lat] = f.geometry.coordinates;
+      } else return;
+
+      const props = f.properties || {};
+      const typeStr = props.OBJECTTYPE || props.type || props.TYPE_MARKERING || props.VAARWEGTYPE || '';
+      const naam = props.NAAM || props.naam || props.OBJECTNAAM || typeStr || 'Markering';
+      const kleur = getBoeiKleur(typeStr);
+      const isDrijvend = label === 'drijvend';
+
+      const icon = L.divIcon({
+        className: '',
+        html: `<div style="
+          width:${isDrijvend ? 14 : 10}px;
+          height:${isDrijvend ? 14 : 10}px;
+          background:${kleur};
+          border:2px solid rgba(255,255,255,0.8);
+          border-radius:${isDrijvend ? '50%' : '3px'};
+          box-shadow:0 0 6px ${kleur};
+        "></div>`,
+        iconSize: [isDrijvend ? 14 : 10, isDrijvend ? 14 : 10],
+        iconAnchor: [isDrijvend ? 7 : 5, isDrijvend ? 7 : 5]
+      });
+
+      L.marker([lat, lon], { icon })
+        .bindPopup(`<b>${naam}</b><br><small>${isDrijvend ? '🔴 Drijvende boei' : '📍 Vast baken'}</small><br><small style="color:#888">${typeStr}</small>`)
+        .addTo(boeiLayer);
+    });
+  }
+
+  if (totaal > 0) {
+    statusEl.textContent = `✓ ${totaal} markeringen geladen`;
+    statusEl.style.color = 'var(--teal)';
+  } else {
+    statusEl.textContent = '⚠ Geen verbinding met RWS — internetverbinding nodig';
+    statusEl.style.color = 'var(--amber)';
+  }
+}
+
+function getBbox() {
+  const b = map.getBounds();
+  return `${b.getWest()},${b.getSouth()},${b.getEast()},${b.getNorth()}`;
+}
+
+function toggleBoeien(on) {
+  if (on) {
+    boeiLayer.addTo(map);
+    if (!boeiLoaded) {
+      boeiLoaded = true;
+      laadBoeien();
+      // herlaad bij kaart bewegen
+      map.on('moveend', herlaadBoeienBijBeweging);
+    }
+  } else {
+    map.removeLayer(boeiLayer);
+    map.off('moveend', herlaadBoeienBijBeweging);
+    boeiLoaded = false;
+    document.getElementById('boeien-status').style.display = 'none';
+  }
+}
+
+let boeiMoveTimer = null;
+function herlaadBoeienBijBeweging() {
+  clearTimeout(boeiMoveTimer);
+  boeiMoveTimer = setTimeout(() => laadBoeien(), 800);
+}
+
+// ── GETIJDEN ──────────────────────────────────────────────
+
+const GETIJ_STATIONS = [
+  { code: 'VLISSGN',   naam: 'Vlissingen',        lat: 51.442, lon: 3.596, tideId: 'VLISSGN'   },
+  { code: 'HOEKVHLD',  naam: 'Hoek van Holland',  lat: 51.978, lon: 4.120, tideId: 'HOEKVHLD'  },
+  { code: 'SCHEVNGN',  naam: 'Scheveningen',       lat: 52.105, lon: 4.272, tideId: 'SCHEVNGN'  },
+  { code: 'IJMDBTHVN', naam: 'IJmuiden',           lat: 52.463, lon: 4.556, tideId: 'IJMDBTHVN' },
+  { code: 'DENHDR',    naam: 'Den Helder',         lat: 52.964, lon: 4.745, tideId: 'DENHDR'    },
+  { code: 'WESTTSLG',  naam: 'West-Terschelling',  lat: 53.359, lon: 5.218, tideId: 'WESTTSLG'  },
+  { code: 'HUIBGT',    naam: 'Huibertgat',         lat: 53.577, lon: 6.404, tideId: 'HUIBGT'    },
+  { code: 'DELFZL',    naam: 'Delfzijl',           lat: 53.327, lon: 6.934, tideId: 'DELFZL'    },
+  { code: 'HARVT',     naam: 'Harlingen',           lat: 53.175, lon: 5.414, tideId: 'HARVT'     },
+  { code: 'KORNWDZBTN',naam: 'Kornwerderzand',      lat: 53.077, lon: 5.338, tideId: 'KORNWDZBTN'},
+  { code: 'OUDSD',     naam: 'Oudeschild',          lat: 53.041, lon: 4.851, tideId: 'OUDSD'     },
+  { code: 'LAUWOG',    naam: 'Lauwersoog',          lat: 53.413, lon: 6.198, tideId: 'LAUWOG'    },
+];
+
+function dichtstbijzijndStation(lat, lon) {
+  let best = null, bestDist = Infinity;
+  for (const s of GETIJ_STATIONS) {
+    const d = Math.sqrt((s.lat - lat) ** 2 + (s.lon - lon) ** 2);
+    if (d < bestDist) { bestDist = d; best = s; }
+  }
+  return best;
+}
+
+let getijGeladen = false;
+let getijLat = null, getijLon = null;
+
+async function fetchJson(url, opties = {}) {
+  const urls = [
+    url,                                                                      // direct
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,         // allorigins
+    `https://corsproxy.io/?${encodeURIComponent(url)}`,                      // corsproxy
+    `https://proxy.cors.sh/${url}`,                                           // cors.sh
+  ];
+  for (const u of urls) {
+    try {
+      const res = await fetch(u, { signal: AbortSignal.timeout(10000), ...opties });
+      if (!res.ok) continue;
+      const text = await res.text();
+      return JSON.parse(text);
+    } catch(e) { continue; }
+  }
+  return null;
+}
+
+async function laadGetijden(lat, lon) {
+  if (getijGeladen && getijLat !== null) {
+    const d = Math.sqrt((lat - getijLat) ** 2 + (lon - getijLon) ** 2);
+    if (d < 0.05) return;
+  }
+  getijLat = lat; getijLon = lon;
+  getijGeladen = true;
+
+  const station = dichtstbijzijndStation(lat, lon);
+  const loadEl  = document.getElementById('getij-loading');
+  const listEl  = document.getElementById('getij-lijst');
+  const statEl  = document.getElementById('getij-station');
+
+  loadEl.style.display = 'block';
+  loadEl.textContent = '⏳ Getijden laden…';
+  listEl.style.display = 'none';
+  statEl.style.display = 'none';
+
+  const now = new Date();
+
+  // RWS Waterinfo API — astronomisch getij extremen (hoog/laagwater tijden)
+  // Dit is de publieke JSON feed van waterinfo.rws.nl
+  const vandaag = now.toISOString().split('T')[0];
+  const morgen  = new Date(now.getTime() + 86400000).toISOString().split('T')[0];
+
+  const rwsInfoUrl = `https://waterinfo.rws.nl/api/point/extremesByCode?` +
+    `code=${station.code}&parameterIds=WATHTE` +
+    `&startDate=${vandaag}T00:00:00.000Z&endDate=${morgen}T00:00:00.000Z`;
+
+  let extremen = null;
+  const data = await fetchJson(rwsInfoUrl);
+
+  if (data && Array.isArray(data) && data.length > 0) {
+    extremen = data.map(e => ({
+      type:    e.type === 'H' ? 'hoog' : 'laag',
+      tijd:    new Date(e.dateTime),
+      hoogte:  e.value ?? null
+    })).filter(e => {
+      const d = new Date(e.tijd);
+      return d >= new Date(now.toISOString().split('T')[0]);
+    });
+    statEl.textContent = `📍 ${station.naam} · RWS Waterinfo`;
+  }
+
+  // Fallback: RWS WaterWebServices POST
+  if (!extremen || extremen.length === 0) {
+    const rwsUrl = 'https://waterwebservices.rijkswaterstaat.nl/ONLINEWAARNEMINGENSERVICES_DBO/OphalenWaarnemingen';
+    const van = new Date(now); van.setHours(0,0,0,0);
+    const tot = new Date(now); tot.setHours(23,59,59,0);
+    const body = {
+      Locatie: { Code: station.code },
+      AquoPlusWaarnemingMetadata: { AquoMetadata: { Compartiment: { Code: 'OW' }, Grootheid: { Code: 'WATHTE' } } },
+      Periode: { Begindatumtijd: van.toISOString(), Einddatumtijd: tot.toISOString() }
+    };
+    const ws = await fetchJson(rwsUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    if (ws?.WaarnemingenLijst?.[0]?.MetingenLijst?.length > 0) {
+      const tijdreeks = ws.WaarnemingenLijst[0].MetingenLijst.map(m => ({
+        tijd: new Date(m.Tijdstip), hoogte: m.Meetwaarde?.Waarde_Numeriek ?? null
+      })).filter(m => m.hoogte !== null);
+      extremen = vindExtremen(tijdreeks);
+      statEl.textContent = `📍 ${station.naam} · RWS live`;
+    }
+  }
+
+  // Laatste fallback: astronomische berekening
+  if (!extremen || extremen.length === 0) {
+    extremen = berekenAstronomischGetij(station, now);
+    statEl.textContent = `📍 ${station.naam} · berekend`;
+  }
+
+  loadEl.style.display = 'none';
+  statEl.style.display = 'block';
+  toonExtremen(extremen, now);
+}
+
+function vindExtremen(tijdreeks) {
+  if (tijdreeks.length < 3) return [];
+  const extremen = [];
+  for (let i = 1; i < tijdreeks.length - 1; i++) {
+    const prev = tijdreeks[i-1].hoogte;
+    const curr = tijdreeks[i].hoogte;
+    const next = tijdreeks[i+1].hoogte;
+    if (curr > prev && curr > next) extremen.push({ type: 'hoog', tijd: tijdreeks[i].tijd, hoogte: curr });
+    else if (curr < prev && curr < next) extremen.push({ type: 'laag', tijd: tijdreeks[i].tijd, hoogte: curr });
+  }
+  return extremen;
+}
+
+function berekenAstronomischGetij(station, now) {
+  // Referentietijden hoogwater per station (lokale correctie in minuten t.o.v. Hoek van Holland)
+  const corr = {
+    'VLISSGN': -65, 'HOEKVHLD': 0, 'SCHEVNGN': 30, 'IJMDBTHVN': 95,
+    'DENHDR': 155, 'WESTTSLG': 185, 'HUIBGT': 210, 'DELFZL': 225,
+    'HARVT': 175, 'KORNWDZBTN': 165, 'OUDSD': 150, 'LAUWOG': 200,
+  };
+  const cyclusMs  = 6 * 3600000 + 12.5 * 60000; // 6u 12.5m
+  const corrMs    = (corr[station.code] || 0) * 60000;
+  // Referentie HW Hoek van Holland 1-jan-2026 00:30 UTC
+  const refHW     = new Date('2026-01-01T00:30:00Z').getTime() + corrMs;
+
+  const dag0 = new Date(now); dag0.setHours(0,0,0,0);
+  const dag1 = new Date(now); dag1.setHours(23,59,59,0);
+
+  // Synchroniseer naar eerste cycluspunt voor vandaag
+  let t = refHW + Math.ceil((dag0.getTime() - refHW) / cyclusMs) * cyclusMs;
+  // Bepaal of dit HW of LW is
+  const cyclesSinceRef = Math.round((t - refHW) / cyclusMs);
+  let isHoog = (cyclesSinceRef % 2 === 0);
+
+  // Stap een cyclus terug om niets te missen
+  t -= cyclusMs; isHoog = !isHoog;
+
+  const extremen = [];
+  for (let i = 0; i < 6; i++) {
+    const tijd = new Date(t);
+    if (tijd >= dag0 && tijd <= dag1) {
+      extremen.push({ type: isHoog ? 'hoog' : 'laag', tijd, hoogte: null });
+    }
+    t += cyclusMs; isHoog = !isHoog;
+  }
+  return extremen;
+}
+
+function toonAstronomischGetij(station, now) {
+  toonExtremen(berekenAstronomischGetij(station, now), now);
+}
+
+function toonExtremen(extremen, now) {
+  const listEl = document.getElementById('getij-lijst');
+  if (!extremen.length) {
+    listEl.innerHTML = '<div class="empty-msg">Geen getijdata beschikbaar</div>';
+    listEl.style.display = 'block';
+    return;
+  }
+
+  listEl.innerHTML = extremen.map(e => {
+    const tijdStr = e.tijd.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
+    const diff = e.tijd - now;
+    const isVoorbij = diff < 0;
+    const absMin = Math.abs(Math.round(diff / 60000));
+    const uur = Math.floor(absMin / 60);
+    const min = absMin % 60;
+    const overStr = isVoorbij
+      ? `${uur > 0 ? uur + 'u ' : ''}${min}m geleden`
+      : `over ${uur > 0 ? uur + 'u ' : ''}${min}m`;
+    const hoogteStr = e.hoogte !== null ? `${(e.hoogte / 100).toFixed(2)}m NAP` : '';
+
+    return `<div class="getij-item ${e.type}" style="${isVoorbij ? 'opacity:0.5' : ''}">
+      <div>
+        <div class="getij-type ${e.type}">${e.type === 'hoog' ? '▲ Hoogwater' : '▼ Laagwater'}</div>
+        ${hoogteStr ? `<div class="getij-hoogte">${hoogteStr}</div>` : ''}
+      </div>
+      <div style="text-align:right">
+        <div class="getij-tijd">${tijdStr}</div>
+        <div class="getij-over">${overStr}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  listEl.style.display = 'block';
+}
+
+// ── STROOMPIJLEN OP KAART ─────────────────────────────────
+let stroomlaag = L.layerGroup();
+let stroomActief = false;
+let stroomUpdateTimer = null;
+
+// Alle RWS stroomstations met posities
+const KAART_STROOM_STATIONS = [
+  { code: 'HARVT',     naam: 'Harlingen',          lat: 53.175, lon: 5.414 },
+  { code: 'DENHDR',    naam: 'Den Helder',          lat: 52.964, lon: 4.745 },
+  { code: 'IJMDBTHVN', naam: 'IJmuiden',            lat: 52.463, lon: 4.556 },
+  { code: 'HOEKVHLD',  naam: 'Hoek van Holland',   lat: 51.978, lon: 4.120 },
+  { code: 'VLISSGN',   naam: 'Vlissingen',          lat: 51.442, lon: 3.596 },
+  { code: 'WESTTSLG',  naam: 'West-Terschelling',   lat: 53.359, lon: 5.218 },
+  { code: 'DELFZL',    naam: 'Delfzijl',            lat: 53.327, lon: 6.934 },
+  { code: 'LAUWOG',    naam: 'Lauwersoog',           lat: 53.413, lon: 6.198 },
+  { code: 'KORNWDZBTN',naam: 'Kornwerderzand',       lat: 53.077, lon: 5.338 },
+  { code: 'OUDSD',     naam: 'Oudeschild',           lat: 53.041, lon: 4.851 },
+  { code: 'SCHEVNGN',  naam: 'Scheveningen',         lat: 52.105, lon: 4.272 },
+  { code: 'HUIBGT',    naam: 'Huibertgat',           lat: 53.577, lon: 6.404 },
+];
+
+function maakStroomPijlIcon(richtingGr, snelheidKn, isLive) {
+  const kleur = snelheidKn > 2.0 ? '#e84545'
+              : snelheidKn > 1.0 ? '#f5a623'
+              : '#4fc3f7';
+  const grootte = Math.max(24, Math.min(44, 24 + snelheidKn * 8));
+  const opacity = isLive ? 1.0 : 0.65;
+
+  return L.divIcon({
+    className: '',
+    html: `<div style="
+      width:${grootte}px; height:${grootte}px;
+      display:flex; align-items:center; justify-content:center;
+      transform: rotate(${richtingGr}deg);
+      opacity:${opacity};
+      filter: drop-shadow(0 0 4px ${kleur});
+    ">
+      <svg viewBox="0 0 24 24" width="${grootte}" height="${grootte}" xmlns="http://www.w3.org/2000/svg">
+        <polygon points="12,2 22,22 12,17 2,22" fill="${kleur}" stroke="white" stroke-width="1"/>
+      </svg>
+    </div>`,
+    iconSize: [grootte, grootte],
+    iconAnchor: [grootte/2, grootte/2]
+  });
+}
+
+async function laadStroomPijlen() {
+  stroomlaag.clearLayers();
+  const rwsUrl = 'https://waterwebservices.rijkswaterstaat.nl/ONLINEWAARNEMINGENSERVICES_DBO/OphalenLaatsteWaarnemingen';
+  const nu = new Date();
+
+  // Haal alleen stations op die zichtbaar zijn in de kaartgrens
+  const bounds = map.getBounds().pad(0.2);
+  const zichtbaar = KAART_STROOM_STATIONS.filter(s =>
+    bounds.contains([s.lat, s.lon])
+  );
+
+  for (const station of zichtbaar) {
+    const body = {
+      AquoPlusWaarnemingMetadataLijst: [
+        { AquoMetadata: { Compartiment: { Code: 'OW' }, Grootheid: { Code: 'STROOMSHD' } } },
+        { AquoMetadata: { Compartiment: { Code: 'OW' }, Grootheid: { Code: 'STROOMRTG' } } },
+      ],
+      LocatieLijst: [{ Code: station.code, X: station.lon, Y: station.lat }],
+      Periode: {
+        Begindatumtijd: new Date(nu - 2 * 3600000).toISOString(),
+        Einddatumtijd:  nu.toISOString()
+      }
+    };
+
+    let snelheidKn = null, richtingGr = null, isLive = false;
+
+    const data = await fetchJson(rwsUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+
+    if (data?.WaarnemingenLijst) {
+      for (const wl of data.WaarnemingenLijst) {
+        const metingen = wl.MetingenLijst;
+        if (!metingen?.length) continue;
+        const laatste = metingen[metingen.length - 1];
+        const code = wl.AquoMetadata?.Grootheid?.Code;
+        const val  = laatste.Meetwaarde?.Waarde_Numeriek ?? null;
+        if (val === null) continue;
+        if (code === 'STROOMSHD') snelheidKn = Math.abs(val * 1.94384);
+        if (code === 'STROOMRTG') richtingGr = val;
+        isLive = true;
+      }
+    }
+
+    // Fallback: bereken eb/vloed richting
+    if (snelheidKn === null || richtingGr === null) {
+      const ev = bepaalEbVloed(station, nu);
+      snelheidKn = snelheidKn ?? parseFloat(ev.snelheid);
+      // Schat richting op basis van eb/vloed en ligging kust
+      const vloedRichtingen = {
+        'HARVT': 125, 'DENHDR': 160, 'IJMDBTHVN': 170,
+        'HOEKVHLD': 95, 'VLISSGN': 70, 'WESTTSLG': 110,
+        'DELFZL': 250, 'LAUWOG': 210, 'KORNWDZBTN': 130,
+        'OUDSD': 145, 'SCHEVNGN': 175, 'HUIBGT': 230,
+      };
+      const vloedRichting = vloedRichtingen[station.code] ?? 90;
+      richtingGr = richtingGr ?? (ev.isEb ? (vloedRichting + 180) % 360 : vloedRichting);
+      isLive = false;
+    }
+
+    const icon = maakStroomPijlIcon(richtingGr, snelheidKn, isLive);
+    L.marker([station.lat, station.lon], { icon, zIndexOffset: 500 })
+      .bindPopup(`
+        <b>🌊 ${station.naam}</b><br>
+        Snelheid: <b>${snelheidKn.toFixed(1)} kn</b><br>
+        Richting: <b>${Math.round(richtingGr)}° (${richtingNaarTekst(richtingGr)})</b><br>
+        <small style="color:#888">${isLive ? '✓ RWS live meting' : '~ Berekend'}</small>
+      `)
+      .addTo(stroomlaag);
+  }
+}
+
+function toggleStroomlaag(aan) {
+  stroomActief = aan;
+  if (aan) {
+    stroomlaag.addTo(map);
+    laadStroomPijlen();
+    map.on('moveend zoomend', herlaadStroomBijBeweging);
+  } else {
+    stroomlaag.removeFrom(map);
+    map.off('moveend zoomend', herlaadStroomBijBeweging);
+    stroomlaag.clearLayers();
+  }
+}
+
+function herlaadStroomBijBeweging() {
+  clearTimeout(stroomUpdateTimer);
+  stroomUpdateTimer = setTimeout(() => laadStroomPijlen(), 600);
+}
+
+// ── STROOMSNELHEID ────────────────────────────────────────
+
+// RWS meetstations met stroomsnelheid meting
+const STROOM_STATIONS = [
+  { code: 'BORNDP',   naam: 'Borndiep',          lat: 53.452, lon: 5.578 },
+  { code: 'ALBL',     naam: 'Alblasserdam',       lat: 51.868, lon: 4.668 },
+  { code: 'DORDTSHVN',naam: 'Dordtse Haven',      lat: 51.810, lon: 4.668 },
+  { code: 'KRMMRKRMR',naam: 'Krimpen a/d IJssel', lat: 51.916, lon: 4.611 },
+  { code: 'HOELKNZND', naam: 'Hoek van Holland',  lat: 51.978, lon: 4.120 },
+  { code: 'VLISSGN',  naam: 'Vlissingen',         lat: 51.442, lon: 3.596 },
+  { code: 'WESTTSLG', naam: 'West-Terschelling',  lat: 53.359, lon: 5.218 },
+  { code: 'DENHDR',   naam: 'Den Helder',         lat: 52.964, lon: 4.745 },
+  { code: 'IJMDBTHVN',naam: 'IJmuiden',           lat: 52.463, lon: 4.556 },
+  { code: 'HARVT',    naam: 'Harlingen',          lat: 53.175, lon: 5.414 },
+];
+
+function dichtstbijzijndStroomStation(lat, lon) {
+  let best = null, bestDist = Infinity;
+  for (const s of STROOM_STATIONS) {
+    const d = Math.sqrt((s.lat - lat) ** 2 + (s.lon - lon) ** 2);
+    if (d < bestDist) { bestDist = d; best = s; }
+  }
+  return best;
+}
+
+function richtingNaarTekst(graden) {
+  if (graden === null) return '—';
+  const richtingen = ['N','NNO','NO','ONO','O','OZO','ZO','ZZO','Z','ZZW','ZW','WZW','W','WNW','NW','NNW'];
+  return richtingen[Math.round(graden / 22.5) % 16];
+}
+
+async function laadStroomsnelheid(lat, lon) {
+  const station = dichtstbijzijndStroomStation(lat, lon);
+
+  // Toon kaart meteen met laadstatus
+  const card = document.getElementById('stroom-card');
+  card.style.display = 'block';
+  document.getElementById('stroom-snelheid').textContent = '…';
+  document.getElementById('stroom-richting').textContent = 'laden…';
+  document.getElementById('stroom-station').textContent = '📍 ' + station.naam;
+  document.getElementById('stroom-tijd').textContent = '';
+
+  // Toon meteen berekende stroom als snelle preview
+  const ebVloedPreview = bepaalEbVloed(station, new Date());
+  toonStroomFallback(ebVloedPreview, station);
+
+  const rwsUrl = 'https://waterwebservices.rijkswaterstaat.nl/ONLINEWAARNEMINGENSERVICES_DBO/OphalenLaatsteWaarnemingen';
+  const resultaten = {};
+
+  for (const { grootheid, label } of [
+    { grootheid: 'STROOMSHD', label: 'snelheid' },
+    { grootheid: 'STROOMRTG', label: 'richting' },
+  ]) {
+    const body = {
+      AquoPlusWaarnemingMetadataLijst: [{
+        AquoMetadata: { Compartiment: { Code: 'OW' }, Grootheid: { Code: grootheid } }
+      }],
+      LocatieLijst: [{ Code: station.code, X: station.lon, Y: station.lat }],
+      Periode: {
+        Begindatumtijd: new Date(Date.now() - 2 * 3600000).toISOString(),
+        Einddatumtijd:  new Date().toISOString()
+      }
+    };
+    const data = await fetchJson(rwsUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const metingen = data?.WaarnemingenLijst?.[0]?.MetingenLijst;
+    if (metingen?.length) {
+      const laatste = metingen[metingen.length - 1];
+      resultaten[label] = {
+        waarde: laatste.Meetwaarde?.Waarde_Numeriek ?? null,
+        tijd:   new Date(laatste.Tijdstip)
+      };
+    }
+  }
+
+  // Als geen RWS data: toon eb/vloed op basis van getijfase
+  if (!resultaten.snelheid && !resultaten.richting) {
+    const ebVloed = bepaalEbVloed(station, new Date());
+    toonStroomFallback(ebVloed, station);
+    return;
+  }
+
+  toonStroom(resultaten, station);
+}
+
+function bepaalEbVloed(station, now) {
+  // Gebruik zelfde getijcyclus als astronomische berekening
+  const corr = {
+    'VLISSGN': -65, 'HOEKVHLD': 0, 'SCHEVNGN': 30, 'IJMDBTHVN': 95,
+    'DENHDR': 155, 'WESTTSLG': 185, 'HUIBGT': 210, 'DELFZL': 225,
+    'HARVT': 175, 'KORNWDZBTN': 165, 'OUDSD': 150, 'LAUWOG': 200,
+    'BORNDP': 180, 'ALBL': 10, 'DORDTSHVN': 5, 'KRMMRKRMR': 8,
+    'HOELKNZND': 0,
+  };
+  const cyclusMs = 6 * 3600000 + 12.5 * 60000;
+  const corrMs   = (corr[station.code] || 0) * 60000;
+  const refHW    = new Date('2026-01-01T00:30:00Z').getTime() + corrMs;
+  const elapsed  = (now.getTime() - refHW) % (cyclusMs * 2);
+  const fase     = ((elapsed % (cyclusMs * 2)) + cyclusMs * 2) % (cyclusMs * 2);
+
+  // 0 → cyclusMs = na hoogwater = eb
+  // cyclusMs → 2*cyclusMs = na laagwater = vloed
+  const isEb      = fase < cyclusMs;
+  const faseMinuten = isEb ? fase / 60000 : (fase - cyclusMs) / 60000;
+  const totaalMin = cyclusMs / 60000;
+  const voortgang = faseMinuten / totaalMin; // 0..1
+
+  // Stroomsnelheid sinusvormig: max rond halftij
+  const maxStroom = 1.2; // gemiddeld ~1.2 kn
+  const snelheid  = Math.abs(Math.sin(voortgang * Math.PI)) * maxStroom;
+
+  return { isEb, snelheid: snelheid.toFixed(1), voortgang };
+}
+
+function toonStroomFallback(ebVloed, station) {
+  const { isEb, snelheid } = ebVloed;
+  document.getElementById('stroom-snelheid').textContent = `~${snelheid} kn`;
+  document.getElementById('stroom-snelheid').style.color = parseFloat(snelheid) > 1.0 ? '#f5a623' : '#4fc3f7';
+  document.getElementById('stroom-richting').textContent = isEb ? '← Eb (berekend)' : '→ Vloed (berekend)';
+  document.getElementById('stroom-pijl').style.transform = isEb ? 'rotate(180deg)' : 'rotate(0deg)';
+  document.getElementById('stroom-pijl').style.color = isEb ? '#f5a623' : '#4fc3f7';
+  document.getElementById('stroom-station').textContent = '📍 ' + station.naam;
+  document.getElementById('stroom-tijd').textContent = new Date().toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
+}
+
+function toonStroom(resultaten, station) {
+  const snelheidMs = resultaten.snelheid?.waarde ?? null;
+  const richtingGr = resultaten.richting?.waarde ?? null;
+  const tijd       = resultaten.snelheid?.tijd ?? resultaten.richting?.tijd ?? null;
+
+  const knopen = snelheidMs !== null ? Math.abs(snelheidMs * 1.94384).toFixed(1) : '—';
+  const isEb   = snelheidMs !== null && snelheidMs < 0;
+
+  document.getElementById('stroom-snelheid').textContent = knopen + ' kn';
+  document.getElementById('stroom-snelheid').style.color = snelheidMs !== null
+    ? (Math.abs(snelheidMs) > 1.5 ? '#f5a623' : '#4fc3f7') : 'var(--muted)';
+
+  const richtingTekst = richtingGr !== null
+    ? `${richtingNaarTekst(richtingGr)} (${Math.round(richtingGr)}°) · ${isEb ? 'Eb' : 'Vloed'}`
+    : (snelheidMs !== null ? (isEb ? '← Eb' : '→ Vloed') : '—');
+  document.getElementById('stroom-richting').textContent = richtingTekst;
+
+  if (richtingGr !== null) {
+    document.getElementById('stroom-pijl').style.transform = `rotate(${richtingGr}deg)`;
+  } else if (snelheidMs !== null) {
+    document.getElementById('stroom-pijl').style.transform = isEb ? 'rotate(180deg)' : 'rotate(0deg)';
+  }
+  document.getElementById('stroom-pijl').style.color = isEb ? '#f5a623' : '#4fc3f7';
+  document.getElementById('stroom-station').textContent = '📍 ' + station.naam + ' · RWS live';
+  document.getElementById('stroom-tijd').textContent = tijd
+    ? tijd.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' }) : '';
+}
+
+// ── DIEPTELAGEN ───────────────────────────────────────────
+
+// EMODnet gekleurde dieptekaart (Noordzee + Waddenzee)
+const gebcoLayer = L.tileLayer(
+  'https://tiles.emodnet-bathymetry.eu/2020/baselayer/web_mercator/{z}/{x}/{y}.png',
+  { attribution: '© EMODnet Bathymetry', maxZoom: 16, opacity: 0.6 }
+);
+
+// OpenSeaMap dieptecijfers (soundings)
+const dieptecijferLayer = L.tileLayer(
+  'https://tiles.openseamap.org/depth/{z}/{x}/{y}.png',
+  { attribution: '© OpenSeaMap Depth', maxZoom: 18, opacity: 1.0 }
+);
+
+// Legenda
+const diepteLegenda = L.control({ position: 'bottomleft' });
+diepteLegenda.onAdd = function() {
+  const div = L.DomUtil.create('div');
+  div.innerHTML = `<div style="background:rgba(13,31,60,0.92);border:1px solid rgba(0,200,200,0.2);border-radius:8px;padding:8px 12px;font-size:11px;color:#e8f0f8;">
+    <div style="margin-bottom:4px;color:#00c8c8;letter-spacing:1px;font-weight:600;">DIEPTE</div>
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">
+      <div style="width:60px;height:10px;background:linear-gradient(to right,#d4f5ff,#0077b6,#03045e);border-radius:2px;"></div>
+      <span>ondiep → diep</span>
+    </div>
+    <div style="color:#7a9ab8;font-size:10px;">© EMODnet Bathymetry</div>
+  </div>`;
+  return div;
+};
+let diepteLegendaZichtbaar = false;
+
+function toggleDiepte(aan) {
+  if (aan) {
+    gebcoLayer.addTo(map);
+    // Houd zeekaart + pijlen bovenop
+    seaLayer.addTo(map);
+    if (stroomMapAan) stroomMapLayer.addTo(map);
+    if (posMarker) posMarker.addTo(map);
+    if (!diepteLegendaZichtbaar) { diepteLegenda.addTo(map); diepteLegendaZichtbaar = true; }
+  } else {
+    map.removeLayer(gebcoLayer);
+    if (!document.getElementById('toggle-dieptecijfers').checked) {
+      if (diepteLegendaZichtbaar) { map.removeControl(diepteLegenda); diepteLegendaZichtbaar = false; }
+    }
+  }
+}
+
+function toggleDieptecijfers(aan) {
+  if (aan) {
+    dieptecijferLayer.addTo(map);
+    seaLayer.addTo(map);
+    if (stroomMapAan) stroomMapLayer.addTo(map);
+  } else {
+    map.removeLayer(dieptecijferLayer);
+  }
+}
+
+// ── STROOMPIJLEN OP KAART ─────────────────────────────────
+
+// ── GPX WAYPOINTS ─────────────────────────────────────────
+const gpxLaag = L.layerGroup().addTo(map);
+let gpxWaypoints = [];
+
+function handleGpxDrop(event) {
+  event.preventDefault();
+  document.getElementById('gpx-dropzone').style.background = 'rgba(245,166,35,0.04)';
+  const file = event.dataTransfer.files[0];
+  if (file) laadGpx(file);
+}
+
+function laadGpx(file) {
+  if (!file) return;
+  const statusEl = document.getElementById('gpx-status');
+  statusEl.style.color = 'var(--muted)';
+  statusEl.textContent = '⏳ GPX laden…';
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      let tekst = e.target.result.replace(/^\uFEFF/, '').trim();
+      if (!tekst.startsWith('<?xml') && !tekst.startsWith('<gpx')) {
+        statusEl.style.color = 'var(--danger)';
+        statusEl.textContent = '⚠ Geen geldig GPX bestand';
+        return;
+      }
+      const parser = new DOMParser();
+      let doc = parser.parseFromString(tekst, 'application/xml');
+      if (doc.querySelector('parsererror')) {
+        doc = parser.parseFromString(tekst, 'text/html');
+      }
+      let wpts = doc.querySelectorAll('wpt');
+      if (!wpts.length) wpts = doc.querySelectorAll('Wpt,WPT,waypoint');
+      if (!wpts.length) {
+        statusEl.style.color = 'var(--amber)';
+        statusEl.textContent = '⚠ Geen waypoints gevonden in dit GPX bestand';
+        return;
+      }
+      // Wis bestaande
+      gpxLaag.clearLayers();
+      gpxWaypoints = [];
+      const bounds = [];
+      wpts.forEach((wpt, i) => {
+        const lat  = parseFloat(wpt.getAttribute('lat'));
+        const lon  = parseFloat(wpt.getAttribute('lon'));
+        if (isNaN(lat) || isNaN(lon)) return;
+        const naam = wpt.querySelector('name')?.textContent?.trim() || `WP ${i+1}`;
+        const desc = wpt.querySelector('desc')?.textContent?.trim() || '';
+        const sym  = wpt.querySelector('sym')?.textContent?.trim() || '';
+        const kleur = sym.toLowerCase().includes('danger') ? '#e84545'
+                    : sym.toLowerCase().includes('anchor') ? '#4fc3f7'
+                    : '#f5a623';
+        const icon = L.divIcon({
+          className: '',
+          html: `<div style="width:24px;height:24px;background:${kleur};border:2px solid white;
+            border-radius:50% 50% 50% 0;transform:rotate(-45deg);
+            box-shadow:0 2px 6px rgba(0,0,0,0.5);"></div>`,
+          iconSize: [24,24], iconAnchor: [12,24]
+        });
+        const marker = L.marker([lat, lon], { icon, zIndexOffset: 600 })
+          .bindPopup(`<b>📌 ${naam}</b>${desc?'<br><small>'+desc+'</small>':''}
+            <br><small style="color:#888">${lat.toFixed(5)}° ${lon.toFixed(5)}°</small>`)
+          .addTo(gpxLaag);
+        gpxWaypoints.push({ naam, lat, lon, marker });
+        bounds.push([lat, lon]);
+      });
+      if (!gpxWaypoints.length) {
+        statusEl.style.color = 'var(--amber)';
+        statusEl.textContent = '⚠ Geen geldige coördinaten gevonden';
+        return;
+      }
+      map.fitBounds(L.latLngBounds(bounds), { padding:[30,30] });
+      statusEl.style.color = 'var(--teal)';
+      statusEl.textContent = `✓ ${gpxWaypoints.length} waypoints geladen`;
+      document.getElementById('btn-gpx-wis').style.display = 'block';
+      renderGpxLijst();
+      notify(`📌 ${gpxWaypoints.length} GPX waypoints geladen`);
+    } catch(err) {
+      statusEl.style.color = 'var(--danger)';
+      statusEl.textContent = '⚠ Fout: ' + err.message;
+    }
+  };
+  reader.onerror = () => {
+    document.getElementById('gpx-status').style.color = 'var(--danger)';
+    document.getElementById('gpx-status').textContent = '⚠ Kan bestand niet lezen';
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+function renderGpxLijst() {
+  const el = document.getElementById('gpx-lijst');
+  el.innerHTML = gpxWaypoints.map((wp, i) => `
+    <div style="display:flex;align-items:center;gap:8px;padding:5px 8px;
+      background:rgba(255,255,255,0.04);border:1px solid var(--border);
+      border-radius:5px;cursor:pointer;" onclick="zoomNaarWaypoint(${i})">
+      <div style="width:8px;height:8px;background:var(--amber);border-radius:50%;flex-shrink:0;"></div>
+      <div style="font-size:12px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${wp.naam}</div>
+      <div style="font-size:10px;color:var(--muted);">${wp.lat.toFixed(3)}°</div>
+    </div>
+  `).join('');
+}
+
+function zoomNaarWaypoint(i) {
+  const wp = gpxWaypoints[i];
+  if (!wp) return;
+  map.setView([wp.lat, wp.lon], 14);
+  wp.marker.openPopup();
+}
+
+function wisGpx() {
+  gpxLaag.clearLayers();
+  gpxWaypoints = [];
+  document.getElementById('gpx-lijst').innerHTML = '';
+  document.getElementById('gpx-status').textContent = '';
+  document.getElementById('btn-gpx-wis').style.display = 'none';
+  document.getElementById('gpx-bestand').value = '';
+  notify('Waypoints gewist');
+}
+
+// ── EIGEN ZEEKAARTEN (meerdere) ───────────────────────────
+const eigenKaarten = [];
+let eigenKaartDataUrl = null;
+
+function handleKaartDrop(event) {
+  event.preventDefault();
+  document.getElementById('kaart-dropzone').style.background = 'rgba(0,200,200,0.04)';
+  const file = event.dataTransfer.files[0];
+  if (file) verwerkKaartBestand(file);
+}
+
+function verwerkKaartBestand(file) {
+  if (!file) return;
+  const statusEl = document.getElementById('kaart-status');
+  statusEl.style.color = 'var(--muted)';
+  statusEl.textContent = '⏳ Bestand lezen…';
+  eigenKaartDataUrl = null;
+  document.getElementById('btn-kaart-laden').disabled = true;
+  document.getElementById('kaart-bestandsnaam').style.display = 'none';
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const buf   = e.target.result;
+    const bytes = new Uint8Array(buf);
+    const isBMP = bytes[0]===0x42 && bytes[1]===0x4D;
+    const isPNG = bytes[0]===0x89 && bytes[1]===0x50;
+    const isJPG = bytes[0]===0xFF && bytes[1]===0xD8;
+
+    if (isPNG || isJPG) {
+      const mime = isJPG ? 'image/jpeg' : 'image/png';
+      let bin = '';
+      bytes.forEach(b => bin += String.fromCharCode(b));
+      eigenKaartDataUrl = `data:${mime};base64,` + btoa(bin);
+      klaarMetBestand(file.name, statusEl);
+      return;
+    }
+    if (isBMP) {
+      try {
+        const dataOffset = readU32(bytes,10);
+        const width      = readI32(bytes,18);
+        const height     = readI32(bytes,22);
+        const bpp        = readU16(bytes,28);
+        const absH       = Math.abs(height);
+        const topDown    = height < 0;
+        const rowSize    = Math.floor((bpp * width + 31) / 32) * 4;
+        if (bpp !== 24 && bpp !== 32) { statusEl.style.color='var(--amber)'; statusEl.textContent=`⚠ ${bpp}bpp niet ondersteund`; return; }
+        statusEl.textContent = `⏳ BMP ${width}×${absH}px omzetten…`;
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = absH;
+        const ctx = canvas.getContext('2d');
+        const img = ctx.createImageData(width, absH);
+        for (let y = 0; y < absH; y++) {
+          const srcY = topDown ? y : absH - 1 - y;
+          for (let x = 0; x < width; x++) {
+            const bi = dataOffset + srcY * rowSize + x * (bpp===24?3:4);
+            const ii = (y * width + x) * 4;
+            img.data[ii]=bytes[bi+2]; img.data[ii+1]=bytes[bi+1];
+            img.data[ii+2]=bytes[bi]; img.data[ii+3]=bpp===32?(bytes[bi+3]||255):255;
+          }
+        }
+        ctx.putImageData(img, 0, 0);
+        eigenKaartDataUrl = canvas.toDataURL('image/png');
+        klaarMetBestand(file.name, statusEl);
+      } catch(err) { statusEl.style.color='var(--danger)'; statusEl.textContent='⚠ BMP fout: '+err.message; }
+      return;
+    }
+    statusEl.style.color='var(--danger)'; statusEl.textContent='⚠ Gebruik PNG, JPG of BMP';
+  };
+  reader.onerror = () => { statusEl.style.color='var(--danger)'; statusEl.textContent='⚠ Kan bestand niet lezen'; };
+  reader.readAsArrayBuffer(file);
+}
+
+function readU32(b,o){ return (b[o]|(b[o+1]<<8)|(b[o+2]<<16)|(b[o+3]<<24))>>>0; }
+function readI32(b,o){ return readU32(b,o)|0; }
+function readU16(b,o){ return b[o]|(b[o+1]<<8); }
+
+function klaarMetBestand(naam, statusEl) {
+  statusEl.style.color = 'var(--teal)';
+  statusEl.textContent = `✓ ${naam} gereed — vul coördinaten in`;
+  const nm = document.getElementById('kaart-bestandsnaam');
+  nm.textContent = '📄 ' + naam;
+  nm.style.display = 'block';
+  document.getElementById('btn-kaart-laden').disabled = false;
+}
+
+function slaKaartenOp() {
+  const opslaan = eigenKaarten.map(k => ({
+    id:   k.id,
+    naam: k.naam,
+    bounds: k.bounds,
+    opacity: k.overlay.options.opacity,
+    zichtbaar: k.zichtbaar
+  }));
+  localStorage.setItem('vaarkaart_kaarten', JSON.stringify(opslaan));
+}
+
+function laadOpgeslagenKaarten() {
+  const opgeslagen = JSON.parse(localStorage.getItem('vaarkaart_kaarten') || '[]');
+  if (!opgeslagen.length) return;
+
+  const statusEl = document.getElementById('kaart-status');
+  statusEl.style.color = 'var(--muted)';
+  statusEl.textContent = `${opgeslagen.length} kaart(en) uit vorige sessie — sleep opnieuw om te herladen`;
+
+  // Vul de lijst met opgeslagen kaarten inclusief herstel-knop
+  const lijstEl = document.getElementById('kaarten-lijst');
+  lijstEl.innerHTML = opgeslagen.map(k => `
+    <div style="background:rgba(255,255,255,0.04);border:1px dashed rgba(0,200,200,0.3);border-radius:6px;padding:8px 10px;margin-bottom:4px;">
+      <div style="font-family:'Teko',sans-serif;font-size:14px;margin-bottom:4px;color:var(--muted);">🗺 ${k.naam}</div>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:5px;">
+        NW ${k.bounds[1][0].toFixed(4)}°, ${k.bounds[1][1].toFixed(4)}° &nbsp;·&nbsp;
+        ZO ${k.bounds[0][0].toFixed(4)}°, ${k.bounds[0][1].toFixed(4)}°
+      </div>
+      <div style="display:flex;gap:4px;">
+        <button class="btn-sm" onclick="herslaadKaart(${k.id})" style="color:var(--teal);border-color:rgba(0,200,200,0.3);">
+          ↺ Herslaad kaart
+        </button>
+        <button class="btn-sm" onclick="vulCoordinaten(${k.bounds[1][0]},${k.bounds[1][1]},${k.bounds[0][0]},${k.bounds[0][1]},'${k.naam.replace(/'/g,"\\'")}')">
+          📋 Vul coördinaten
+        </button>
+        <button class="btn-sm del" onclick="verwijderOpgeslagenKaart(${k.id})">✕</button>
+      </div>
+    </div>
+  `).join('');
+
+  // Bewaar de opgeslagen data voor herstel
+  window._opgeslagenKaarten = opgeslagen;
+}
+
+function vulCoordinaten(nwLat, nwLon, zoLat, zoLon, naam) {
+  document.getElementById('coord-nw-lat').value = nwLat;
+  document.getElementById('coord-nw-lon').value = nwLon;
+  document.getElementById('coord-zo-lat').value = zoLat;
+  document.getElementById('coord-zo-lon').value = zoLon;
+  document.getElementById('kaart-status').textContent = `📋 Coördinaten van "${naam}" ingevuld — sleep de kaart en klik Laden`;
+  document.getElementById('kaart-status').style.color = 'var(--teal)';
+  notify(`Coördinaten van ${naam} ingevuld`);
+}
+
+function herslaadKaart(id) {
+  const k = window._opgeslagenKaarten?.find(k => k.id === id);
+  if (!k) return;
+  vulCoordinaten(k.bounds[1][0], k.bounds[1][1], k.bounds[0][0], k.bounds[0][1], k.naam);
+  // Scroll naar dropzone
+  document.getElementById('kaart-dropzone').scrollIntoView({ behavior: 'smooth' });
+  notify('Sleep nu de kaartafbeelding op het veld');
+}
+
+function verwijderOpgeslagenKaart(id) {
+  const opgeslagen = JSON.parse(localStorage.getItem('vaarkaart_kaarten') || '[]');
+  const nieuw = opgeslagen.filter(k => k.id !== id);
+  localStorage.setItem('vaarkaart_kaarten', JSON.stringify(nieuw));
+  window._opgeslagenKaarten = nieuw;
+  laadOpgeslagenKaarten();
+  notify('Opgeslagen kaart verwijderd');
+}
+
+function laadEigenKaart() {
+  const statusEl = document.getElementById('kaart-status');
+  const nwLat = parseFloat(document.getElementById('coord-nw-lat').value);
+  const nwLon = parseFloat(document.getElementById('coord-nw-lon').value);
+  const zoLat = parseFloat(document.getElementById('coord-zo-lat').value);
+  const zoLon = parseFloat(document.getElementById('coord-zo-lon').value);
+  const naam  = document.getElementById('kaart-bestandsnaam').textContent.replace('📄 ','') || 'Kaart';
+
+  if (!eigenKaartDataUrl) { statusEl.style.color='var(--amber)'; statusEl.textContent='⚠ Sleep eerst een kaartbestand'; return; }
+  if (isNaN(nwLat)||isNaN(nwLon)||isNaN(zoLat)||isNaN(zoLon)) { statusEl.style.color='var(--amber)'; statusEl.textContent='⚠ Vul alle 4 coördinaten in'; return; }
+
+  // Leaflet bounds: [[zuidLat, westLon], [noordLat, oostLon]]
+  const zuidLat = Math.min(nwLat, zoLat);
+  const noordLat = Math.max(nwLat, zoLat);
+  const westLon = Math.min(nwLon, zoLon);
+  const oostLon = Math.max(nwLon, zoLon);
+  const bounds = [[zuidLat, westLon], [noordLat, oostLon]];
+
+  const dataUrl = eigenKaartDataUrl; // bewaar vóór reset
+  const opacity = parseInt(document.getElementById('kaart-opacity').value) / 100;
+
+  console.log('Kaart laden:', naam, bounds, opacity);
+
+  const overlay = L.imageOverlay(dataUrl, bounds, {
+    opacity, interactive: false, zIndex: 300
+  }).addTo(map);
+
+  const id = Date.now();
+  eigenKaarten.push({ id, naam, overlay, bounds, zichtbaar: true });
+
+  // Reset formulier
+  eigenKaartDataUrl = null;
+  document.getElementById('kaart-bestand').value = '';
+  document.getElementById('kaart-bestandsnaam').style.display = 'none';
+  document.getElementById('btn-kaart-laden').disabled = true;
+  document.getElementById('coord-nw-lat').value = '';
+  document.getElementById('coord-nw-lon').value = '';
+  document.getElementById('coord-zo-lat').value = '';
+  document.getElementById('coord-zo-lon').value = '';
+  statusEl.style.color = 'var(--teal)';
+  statusEl.textContent = `✓ ${naam} toegevoegd (${eigenKaarten.length} kaarten)`;
+
+  map.fitBounds(bounds, { padding:[20,20] });
+  renderKaartenLijst();
+  slaKaartenOp();
+  notify('Zeekaart toegevoegd ✓');
+}
+
+function renderKaartenLijst() {
+  const el = document.getElementById('kaarten-lijst');
+  if (!eigenKaarten.length) { el.innerHTML = ''; return; }
+  el.innerHTML = eigenKaarten.map(k => `
+    <div style="background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:6px;padding:8px 10px;margin-bottom:4px;">
+      <div style="font-family:'Teko',sans-serif;font-size:14px;margin-bottom:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:${k.zichtbaar?'var(--white)':'var(--muted)'};">🗺 ${k.naam}</div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;">
+        <button class="btn-sm" onclick="toggleKaart(${k.id})">${k.zichtbaar ? '👁 Verberg' : '👁 Toon'}</button>
+        <button class="btn-sm" onclick="zoomNaarKaart(${k.id})">🔍 Zoom</button>
+        <button class="btn-sm" onclick="opacityKaart(${k.id})">💧 Opacity</button>
+        <button class="btn-sm del" onclick="verwijderKaart(${k.id})">✕</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function toggleKaart(id) {
+  const k = eigenKaarten.find(k => k.id===id);
+  if (!k) return;
+  k.zichtbaar = !k.zichtbaar;
+  k.zichtbaar ? k.overlay.addTo(map) : map.removeLayer(k.overlay);
+  renderKaartenLijst();
+}
+
+function zoomNaarKaart(id) {
+  const k = eigenKaarten.find(k => k.id===id);
+  if (k) map.fitBounds(k.bounds, { padding:[20,20] });
+}
+
+function opacityKaart(id) {
+  const k = eigenKaarten.find(k => k.id===id);
+  if (!k) return;
+  const val = prompt(`Doorzichtigheid voor "${k.naam}" (10-100):`, '90');
+  if (val && !isNaN(val)) k.overlay.setOpacity(parseInt(val)/100);
+}
+
+function verwijderKaart(id) {
+  const idx = eigenKaarten.findIndex(k => k.id===id);
+  if (idx===-1) return;
+  map.removeLayer(eigenKaarten[idx].overlay);
+  eigenKaarten.splice(idx,1);
+  renderKaartenLijst();
+  slaKaartenOp();
+  notify('Kaart verwijderd');
+}
+
+// ── SIDEBAR TOGGLE ────────────────────────────────────────
+function toggleSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const btn = document.getElementById('sidebar-toggle');
+  sidebar.classList.toggle('collapsed');
+  const collapsed = sidebar.classList.contains('collapsed');
+  btn.textContent = collapsed ? '▶ Menu' : '◀ Menu';
+  setTimeout(() => map.invalidateSize(), 320);
+}
+
+// ── INIT ──────────────────────────────────────────────────
+renderRoutesList();
+startGPS();
+laadOpgeslagenKaarten();
+
+// Toon stroom direct bij laden met Harlingen als standaard
+(function() {
+  const hrl = STROOM_STATIONS.find(s => s.code === 'HARVT');
+  if (!hrl) return;
+  const ev = bepaalEbVloed(hrl, new Date());
+  toonStroomFallback(ev, hrl);
+  document.getElementById('getij-loading').textContent = 'Wacht op GPS positie…';
+  laadStroomsnelheid(hrl.lat, hrl.lon);
+  laadGetijden(hrl.lat, hrl.lon);
+})();
+
+// Zet stroompijlen op kaart direct aan
+(function() {
+  const tog = document.getElementById('toggle-stroom');
+  if (tog) tog.checked = true;
+  stroomActief = true;
+  stroomlaag.addTo(map);
+  laadStroomPijlen();
+  map.on('moveend zoomend', herlaadStroomBijBeweging);
+})();
+
+// ── PWA SERVICE WORKER ────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js')
+      .then(() => console.log('VaarKaart PWA actief'))
+      .catch(err => console.log('SW:', err));
+  });
+}
+</script>
+</body>
+</html>

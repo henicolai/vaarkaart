@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VaarKaart — Navigatie voor de Pleziervaart</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Teko:wght@300;400;500;600;700&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --navy:    #08111f;
+      --deep:    #0b1929;
+      --water:   #0e2a45;
+      --teal:    #00c8c8;
+      --gold:    #c9a84c;
+      --white:   #e8f2f8;
+      --muted:   #6a8fa8;
+      --border:  rgba(0,200,200,0.15);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Crimson Pro', Georgia, serif;
+      background: var(--navy);
+      color: var(--white);
+      overflow-x: hidden;
+    }
+
+    /* ── WAVES ── */
+    .wave-divider {
+      width: 100%;
+      overflow: hidden;
+      line-height: 0;
+      margin-top: -2px;
+    }
+    .wave-divider svg { display: block; width: 100%; height: 60px; }
+
+    /* ── NAV ── */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 40px;
+      height: 64px;
+      background: rgba(8,17,31,0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .nav-brand {
+      font-family: 'Teko', sans-serif;
+      font-size: 28px;
+      letter-spacing: 3px;
+      color: var(--white);
+      text-decoration: none;
+    }
+    .nav-brand span { color: var(--teal); }
+
+    .nav-links {
+      display: flex;
+      gap: 32px;
+      list-style: none;
+    }
+    .nav-links a {
+      font-family: 'Teko', sans-serif;
+      font-size: 15px;
+      letter-spacing: 2px;
+      color: var(--muted);
+      text-decoration: none;
+      text-transform: uppercase;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover { color: var(--teal); }
+
+    .nav-cta {
+      font-family: 'Teko', sans-serif;
+      font-size: 15px;
+      letter-spacing: 2px;
+      padding: 8px 20px;
+      background: var(--teal);
+      color: var(--navy);
+      text-decoration: none;
+      border-radius: 4px;
+      text-transform: uppercase;
+      transition: background 0.2s, transform 0.2s;
+    }
+    .nav-cta:hover { background: #00e0e0; transform: translateY(-1px); }
+
+    /* ── HERO ── */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+      padding: 120px 40px 80px;
+      background:
+        radial-gradient(ellipse at 20% 50%, rgba(0,200,200,0.06) 0%, transparent 60%),
+        radial-gradient(ellipse at 80% 20%, rgba(201,168,76,0.05) 0%, transparent 50%),
+        var(--navy);
+    }
+
+    /* Animated grid lines */
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,200,200,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,200,200,0.04) 1px, transparent 1px);
+      background-size: 60px 60px;
+      animation: gridMove 20s linear infinite;
+    }
+
+    @keyframes gridMove {
+      0%   { background-position: 0 0; }
+      100% { background-position: 60px 60px; }
+    }
+
+    .hero-content {
+      position: relative;
+      text-align: center;
+      max-width: 800px;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 16px;
+      border: 1px solid var(--border);
+      border-radius: 30px;
+      font-family: 'Teko', sans-serif;
+      font-size: 13px;
+      letter-spacing: 2px;
+      color: var(--teal);
+      text-transform: uppercase;
+      margin-bottom: 28px;
+      animation: fadeUp 0.8s ease both;
+    }
+
+    .hero-title {
+      font-family: 'Teko', sans-serif;
+      font-size: clamp(56px, 10vw, 110px);
+      font-weight: 500;
+      line-height: 0.9;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      margin-bottom: 24px;
+      animation: fadeUp 0.8s ease 0.1s both;
+    }
+    .hero-title span { color: var(--teal); }
+    .hero-title em {
+      font-style: italic;
+      font-family: 'Crimson Pro', serif;
+      color: var(--gold);
+      font-size: 0.65em;
+      display: block;
+      letter-spacing: 8px;
+    }
+
+    .hero-sub {
+      font-size: 20px;
+      color: var(--muted);
+      line-height: 1.6;
+      max-width: 560px;
+      margin: 0 auto 40px;
+      animation: fadeUp 0.8s ease 0.2s both;
+    }
+
+    .hero-buttons {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      flex-wrap: wrap;
+      animation: fadeUp 0.8s ease 0.3s both;
+    }
+
+    .btn-primary {
+      padding: 14px 32px;
+      background: var(--teal);
+      color: var(--navy);
+      font-family: 'Teko', sans-serif;
+      font-size: 17px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      text-decoration: none;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+    .btn-primary:hover { background: #00e0e0; transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,200,200,0.3); }
+
+    .btn-ghost {
+      padding: 14px 32px;
+      border: 1px solid var(--border);
+      color: var(--white);
+      font-family: 'Teko', sans-serif;
+      font-size: 17px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      text-decoration: none;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+    .btn-ghost:hover { border-color: var(--teal); color: var(--teal); }
+
+    /* Floating compass */
+    .hero-compass {
+      position: absolute;
+      right: 5%;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 180px;
+      opacity: 0.04;
+      animation: rotate 60s linear infinite;
+      pointer-events: none;
+    }
+    @keyframes rotate { to { transform: translateY(-50%) rotate(360deg); } }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── FEATURES ── */
+    .section {
+      padding: 100px 40px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .section-label {
+      font-family: 'Teko', sans-serif;
+      font-size: 12px;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: var(--teal);
+      margin-bottom: 12px;
+    }
+
+    .section-title {
+      font-family: 'Teko', sans-serif;
+      font-size: clamp(36px, 5vw, 56px);
+      font-weight: 400;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      line-height: 1;
+      margin-bottom: 16px;
+    }
+
+    .section-sub {
+      font-size: 18px;
+      color: var(--muted);
+      max-width: 520px;
+      line-height: 1.7;
+      margin-bottom: 60px;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 24px;
+    }
+
+    .feature-card {
+      padding: 32px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      transition: all 0.3s;
+      position: relative;
+      overflow: hidden;
+    }
+    .feature-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--teal), transparent);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .feature-card:hover { border-color: rgba(0,200,200,0.35); transform: translateY(-4px); }
+    .feature-card:hover::before { opacity: 1; }
+
+    .feature-icon {
+      font-size: 36px;
+      margin-bottom: 16px;
+      display: block;
+    }
+
+    .feature-title {
+      font-family: 'Teko', sans-serif;
+      font-size: 22px;
+      letter-spacing: 1px;
+      margin-bottom: 10px;
+      color: var(--white);
+    }
+
+    .feature-desc {
+      font-size: 16px;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    /* ── HANDLEIDING ── */
+    .handleiding-bg {
+      background: var(--deep);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .steps {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .step {
+      display: grid;
+      grid-template-columns: 80px 1fr;
+      gap: 24px;
+      padding: 36px 0;
+      border-bottom: 1px solid var(--border);
+      align-items: start;
+    }
+    .step:last-child { border-bottom: none; }
+
+    .step-num {
+      font-family: 'Teko', sans-serif;
+      font-size: 64px;
+      font-weight: 300;
+      color: var(--teal);
+      opacity: 0.4;
+      line-height: 1;
+    }
+
+    .step-title {
+      font-family: 'Teko', sans-serif;
+      font-size: 24px;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+    }
+
+    .step-desc {
+      font-size: 17px;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .step-tip {
+      display: inline-block;
+      margin-top: 10px;
+      padding: 4px 12px;
+      background: rgba(0,200,200,0.08);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 13px;
+      color: var(--teal);
+      font-family: 'Teko', sans-serif;
+      letter-spacing: 1px;
+    }
+
+    /* ── ABOUT ── */
+    .about-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 80px;
+      align-items: center;
+    }
+
+    @media (max-width: 700px) {
+      .about-grid { grid-template-columns: 1fr; gap: 40px; }
+      .hero-compass { display: none; }
+      nav { padding: 0 20px; }
+      .nav-links { display: none; }
+    }
+
+    .about-text p {
+      font-size: 18px;
+      color: var(--muted);
+      line-height: 1.8;
+      margin-bottom: 20px;
+    }
+
+    .about-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    .stat-box {
+      padding: 24px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      text-align: center;
+    }
+
+    .stat-val {
+      font-family: 'Teko', sans-serif;
+      font-size: 48px;
+      font-weight: 400;
+      color: var(--teal);
+      line-height: 1;
+    }
+
+    .stat-label {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    /* ── CONTACT ── */
+    .contact-bg {
+      background: var(--deep);
+      border-top: 1px solid var(--border);
+    }
+
+    .contact-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 60px;
+    }
+
+    @media (max-width: 700px) {
+      .contact-grid { grid-template-columns: 1fr; }
+    }
+
+    .contact-form {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .form-field {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .form-label {
+      font-family: 'Teko', sans-serif;
+      font-size: 13px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .form-input {
+      padding: 10px 14px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--white);
+      font-family: 'Crimson Pro', serif;
+      font-size: 16px;
+      transition: border-color 0.2s;
+      outline: none;
+    }
+    .form-input:focus { border-color: var(--teal); }
+
+    textarea.form-input { min-height: 120px; resize: vertical; }
+
+    .form-submit {
+      padding: 12px 28px;
+      background: var(--teal);
+      color: var(--navy);
+      border: none;
+      border-radius: 4px;
+      font-family: 'Teko', sans-serif;
+      font-size: 17px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      cursor: pointer;
+      align-self: flex-start;
+      transition: all 0.2s;
+    }
+    .form-submit:hover { background: #00e0e0; transform: translateY(-1px); }
+
+    .contact-info {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .contact-item {
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+    }
+
+    .contact-item-icon {
+      font-size: 24px;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .contact-item-title {
+      font-family: 'Teko', sans-serif;
+      font-size: 18px;
+      letter-spacing: 1px;
+      margin-bottom: 4px;
+    }
+
+    .contact-item-text {
+      font-size: 16px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      padding: 32px 40px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .footer-brand {
+      font-family: 'Teko', sans-serif;
+      font-size: 22px;
+      letter-spacing: 3px;
+      color: var(--muted);
+    }
+    .footer-brand span { color: var(--teal); }
+
+    .footer-text {
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    /* Anchor decoration */
+    .anchor-deco {
+      display: inline-block;
+      color: var(--gold);
+      opacity: 0.6;
+      margin: 0 8px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a class="nav-brand" href="#">VAAR<span>KAART</span></a>
+  <ul class="nav-links">
+    <li><a href="#functies">Functies</a></li>
+    <li><a href="#handleiding">Handleiding</a></li>
+    <li><a href="#over">Over</a></li>
+    <li><a href="#contact">Contact</a></li>
+  </ul>
+  <a class="nav-cta" href="vaarkaart.html" target="_blank">⚓ Open App</a>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-compass">🧭</div>
+  <div class="hero-content">
+    <div class="hero-badge">⚓ Navigatie voor de pleziervaart</div>
+    <h1 class="hero-title">
+      Vaar<span>Kaart</span>
+      <em>Waddenzee & Kustwateren</em>
+    </h1>
+    <p class="hero-sub">
+      Realtime GPS navigatie met officiële RWS boeien, getijden, stroomdata en je eigen zeekaarten — alles in één app.
+    </p>
+    <div class="hero-buttons">
+      <a href="vaarkaart.html" target="_blank" class="btn-primary">⚓ Start de app</a>
+      <a href="#handleiding" class="btn-ghost">Handleiding →</a>
+    </div>
+  </div>
+</section>
+
+<!-- FUNCTIES -->
+<section class="section" id="functies">
+  <div class="section-label">Wat kan VaarKaart</div>
+  <h2 class="section-title">Alles wat je nodig hebt op het water</h2>
+  <p class="section-sub">Ontwikkeld voor de Nederlandse pleziervaart — van de Waddenzee tot de Zeeuwse delta.</p>
+
+  <div class="features-grid">
+    <div class="feature-card">
+      <span class="feature-icon">⛵</span>
+      <div class="feature-title">GPS Positie</div>
+      <p class="feature-desc">Je boot verschijnt live op de kaart. Koppel een externe GPS ontvanger voor maximale nauwkeurigheid op het water.</p>
+    </div>
+    <div class="feature-card">
+      <span class="feature-icon">📍</span>
+      <div class="feature-title">Route Opnemen</div>
+      <p class="feature-desc">Neem je vaarroute op als oranje lijn, sla meerdere routes op en bekijk ze later terug op de kaart.</p>
+    </div>
+    <div class="feature-card">
+      <span class="feature-icon">🔴</span>
+      <div class="feature-title">Officiële RWS Boeien</div>
+      <p class="feature-desc">Alle drijvende boeien en vaste bakens van Rijkswaterstaat direct op de kaart, met IALA kleurcodering.</p>
+    </div>
+    <div class="feature-card">
+      <span class="feature-icon">🌊</span>
+      <div class="feature-title">Getijden & Stroom</div>
+      <p class="feature-desc">Hoog- en laagwater tijden van het dichtstbijzijnde RWS meetstation. Actuele stroomsnelheid en -richting als pijlen op de kaart.</p>
+    </div>
+    <div class="feature-card">
+      <span class="feature-icon">🗺</span>
+      <div class="feature-title">Eigen Zeekaarten</div>
+      <p class="feature-desc">Laad je eigen zeekaarten als PNG of JPG in. Positioneer ze met hoekcoördinaten exact op de juiste plek.</p>
+    </div>
+    <div class="feature-card">
+      <span class="feature-icon">📏</span>
+      <div class="feature-title">Dieptekaart</div>
+      <p class="feature-desc">Gekleurde dieptelaag en dieptecijfers voor de Waddenzee en kustwateren. Geulen direct zichtbaar op de kaart.</p>
+    </div>
+  </div>
+</section>
+
+<!-- WAVE -->
+<div class="wave-divider">
+  <svg viewBox="0 0 1200 60" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M0,30 C200,60 400,0 600,30 C800,60 1000,0 1200,30 L1200,60 L0,60 Z" fill="#0b1929"/>
+  </svg>
+</div>
+
+<!-- HANDLEIDING -->
+<div class="handleiding-bg" id="handleiding">
+  <div class="section">
+    <div class="section-label">Aan de slag</div>
+    <h2 class="section-title">Handleiding</h2>
+    <p class="section-sub">In vijf stappen op het water met VaarKaart.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">01</div>
+        <div>
+          <div class="step-title">Open de app</div>
+          <p class="step-desc">Klik op "Open App" rechtsboven of open <code style="color:var(--teal)">vaarkaart.html</code> direct in Chrome of Edge. Geef toestemming voor locatietoegang wanneer de browser daarom vraagt.</p>
+          <span class="step-tip">💡 Beste resultaat via een webserver of GitHub Pages</span>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">02</div>
+        <div>
+          <div class="step-title">GPS activeren</div>
+          <p class="step-desc">Je positie verschijnt automatisch als ⛵ op de kaart. Sluit een externe GPS ontvanger aan voor betere nauwkeurigheid. Gebruik de knop "Centreer op mij" om direct naar je positie te springen.</p>
+          <span class="step-tip">📡 Werkt met USB en Bluetooth GPS ontvangers</span>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">03</div>
+        <div>
+          <div class="step-title">Kaartlagen instellen</div>
+          <p class="step-desc">Zet via de schakelaar in de zijbalk de gewenste lagen aan: OpenSeaMap vaarwegen, RWS boeien, stroompijlen of de dieptekaart. De OpenSeaMap laag staat standaard aan en toont vaarwegen, bakens en dieptecijfers.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">04</div>
+        <div>
+          <div class="step-title">Eigen zeekaart laden</div>
+          <p class="step-desc">Sla je zeekaart op als PNG of JPG. Sleep het bestand op het uploadkader in de zijbalk. Vul de NW en ZO hoekcoördinaten in decimale graden in en klik "Kaart laden". De kaart wordt precies over de basiskaart gelegd.</p>
+          <span class="step-tip">📌 BMP eerst omzetten naar PNG</span>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">05</div>
+        <div>
+          <div class="step-title">Route opnemen</div>
+          <p class="step-desc">Druk op "Start opname" om je vaarroute als oranje lijn op te nemen. Druk op "Stop & sla op" om de route te bewaren. Opgeslagen routes zijn later terug te vinden onderaan de zijbalk en kunnen worden getoond of verwijderd.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- WAVE -->
+<div class="wave-divider" style="transform:rotate(180deg);margin-top:-2px;">
+  <svg viewBox="0 0 1200 60" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M0,30 C200,60 400,0 600,30 C800,60 1000,0 1200,30 L1200,60 L0,60 Z" fill="#0b1929"/>
+  </svg>
+</div>
+
+<!-- OVER -->
+<section class="section" id="over">
+  <div class="about-grid">
+    <div class="about-text">
+      <div class="section-label">Over VaarKaart</div>
+      <h2 class="section-title">Gebouwd voor de Waddenzee</h2>
+      <p>VaarKaart is ontwikkeld voor de Nederlandse pleziervaart. De app combineert officiële data van Rijkswaterstaat met moderne webteknologie voor een complete navigatietool die werkt in elke browser.</p>
+      <p>Alle data — boeien, getijden, stroomsnelheden en dieptes — komt rechtstreeks van RWS en PDOK. Geen abonnement, geen registratie, gewoon varen.</p>
+      <p style="color:var(--teal);font-style:italic;">"Goed weten waar je vaart, is de helft van veilig varen."</p>
+    </div>
+    <div class="about-stats">
+      <div class="stat-box">
+        <div class="stat-val">10+</div>
+        <div class="stat-label">RWS meetstations</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val">∞</div>
+        <div class="stat-label">Eigen kaarten</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val">Live</div>
+        <div class="stat-label">Getijden & stroom</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val">Gratis</div>
+        <div class="stat-label">Geen abonnement</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CONTACT -->
+<div class="contact-bg" id="contact">
+  <div class="section">
+    <div class="section-label">Contact</div>
+    <h2 class="section-title">Neem contact op</h2>
+    <p class="section-sub">Vragen, suggesties of een bug gevonden? Laat het weten.</p>
+
+    <div class="contact-grid">
+      <form class="contact-form" onsubmit="verstuurFormulier(event)">
+        <div class="form-field">
+          <label class="form-label">Naam</label>
+          <input class="form-input" type="text" placeholder="Uw naam" required>
+        </div>
+        <div class="form-field">
+          <label class="form-label">E-mail</label>
+          <input class="form-input" type="email" placeholder="uw@email.nl" required>
+        </div>
+        <div class="form-field">
+          <label class="form-label">Bericht</label>
+          <textarea class="form-input" placeholder="Uw bericht…" required></textarea>
+        </div>
+        <button type="submit" class="form-submit">Verstuur →</button>
+        <div id="form-bevestiging" style="display:none;color:var(--teal);font-size:15px;margin-top:4px;">
+          ✓ Bericht ontvangen — bedankt!
+        </div>
+      </form>
+
+      <div class="contact-info">
+        <div class="contact-item">
+          <div class="contact-item-icon">⚓</div>
+          <div>
+            <div class="contact-item-title">Over de app</div>
+            <p class="contact-item-text">VaarKaart is een gratis navigatietool voor de Nederlandse pleziervaart. Feedback en suggesties zijn altijd welkom.</p>
+          </div>
+        </div>
+        <div class="contact-item">
+          <div class="contact-item-icon">🗺</div>
+          <div>
+            <div class="contact-item-title">Kaartdata</div>
+            <p class="contact-item-text">Kaartdata van OpenStreetMap, OpenSeaMap en Rijkswaterstaat. Boeien en getijden via PDOK en RWS WaterWebServices.</p>
+          </div>
+        </div>
+        <div class="contact-item">
+          <div class="contact-item-icon">⚠️</div>
+          <div>
+            <div class="contact-item-title">Disclaimer</div>
+            <p class="contact-item-text">VaarKaart is een hulpmiddel. Gebruik altijd officiële zeekaarten en vaar nooit uitsluitend op basis van deze app.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-brand">VAAR<span>KAART</span></div>
+  <div class="footer-text">
+    <span class="anchor-deco">⚓</span>
+    Data: Rijkswaterstaat · OpenSeaMap · PDOK
+    <span class="anchor-deco">⚓</span>
+  </div>
+  <div class="footer-text" style="font-size:12px;">© 2026 VaarKaart</div>
+</footer>
+
+<script>
+function verstuurFormulier(e) {
+  e.preventDefault();
+  document.getElementById('form-bevestiging').style.display = 'block';
+  e.target.reset();
+}
+
+// Fade-in on scroll
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.style.opacity = '1';
+      entry.target.style.transform = 'translateY(0)';
+    }
+  });
+}, { threshold: 0.1 });
+
+document.querySelectorAll('.feature-card, .step, .stat-box').forEach(el => {
+  el.style.opacity = '0';
+  el.style.transform = 'translateY(20px)';
+  el.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+  observer.observe(el);
+});
+</script>
+
+</body>
+</html>
