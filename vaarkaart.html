@@ -541,16 +541,6 @@
       <div class="stat-label">opgeslagen</div>
     </div>
   </div>
-  <button onclick="toggleInstellingen()" style="
-    background:transparent;border:1px solid var(--border);
-    color:var(--muted);font-size:20px;width:38px;height:38px;
-    border-radius:6px;cursor:pointer;transition:all 0.2s;
-    display:flex;align-items:center;justify-content:center;"
-    title="Instellingen"
-    onmouseover="this.style.borderColor='var(--teal)';this.style.color='var(--teal)'"
-    onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">
-    ⚙
-  </button>
 </header>
 
 <!-- INSTELLINGEN MODAL -->
@@ -617,12 +607,37 @@
       </label>
     </div>
 
+    <!-- Wake Lock -->
+    <div class="setting-group">
+      <div class="setting-group-title">Scherm</div>
+      <div class="setting-option" onclick="toggleWakeLock()" style="cursor:pointer;">
+        <div style="flex:1;">
+          <div class="setting-label">Scherm wakker houden</div>
+          <div class="setting-sublabel" id="wakelock-status">Tik om te activeren</div>
+        </div>
+        <div id="wakelock-toggle" style="
+          width:40px;height:22px;background:rgba(255,255,255,0.1);
+          border-radius:11px;position:relative;transition:background 0.3s;flex-shrink:0;">
+          <div id="wakelock-knop" style="
+            width:16px;height:16px;background:var(--muted);border-radius:50%;
+            position:absolute;top:3px;left:3px;transition:all 0.3s;"></div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </div>
 
 <div class="main">
   <!-- SIDEBAR -->
   <aside class="sidebar" id="sidebar">
+
+    <!-- Instellingen knop -->
+    <div class="sidebar-section" style="padding:10px 16px;">
+      <button onclick="toggleInstellingen()" class="btn btn-ghost" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;">
+        ⚙ Instellingen
+      </button>
+    </div>
 
     <!-- GPS -->
     <div class="sidebar-section">
@@ -2431,6 +2446,73 @@ function toggleSidebar() {
   btn.textContent = collapsed ? '▶ Menu' : '◀ Menu';
   setTimeout(() => map.invalidateSize(), 320);
 }
+
+async function toggleWakeLock() {
+  const toggle = document.getElementById('wakelock-toggle');
+  const knop   = document.getElementById('wakelock-knop');
+  const status = document.getElementById('wakelock-status');
+
+  if (wakeLock) {
+    // Uitzetten
+    await wakeLock.release();
+    wakeLock = null;
+    toggle.style.background = 'rgba(255,255,255,0.1)';
+    knop.style.background   = 'var(--muted)';
+    knop.style.left         = '3px';
+    status.textContent      = 'Scherm kan uitvallen';
+    status.style.color      = 'var(--muted)';
+    notify('Scherm wake lock uitgeschakeld');
+  } else {
+    // Aanzetten
+    if (!('wakeLock' in navigator)) {
+      status.textContent = '⚠ Niet ondersteund op dit apparaat';
+      status.style.color = 'var(--amber)';
+      return;
+    }
+    try {
+      wakeLock = await navigator.wakeLock.request('screen');
+      toggle.style.background = 'rgba(0,200,200,0.3)';
+      knop.style.background   = 'var(--teal)';
+      knop.style.left         = '21px';
+      status.textContent      = '🔆 Scherm blijft aan';
+      status.style.color      = 'var(--teal)';
+      notify('Scherm blijft wakker tijdens navigatie');
+      wakeLock.addEventListener('release', () => {
+        // Automatisch heractiveren als pagina weer zichtbaar wordt
+      });
+    } catch(err) {
+      status.textContent = '⚠ Wake lock mislukt: ' + err.message;
+      status.style.color = 'var(--danger)';
+    }
+  }
+}
+
+// ── WAKE LOCK ─────────────────────────────────────────────
+let wakeLock = null;
+
+async function activeerWakeLock() {
+  if (!('wakeLock' in navigator)) return; // niet ondersteund
+  try {
+    wakeLock = await navigator.wakeLock.request('screen');
+    console.log('Wake Lock actief — scherm blijft aan');
+    document.getElementById('wakelock-status').textContent = '🔆 Scherm blijft aan';
+    document.getElementById('wakelock-status').style.color = 'var(--teal)';
+
+    // Heractiveer na tab-wissel
+    wakeLock.addEventListener('release', () => {
+      console.log('Wake Lock vrijgegeven');
+    });
+  } catch(err) {
+    console.log('Wake Lock mislukt:', err.message);
+  }
+}
+
+// Heractiveer Wake Lock als pagina weer zichtbaar wordt
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState === 'visible' && wakeLock !== null) {
+    await activeerWakeLock();
+  }
+});
 
 // ── INIT ──────────────────────────────────────────────────
 renderRoutesList();
