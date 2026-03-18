@@ -1224,161 +1224,37 @@ function toggleDiepte(aan) {
 }
 
 // ── RWS BOEIEN ────────────────────────────────────────────
-let boeiLayer = L.layerGroup();
-let boeiLoaded = false;
-
-// IALA kleurcodering op basis van markeertype
-function getBoeiKleur(type) {
-  if (!type) return '#ffffff';
-  const t = type.toLowerCase();
-  if (t.includes('rood') || t.includes('port') || t.includes('bb'))   return '#e84545';
-  if (t.includes('groen') || t.includes('stb') || t.includes('star')) return '#34d399';
-  if (t.includes('geel') || t.includes('special'))                    return '#f5a623';
-  if (t.includes('zwart') || t.includes('north') || t.includes('cardinal')) return '#aaaaaa';
-  if (t.includes('rood-groen') || t.includes('preferred'))            return '#a78bfa';
-  return '#00c8c8';
-}
-
-function getBoeiEmoji(type) {
-  if (!type) return '🔵';
-  const t = type.toLowerCase();
-  if (t.includes('rood') || t.includes('port'))  return '🔴';
-  if (t.includes('groen') || t.includes('stb'))  return '🟢';
-  if (t.includes('geel') || t.includes('special')) return '🟡';
-  return '⚪';
-}
-
-const PROXIES = [
-  url => url, // direct (werkt via localhost en GitHub Pages)
-  url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-  url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-  url => `https://proxy.cors.sh/${url}`,
-];
-
-async function fetchMetProxy(wfsUrl) {
-  // Eerst direct proberen (werkt als app via http:// wordt geserveerd)
-  try {
-    const res = await fetch(wfsUrl, { signal: AbortSignal.timeout(6000) });
-    if (res.ok) {
-      const data = await res.json();
-      if (data && data.features) return data;
-    }
-  } catch(e) {}
-
-  // Dan via proxy's
-  for (const proxyFn of PROXIES) {
-    try {
-      const res = await fetch(proxyFn(wfsUrl), { signal: AbortSignal.timeout(10000) });
-      if (!res.ok) continue;
-      const text = await res.text();
-      const data = JSON.parse(text);
-      if (data && data.features) return data;
-    } catch (e) {
-      console.warn('Proxy mislukt:', e.message);
-    }
+// WMS tile laag — werkt zonder CORS problemen vanuit elke browser
+const boeiWMSLayer = L.tileLayer.wms(
+  'https://service.pdok.nl/rws/vaarwegmarkeringennld/wms/v1_0',
+  {
+    layers: 'vaarweg_markering_drijvend,vaarweg_markering_vast',
+    format: 'image/png',
+    transparent: true,
+    attribution: '© RWS/PDOK Vaarwegmarkeringen',
+    opacity: 1.0,
+    maxZoom: 18,
   }
-  return null;
-}
+);
 
-async function laadBoeien() {
+function toggleBoeien(on) {
   const statusEl = document.getElementById('boeien-status');
-  statusEl.style.display = 'block';
-  statusEl.style.color = 'var(--muted)';
-  statusEl.textContent = '⏳ Boeien laden…';
-
-  const bbox = getBbox();
-
-  // PDOK endpoint — betrouwbaarder dan directe RWS endpoint
-  const wfsBase = 'https://service.pdok.nl/rws/vaarwegmarkeringennld/wfs/v1_0';
-  const types = [
-    { name: 'vaarwegmarkeringennld:vaarweg_markering_drijvend', label: 'drijvend' },
-    { name: 'vaarwegmarkeringennld:vaarweg_markering_vast',     label: 'vast' },
-  ];
-
-  let totaal = 0;
-  boeiLayer.clearLayers();
-
-  for (const { name: typeName, label } of types) {
-    statusEl.textContent = `⏳ ${label === 'drijvend' ? 'Boeien' : 'Bakens'} laden…`;
-
-    const wfsUrl = `${wfsBase}?service=WFS&version=2.0.0&request=GetFeature` +
-      `&typeName=${typeName}&outputFormat=application/json` +
-      `&bbox=${bbox},EPSG:4326&srsName=EPSG:4326&count=500`;
-
-    const data = await fetchMetProxy(wfsUrl);
-    if (!data || !data.features) continue;
-
-    totaal += data.features.length;
-    data.features.forEach(f => {
-      if (!f.geometry) return;
-
-      // Punt of haal centroide op
-      let lat, lon;
-      if (f.geometry.type === 'Point') {
-        [lon, lat] = f.geometry.coordinates;
-      } else return;
-
-      const props = f.properties || {};
-      const typeStr = props.OBJECTTYPE || props.type || props.TYPE_MARKERING || props.VAARWEGTYPE || '';
-      const naam = props.NAAM || props.naam || props.OBJECTNAAM || typeStr || 'Markering';
-      const kleur = getBoeiKleur(typeStr);
-      const isDrijvend = label === 'drijvend';
-
-      const icon = L.divIcon({
-        className: '',
-        html: `<div style="
-          width:${isDrijvend ? 14 : 10}px;
-          height:${isDrijvend ? 14 : 10}px;
-          background:${kleur};
-          border:2px solid rgba(255,255,255,0.8);
-          border-radius:${isDrijvend ? '50%' : '3px'};
-          box-shadow:0 0 6px ${kleur};
-        "></div>`,
-        iconSize: [isDrijvend ? 14 : 10, isDrijvend ? 14 : 10],
-        iconAnchor: [isDrijvend ? 7 : 5, isDrijvend ? 7 : 5]
-      });
-
-      L.marker([lat, lon], { icon })
-        .bindPopup(`<b>${naam}</b><br><small>${isDrijvend ? '🔴 Drijvende boei' : '📍 Vast baken'}</small><br><small style="color:#888">${typeStr}</small>`)
-        .addTo(boeiLayer);
-    });
-  }
-
-  if (totaal > 0) {
-    statusEl.textContent = `✓ ${totaal} markeringen geladen`;
+  if (on) {
+    boeiWMSLayer.addTo(map);
+    seaLayer.addTo(map);
+    statusEl.style.display = 'block';
     statusEl.style.color = 'var(--teal)';
+    statusEl.textContent = '✓ RWS boeien & bakens — zoom in voor details';
+    notify('RWS boeien aan ✓');
   } else {
-    statusEl.textContent = '⚠ Geen verbinding met RWS — internetverbinding nodig';
-    statusEl.style.color = 'var(--amber)';
+    map.removeLayer(boeiWMSLayer);
+    statusEl.style.display = 'none';
   }
 }
 
 function getBbox() {
   const b = map.getBounds();
   return `${b.getWest()},${b.getSouth()},${b.getEast()},${b.getNorth()}`;
-}
-
-function toggleBoeien(on) {
-  if (on) {
-    boeiLayer.addTo(map);
-    if (!boeiLoaded) {
-      boeiLoaded = true;
-      laadBoeien();
-      // herlaad bij kaart bewegen
-      map.on('moveend', herlaadBoeienBijBeweging);
-    }
-  } else {
-    map.removeLayer(boeiLayer);
-    map.off('moveend', herlaadBoeienBijBeweging);
-    boeiLoaded = false;
-    document.getElementById('boeien-status').style.display = 'none';
-  }
-}
-
-let boeiMoveTimer = null;
-function herlaadBoeienBijBeweging() {
-  clearTimeout(boeiMoveTimer);
-  boeiMoveTimer = setTimeout(() => laadBoeien(), 800);
 }
 
 // ── GETIJDEN ──────────────────────────────────────────────
