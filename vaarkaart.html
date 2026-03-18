@@ -449,6 +449,70 @@
     .getij-hoogte { color: var(--muted); font-size: 11px; }
     .getij-over { font-size: 10px; color: var(--muted); text-align:right; }
 
+    /* Instellingen modal */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 9000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--deep);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 28px;
+      width: 340px;
+      max-width: 95vw;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    .modal-title {
+      font-family: 'Teko', sans-serif;
+      font-size: 22px;
+      letter-spacing: 2px;
+      color: var(--teal);
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .modal-close {
+      background: none; border: none;
+      color: var(--muted); font-size: 20px;
+      cursor: pointer; padding: 0;
+    }
+    .modal-close:hover { color: var(--white); }
+    .setting-group {
+      margin-bottom: 20px;
+    }
+    .setting-group-title {
+      font-family: 'Teko', sans-serif;
+      font-size: 12px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .setting-option {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      margin-bottom: 5px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .setting-option:hover { border-color: var(--teal); background: rgba(0,200,200,0.06); }
+    .setting-option.active { border-color: var(--teal); background: rgba(0,200,200,0.1); }
+    .setting-option input[type=radio] { accent-color: var(--teal); }
+    .setting-label { font-size: 14px; flex: 1; }
+    .setting-sublabel { font-size: 11px; color: var(--muted); }
+
     scrollbar-width: thin;
     ::-webkit-scrollbar { width: 4px; }
     ::-webkit-scrollbar-track { background: transparent; }
@@ -477,7 +541,84 @@
       <div class="stat-label">opgeslagen</div>
     </div>
   </div>
+  <button onclick="toggleInstellingen()" style="
+    background:transparent;border:1px solid var(--border);
+    color:var(--muted);font-size:20px;width:38px;height:38px;
+    border-radius:6px;cursor:pointer;transition:all 0.2s;
+    display:flex;align-items:center;justify-content:center;"
+    title="Instellingen"
+    onmouseover="this.style.borderColor='var(--teal)';this.style.color='var(--teal)'"
+    onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">
+    ⚙
+  </button>
 </header>
+
+<!-- INSTELLINGEN MODAL -->
+<div class="modal-overlay" id="instellingen-modal" onclick="sluitInstellingen(event)">
+  <div class="modal">
+    <div class="modal-title">
+      ⚙ INSTELLINGEN
+      <button class="modal-close" onclick="toggleInstellingen()">✕</button>
+    </div>
+
+    <!-- Snelheid -->
+    <div class="setting-group">
+      <div class="setting-group-title">Snelheid</div>
+      <label class="setting-option" id="opt-kn">
+        <input type="radio" name="snelheid" value="kn" checked onchange="slaInstellingenOp()">
+        <div><div class="setting-label">Knopen (kn)</div><div class="setting-sublabel">Standaard zeevaarteenheid</div></div>
+      </label>
+      <label class="setting-option" id="opt-kmh">
+        <input type="radio" name="snelheid" value="kmh" onchange="slaInstellingenOp()">
+        <div><div class="setting-label">Kilometer per uur (km/h)</div></div>
+      </label>
+    </div>
+
+    <!-- Kaartoriëntatie -->
+    <div class="setting-group">
+      <div class="setting-group-title">Kaartoriëntatie</div>
+      <label class="setting-option" id="opt-north">
+        <input type="radio" name="orientatie" value="north" checked onchange="slaInstellingenOp()">
+        <div><div class="setting-label">Noord omhoog (N up)</div><div class="setting-sublabel">Vaste kaartoriëntatie</div></div>
+      </label>
+      <label class="setting-option" id="opt-course">
+        <input type="radio" name="orientatie" value="course" onchange="slaInstellingenOp()">
+        <div><div class="setting-label">Koers omhoog (Course up)</div><div class="setting-sublabel">Kaart draait mee met vaarrichting</div></div>
+      </label>
+    </div>
+
+    <!-- Coördinatenformaat -->
+    <div class="setting-group">
+      <div class="setting-group-title">Coördinatenformaat</div>
+      <label class="setting-option" id="opt-dd">
+        <input type="radio" name="coordformaat" value="dd" checked onchange="slaInstellingenOp()">
+        <div><div class="setting-label">Decimale graden</div><div class="setting-sublabel">53.17500° N  5.41400° O</div></div>
+      </label>
+      <label class="setting-option" id="opt-ddm">
+        <input type="radio" name="coordformaat" value="ddm" onchange="slaInstellingenOp()">
+        <div><div class="setting-label">Graden en decimale minuten</div><div class="setting-sublabel">53° 10.500' N  5° 24.840' O</div></div>
+      </label>
+      <label class="setting-option" id="opt-dms">
+        <input type="radio" name="coordformaat" value="dms" onchange="slaInstellingenOp()">
+        <div><div class="setting-label">Graden, minuten, seconden</div><div class="setting-sublabel">53° 10' 30" N  5° 24' 50" O</div></div>
+      </label>
+    </div>
+
+    <!-- Afstand -->
+    <div class="setting-group">
+      <div class="setting-group-title">Afstand</div>
+      <label class="setting-option" id="opt-nm">
+        <input type="radio" name="afstand" value="nm" onchange="slaInstellingenOp()">
+        <div><div class="setting-label">Zeemijl (NM)</div><div class="setting-sublabel">1 NM = 1.852 km</div></div>
+      </label>
+      <label class="setting-option" id="opt-km">
+        <input type="radio" name="afstand" value="km" checked onchange="slaInstellingenOp()">
+        <div><div class="setting-label">Kilometer (km)</div></div>
+      </label>
+    </div>
+
+  </div>
+</div>
 
 <div class="main">
   <!-- SIDEBAR -->
@@ -812,13 +953,17 @@ function onPosition(pos) {
 
   document.getElementById('gps-dot').className = 'gps-dot active';
   document.getElementById('gps-text').textContent = 'GPS actief';
-  document.getElementById('coord-lat').textContent = lat.toFixed(5) + '°';
-  document.getElementById('coord-lon').textContent = lon.toFixed(5) + '°';
+
+  // Coördinaten op basis van instelling
+  const coordStr = formatCoord(lat, lon);
+  const parts = coordStr.split('  ');
+  document.getElementById('coord-lat').textContent = parts[0] || lat.toFixed(5) + '°';
+  document.getElementById('coord-lon').textContent = parts[1] || lon.toFixed(5) + '°';
   document.getElementById('coord-acc').textContent = Math.round(accuracy) + ' m';
 
-  // Speed in knots
-  const knots = speed ? (speed * 1.94384).toFixed(1) : '0.0';
-  document.getElementById('speed-num').textContent = knots;
+  // Snelheid op basis van instelling
+  document.getElementById('speed-num').textContent = formatSnelheid(speed);
+  document.getElementById('speed-unit').textContent = instellingen.snelheid === 'kmh' ? 'km/h' : 'KN';
 
   // Marker
   if (!posMarker) {
@@ -865,7 +1010,7 @@ function onPosition(pos) {
       }).addTo(map);
     }
 
-    document.getElementById('hdr-dist').textContent = (totalDist / 1000).toFixed(1);
+    document.getElementById('hdr-dist').textContent = formatAfstand(totalDist);
     document.getElementById('hdr-pts').textContent = currentTrack.length;
   }
 }
@@ -1224,28 +1369,22 @@ function toggleDiepte(aan) {
 }
 
 // ── RWS BOEIEN ────────────────────────────────────────────
-// WMS tile laag — werkt zonder CORS problemen vanuit elke browser
-const boeiWMSLayer = L.tileLayer.wms(
-  'https://service.pdok.nl/rws/vaarwegmarkeringennld/wms/v1_0',
-  {
-    layers: 'vaarweg_markering_drijvend,vaarweg_markering_vast',
-    format: 'image/png',
-    transparent: true,
-    attribution: '© RWS/PDOK Vaarwegmarkeringen',
-    opacity: 1.0,
-    maxZoom: 18,
-  }
-);
+// OpenSeaMap bevat alle officiële Nederlandse boeien en bakens
+// Dit werkt altijd zonder CORS problemen
+const boeiWMSLayer = L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', {
+  attribution: '© OpenSeaMap',
+  opacity: 1.0,
+  maxZoom: 18,
+});
 
 function toggleBoeien(on) {
   const statusEl = document.getElementById('boeien-status');
   if (on) {
     boeiWMSLayer.addTo(map);
-    seaLayer.addTo(map);
     statusEl.style.display = 'block';
     statusEl.style.color = 'var(--teal)';
-    statusEl.textContent = '✓ RWS boeien & bakens — zoom in voor details';
-    notify('RWS boeien aan ✓');
+    statusEl.textContent = '✓ Boeien & bakens via OpenSeaMap — zoom in voor details';
+    notify('Boeien aan ✓');
   } else {
     map.removeLayer(boeiWMSLayer);
     statusEl.style.display = 'none';
@@ -2188,6 +2327,101 @@ function verwijderKaart(id) {
   notify('Kaart verwijderd');
 }
 
+// ── INSTELLINGEN ─────────────────────────────────────────
+let instellingen = {
+  snelheid:    'kn',
+  orientatie:  'north',
+  coordformaat:'dd',
+  afstand:     'km',
+  ...JSON.parse(localStorage.getItem('vaarkaart_instellingen') || '{}')
+};
+
+function laadInstellingenUI() {
+  document.querySelector(`input[name=snelheid][value="${instellingen.snelheid}"]`).checked = true;
+  document.querySelector(`input[name=orientatie][value="${instellingen.orientatie}"]`).checked = true;
+  document.querySelector(`input[name=coordformaat][value="${instellingen.coordformaat}"]`).checked = true;
+  document.querySelector(`input[name=afstand][value="${instellingen.afstand}"]`).checked = true;
+  pasInstellingenToe();
+}
+
+function slaInstellingenOp() {
+  instellingen.snelheid    = document.querySelector('input[name=snelheid]:checked').value;
+  instellingen.orientatie  = document.querySelector('input[name=orientatie]:checked').value;
+  instellingen.coordformaat= document.querySelector('input[name=coordformaat]:checked').value;
+  instellingen.afstand     = document.querySelector('input[name=afstand]:checked').value;
+  localStorage.setItem('vaarkaart_instellingen', JSON.stringify(instellingen));
+  pasInstellingenToe();
+}
+
+function pasInstellingenToe() {
+  // Afstandlabel in header
+  document.querySelector('#hdr-dist').closest('.stat').querySelector('.stat-label').textContent =
+    instellingen.afstand === 'nm' ? 'NM gevaren' : 'km gevaren';
+
+  // Kaartoriëntatie
+  if (instellingen.orientatie === 'course') {
+    map.on('locationfound', draaiKaartOpKoers);
+  } else {
+    map.off('locationfound', draaiKaartOpKoers);
+    map.setBearing ? map.setBearing(0) : null;
+  }
+}
+
+function draaiKaartOpKoers(e) {
+  if (e.heading !== null && e.heading !== undefined && map.setBearing) {
+    map.setBearing(-e.heading);
+  }
+}
+
+function toggleInstellingen() {
+  const modal = document.getElementById('instellingen-modal');
+  modal.classList.toggle('open');
+}
+
+function sluitInstellingen(event) {
+  if (event.target === document.getElementById('instellingen-modal')) {
+    document.getElementById('instellingen-modal').classList.remove('open');
+  }
+}
+
+// Snelheid omrekenen op basis van instelling
+function formatSnelheid(ms) {
+  if (!ms) return '0.0';
+  if (instellingen.snelheid === 'kmh') return (ms * 3.6).toFixed(1);
+  return (ms * 1.94384).toFixed(1); // knopen
+}
+
+// Afstand omrekenen op basis van instelling
+function formatAfstand(meters) {
+  if (instellingen.afstand === 'nm') return (meters / 1852).toFixed(2);
+  return (meters / 1000).toFixed(1);
+}
+
+// Coördinaten formatteren
+function formatCoord(lat, lon) {
+  switch(instellingen.coordformaat) {
+    case 'ddm': return `${toDDM(lat, 'NS')}  ${toDDM(lon, 'EW')}`;
+    case 'dms': return `${toDMS(lat, 'NS')}  ${toDMS(lon, 'EW')}`;
+    default:    return `${lat.toFixed(5)}° ${lat>=0?'N':'S'}  ${Math.abs(lon).toFixed(5)}° ${lon>=0?'O':'W'}`;
+  }
+}
+
+function toDDM(deg, dirs) {
+  const d = Math.floor(Math.abs(deg));
+  const m = ((Math.abs(deg) - d) * 60).toFixed(3);
+  const dir = deg >= 0 ? dirs[0] : dirs[1];
+  return `${d}° ${m}' ${dir}`;
+}
+
+function toDMS(deg, dirs) {
+  const d = Math.floor(Math.abs(deg));
+  const mFull = (Math.abs(deg) - d) * 60;
+  const m = Math.floor(mFull);
+  const s = ((mFull - m) * 60).toFixed(1);
+  const dir = deg >= 0 ? dirs[0] : dirs[1];
+  return `${d}° ${m}' ${s}" ${dir}`;
+}
+
 // ── SIDEBAR TOGGLE ────────────────────────────────────────
 function toggleSidebar() {
   const sidebar = document.getElementById('sidebar');
@@ -2202,6 +2436,7 @@ function toggleSidebar() {
 renderRoutesList();
 startGPS();
 laadOpgeslagenKaarten();
+laadInstellingenUI();
 
 // Toon stroom direct bij laden met Harlingen als standaard
 (function() {
