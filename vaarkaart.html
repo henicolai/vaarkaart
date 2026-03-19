@@ -18,6 +18,8 @@
   <!-- Leaflet -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <!-- Leaflet-rotate plugin voor Koers omhoog -->
+  <script src="https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate-src.js"></script>
 
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Teko:wght@300;400;500;600&family=Source+Sans+3:wght@300;400;600&display=swap');
@@ -983,7 +985,10 @@
 const map = L.map('map', {
   center: [52.37, 4.90],
   zoom: 13,
-  zoomControl: false
+  zoomControl: false,
+  rotate: true,
+  rotateControl: false,
+  bearing: 0,
 });
 
 L.control.zoom({ position: 'topright' }).addTo(map);
@@ -1055,7 +1060,7 @@ function startGPS() {
 }
 
 function onPosition(pos) {
-  const { latitude: lat, longitude: lon, accuracy, speed } = pos.coords;
+  const { latitude: lat, longitude: lon, accuracy, speed, heading } = pos.coords;
 
   document.getElementById('gps-dot').className = 'gps-dot active';
   document.getElementById('gps-text').textContent = 'GPS actief';
@@ -1066,6 +1071,11 @@ function onPosition(pos) {
   document.getElementById('coord-lat').textContent = parts[0] || lat.toFixed(5) + '°';
   document.getElementById('coord-lon').textContent = parts[1] || lon.toFixed(5) + '°';
   document.getElementById('coord-acc').textContent = Math.round(accuracy) + ' m';
+
+  // Koers omhoog — draai kaart mee met vaarrichting
+  if (instellingen.orientatie === 'course') {
+    updateKoersOmhoog(heading);
+  }
 
   // Snelheid op basis van instelling
   document.getElementById('speed-num').textContent = formatSnelheid(speed);
@@ -3004,13 +3014,12 @@ function pasInstellingenToe() {
     badgeOri.textContent = '⬆ KOERS';
     badgeOri.style.color = 'var(--amber)';
     badgeOri.style.borderColor = 'rgba(245,166,35,0.5)';
-    map.on('locationfound', draaiKaartOpKoers);
   } else {
     badgeOri.textContent = 'N ↑';
     badgeOri.style.color = 'var(--muted)';
     badgeOri.style.borderColor = 'rgba(0,200,200,0.4)';
-    map.off('locationfound', draaiKaartOpKoers);
-    if (map.setBearing) map.setBearing(0);
+    // Terug naar Noord
+    try { map.setBearing(0); } catch(err) {}
   }
 
   // Snelheidseenheid badge in speed display
@@ -3018,8 +3027,15 @@ function pasInstellingenToe() {
 }
 
 function draaiKaartOpKoers(e) {
-  if (e.heading !== null && e.heading !== undefined && map.setBearing) {
-    map.setBearing(-e.heading);
+  if (e.heading !== null && e.heading !== undefined) {
+    try { map.setBearing(e.heading); } catch(err) {}
+  }
+}
+
+// Pas ook toe bij GPS positie update via heading
+function updateKoersOmhoog(heading) {
+  if (instellingen.orientatie === 'course' && heading !== null && heading !== undefined) {
+    try { map.setBearing(heading); } catch(err) {}
   }
 }
 
