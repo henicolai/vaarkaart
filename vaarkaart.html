@@ -715,6 +715,15 @@
       </div>
 
       <div class="toggle-row">
+        <span class="toggle-label">Windpijlen op kaart</span>
+        <label class="toggle">
+          <input type="checkbox" id="toggle-wind" onchange="toggleWindlaag(this.checked)">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div id="wind-status" style="display:none;font-size:11px;color:var(--muted);margin-top:2px;margin-bottom:4px;"></div>
+
+      <div class="toggle-row">
         <span class="toggle-label">Dieptekaart (kleur)</span>
         <label class="toggle">
           <input type="checkbox" id="toggle-diepte-kleur" onchange="toggleDiepteKleur(this.checked)">
@@ -726,6 +735,14 @@
         <span class="toggle-label">Dieptecijfers (RWS)</span>
         <label class="toggle">
           <input type="checkbox" id="toggle-diepte-cijfers" onchange="toggleDiepteCijfers(this.checked)">
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-row">
+        <span class="toggle-label">Havens op kaart</span>
+        <label class="toggle">
+          <input type="checkbox" id="toggle-havens" onchange="toggleHavens(this.checked)">
           <span class="slider"></span>
         </label>
       </div>
@@ -749,6 +766,53 @@
       <div id="boeien-status" style="display:none;font-size:11px;color:var(--muted);margin-top:4px;"></div>
     </div>
 
+    <!-- Wind -->
+    <div class="sidebar-section">
+      <div class="sidebar-title">💨 Wind</div>
+
+      <div style="display:flex;align-items:center;justify-content:center;gap:16px;padding:8px 0;">
+        <div style="text-align:center;">
+          <div id="wind-pijl" style="font-size:40px;line-height:1;transition:transform 0.8s ease;color:#a78bfa;">➤</div>
+          <div id="wind-richting" style="font-size:11px;color:var(--muted);margin-top:2px;">—</div>
+        </div>
+        <div>
+          <div id="wind-snelheid" style="font-family:'Teko',sans-serif;font-size:32px;color:#a78bfa;line-height:1;">— kn</div>
+          <div id="wind-beaufort" style="font-size:11px;color:var(--muted);"></div>
+          <div id="wind-tijd" style="font-size:10px;color:var(--muted);"></div>
+        </div>
+      </div>
+
+      <!-- Uur navigatie -->
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin:4px 0 8px;">
+        <button onclick="windUurStap(-1)" class="btn btn-ghost" style="padding:4px 12px;font-size:16px;">◀</button>
+        <div style="text-align:center;flex:1;">
+          <div id="wind-uur-label" style="font-family:'Teko',sans-serif;font-size:16px;color:#a78bfa;">Nu</div>
+          <div id="wind-uur-sub" style="font-size:10px;color:var(--muted);">actueel</div>
+        </div>
+        <button onclick="windUurStap(+1)" class="btn btn-ghost" style="padding:4px 12px;font-size:16px;">▶</button>
+        <button onclick="windUurReset()" class="btn btn-ghost" style="padding:4px 8px;font-size:11px;color:#a78bfa;">Nu</button>
+      </div>
+
+      <!-- 24u overzicht -->
+      <div id="wind-24u" style="display:flex;gap:3px;overflow-x:auto;padding-bottom:4px;"></div>
+    </div>
+
+    <!-- Havens -->
+    <div class="sidebar-section">
+      <div class="sidebar-title">⚓ Havens</div>
+
+      <!-- Zoekbalk -->
+      <div style="display:flex;gap:6px;margin-bottom:10px;">
+        <input id="haven-zoek" type="text" placeholder="Zoek haven…"
+          style="flex:1;padding:6px 10px;background:rgba(255,255,255,0.07);
+          border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:13px;"
+          oninput="zoekHaven(this.value)" onkeydown="if(event.key==='Escape')this.value=''">
+        <button class="btn btn-ghost" onclick="dichtstbijzijndHaven()" style="padding:6px 10px;font-size:12px;" title="Dichtstbijzijnde haven">📍</button>
+      </div>
+
+      <div id="haven-lijst" style="display:flex;flex-direction:column;gap:4px;max-height:300px;overflow-y:auto;"></div>
+    </div>
+
     <!-- Eigen kaarten -->
     <div class="sidebar-section">
       <div class="sidebar-title">🗺 Eigen Zeekaarten</div>
@@ -763,7 +827,7 @@
         ondragleave="this.style.background='rgba(0,200,200,0.04)'"
         ondrop="handleKaartDrop(event)">
         <div style="font-size:20px;margin-bottom:2px;">🗺</div>
-        <div style="font-size:12px;color:var(--teal);">Sleep PNG/JPG hier</div>
+        <div style="font-size:12px;color:var(--teal);">Sleep PNG/JPG/BMP hier</div>
         <div style="font-size:10px;color:var(--muted);margin-top:1px;">of klik om te kiezen</div>
         <input type="file" id="kaart-bestand" accept=".bmp,.png,.jpg,.jpeg"
           style="display:none" onchange="verwerkKaartBestand(this.files[0])">
@@ -771,27 +835,29 @@
 
       <div id="kaart-bestandsnaam" style="font-size:11px;color:var(--teal);margin-bottom:8px;display:none;"></div>
 
-      <div style="font-size:11px;color:var(--muted);margin-bottom:6px;">Hoekcoördinaten (decimale graden)</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:8px;">
-        <div>
-          <div style="font-size:10px;color:var(--muted);">NW Breedte</div>
-          <input id="coord-nw-lat" type="number" step="0.0001" placeholder="53.2000"
-            style="width:100%;padding:4px 6px;background:rgba(255,255,255,0.07);border:1px solid var(--border);border-radius:4px;color:var(--white);font-size:12px;">
-        </div>
-        <div>
-          <div style="font-size:10px;color:var(--muted);">NW Lengte</div>
-          <input id="coord-nw-lon" type="number" step="0.0001" placeholder="5.1000"
-            style="width:100%;padding:4px 6px;background:rgba(255,255,255,0.07);border:1px solid var(--border);border-radius:4px;color:var(--white);font-size:12px;">
-        </div>
-        <div>
-          <div style="font-size:10px;color:var(--muted);">ZO Breedte</div>
-          <input id="coord-zo-lat" type="number" step="0.0001" placeholder="53.0000"
-            style="width:100%;padding:4px 6px;background:rgba(255,255,255,0.07);border:1px solid var(--border);border-radius:4px;color:var(--white);font-size:12px;">
-        </div>
-        <div>
-          <div style="font-size:10px;color:var(--muted);">ZO Lengte</div>
-          <input id="coord-zo-lon" type="number" step="0.0001" placeholder="5.5000"
-            style="width:100%;padding:4px 6px;background:rgba(255,255,255,0.07);border:1px solid var(--border);border-radius:4px;color:var(--white);font-size:12px;">
+      <div id="coord-sectie">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:6px;">Hoekcoördinaten (decimale graden)</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:8px;">
+          <div>
+            <div style="font-size:10px;color:var(--muted);">NW Breedte</div>
+            <input id="coord-nw-lat" type="number" step="0.0001" placeholder="53.2000"
+              style="width:100%;padding:4px 6px;background:rgba(255,255,255,0.07);border:1px solid var(--border);border-radius:4px;color:var(--white);font-size:12px;">
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--muted);">NW Lengte</div>
+            <input id="coord-nw-lon" type="number" step="0.0001" placeholder="5.1000"
+              style="width:100%;padding:4px 6px;background:rgba(255,255,255,0.07);border:1px solid var(--border);border-radius:4px;color:var(--white);font-size:12px;">
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--muted);">ZO Breedte</div>
+            <input id="coord-zo-lat" type="number" step="0.0001" placeholder="53.0000"
+              style="width:100%;padding:4px 6px;background:rgba(255,255,255,0.07);border:1px solid var(--border);border-radius:4px;color:var(--white);font-size:12px;">
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--muted);">ZO Lengte</div>
+            <input id="coord-zo-lon" type="number" step="0.0001" placeholder="5.5000"
+              style="width:100%;padding:4px 6px;background:rgba(255,255,255,0.07);border:1px solid var(--border);border-radius:4px;color:var(--white);font-size:12px;">
+          </div>
         </div>
       </div>
 
@@ -827,6 +893,17 @@
           <div id="stroom-station" style="font-size:10px;color:var(--muted);margin-top:2px;"></div>
           <div id="stroom-tijd" style="font-size:10px;color:var(--muted);"></div>
         </div>
+      </div>
+
+      <!-- Uur navigatie -->
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin:4px 0 10px;">
+        <button onclick="stroomUurStap(-1)" class="btn btn-ghost" style="padding:4px 12px;font-size:16px;">◀</button>
+        <div style="text-align:center;flex:1;">
+          <div id="stroom-uur-label" style="font-family:'Teko',sans-serif;font-size:16px;color:var(--teal);">Nu</div>
+          <div id="stroom-uur-sub" style="font-size:10px;color:var(--muted);">actuele meting</div>
+        </div>
+        <button onclick="stroomUurStap(+1)" class="btn btn-ghost" style="padding:4px 12px;font-size:16px;">▶</button>
+        <button onclick="stroomUurReset()" class="btn btn-ghost" style="padding:4px 8px;font-size:11px;color:var(--teal);">Nu</button>
       </div>
 
       <!-- Getijden -->
@@ -877,10 +954,24 @@
     <button class="sidebar-toggle" id="sidebar-toggle" onclick="toggleSidebar()">◀ Menu</button>
     <div class="speed-badge">
       <div class="speed-num" id="speed-num">0.0</div>
-      <div class="speed-unit">KN</div>
+      <div class="speed-unit" id="speed-unit">KN</div>
     </div>
     <div class="compass">
       <span class="compass-n">N</span>
+    </div>
+    <!-- Status badges rechtsonder -->
+    <div id="kaart-badges" style="
+      position:absolute;bottom:30px;right:90px;
+      display:flex;flex-direction:row;gap:5px;
+      z-index:900;pointer-events:none;align-items:flex-end;">
+      <div id="badge-eenheid" style="
+        background:rgba(10,22,40,0.85);border:1px solid rgba(0,200,200,0.4);
+        border-radius:5px;padding:3px 8px;font-size:11px;font-family:'Teko',sans-serif;
+        letter-spacing:1px;color:var(--teal);text-align:center;">KM</div>
+      <div id="badge-orientatie" style="
+        background:rgba(10,22,40,0.85);border:1px solid rgba(0,200,200,0.4);
+        border-radius:5px;padding:3px 8px;font-size:11px;font-family:'Teko',sans-serif;
+        letter-spacing:1px;color:var(--muted);text-align:center;">N↑</div>
     </div>
   </div>
 </div>
@@ -997,6 +1088,9 @@ function onPosition(pos) {
     fillOpacity: 0.06,
     weight: 1
   }).addTo(map);
+
+  // Sla GPS positie op voor uur-navigatie
+  window._laatsteGpsPositie = { lat, lon };
 
   // Getijden en stroom laden op basis van positie
   laadGetijden(lat, lon);
@@ -1288,12 +1382,10 @@ function toggleDiepteCijfers(aan) {
   const statusEl = document.getElementById('dieptecijfers-status');
   const legenda  = document.getElementById('diepte-legenda');
   if (aan) {
-    // Zorg dat OpenSeaMap laag aan staat
     if (!map.hasLayer(seaLayer)) seaLayer.addTo(map);
     document.getElementById('toggle-sea').checked = true;
     legenda.style.display = 'block';
     statusEl.style.display = 'block';
-    // Zoom naar niveau 14+ voor dieptecijfers in OpenSeaMap
     if (map.getZoom() < 13) {
       map.setZoom(14);
       statusEl.textContent = '📏 Ingezoomd naar zoom 14 — dieptecijfers zichtbaar in kaart';
@@ -1308,7 +1400,451 @@ function toggleDiepteCijfers(aan) {
   }
 }
 
-// ── LAYERS ────────────────────────────────────────────────
+// ── WIND ──────────────────────────────────────────────────
+const windLaag = L.layerGroup();
+let windActief = false;
+let windUurOffset = 0;
+let windData = null; // gecachte Open-Meteo data
+let windDataLat = null, windDataLon = null;
+
+// Windpunten grid voor de kaart (vaste posities)
+const WIND_GRID = [
+  { lat:53.40, lon:4.90 }, { lat:53.40, lon:5.50 }, { lat:53.40, lon:6.20 },
+  { lat:53.10, lon:4.70 }, { lat:53.10, lon:5.20 }, { lat:53.10, lon:5.80 }, { lat:53.10, lon:6.50 },
+  { lat:52.80, lon:4.60 }, { lat:52.80, lon:5.10 }, { lat:52.80, lon:5.70 },
+  { lat:52.50, lon:4.50 }, { lat:52.50, lon:5.00 }, { lat:52.20, lon:4.30 },
+  { lat:51.90, lon:4.10 }, { lat:51.60, lon:3.80 }, { lat:51.40, lon:3.60 },
+];
+
+const BEAUFORT = [
+  { max:1,  bf:0, omschr:'Windstil' },
+  { max:3,  bf:1, omschr:'Bijna windstil' },
+  { max:6,  bf:2, omschr:'Zwakke wind' },
+  { max:10, bf:3, omschr:'Zwakke wind' },
+  { max:16, bf:4, omschr:'Matige wind' },
+  { max:21, bf:5, omschr:'Frisse bries' },
+  { max:27, bf:6, omschr:'Krachtige wind' },
+  { max:33, bf:7, omschr:'Harde wind' },
+  { max:40, bf:8, omschr:'Stormachtig' },
+  { max:47, bf:9, omschr:'Storm' },
+  { max:55, bf:10, omschr:'Zware storm' },
+  { max:63, bf:11, omschr:'Zeer zware storm' },
+  { max:999,bf:12, omschr:'Orkaan' },
+];
+
+function knaarBeaufort(kn) {
+  return BEAUFORT.find(b => kn <= b.max) || BEAUFORT[BEAUFORT.length-1];
+}
+
+function windKleur(kn) {
+  if (kn < 6)  return '#4fc3f7'; // zwak - blauw
+  if (kn < 16) return '#a78bfa'; // matig - paars
+  if (kn < 27) return '#f5a623'; // krachtig - oranje
+  return '#e84545';               // storm - rood
+}
+
+function maakWindPijlIcon(richtingGr, snelheidKn) {
+  const kleur = windKleur(snelheidKn);
+  const grootte = Math.max(20, Math.min(44, 18 + snelheidKn * 1.2));
+  return L.divIcon({
+    className: '',
+    html: `<div style="
+      width:${grootte}px;height:${grootte}px;
+      display:flex;align-items:center;justify-content:center;
+      transform:rotate(${richtingGr}deg);
+      filter:drop-shadow(0 0 4px ${kleur});
+    ">
+      <svg viewBox="0 0 24 24" width="${grootte}" height="${grootte}">
+        <polygon points="12,2 22,22 12,17 2,22" fill="${kleur}" stroke="rgba(255,255,255,0.6)" stroke-width="1"/>
+      </svg>
+    </div>`,
+    iconSize: [grootte, grootte],
+    iconAnchor: [grootte/2, grootte/2]
+  });
+}
+
+async function haalWindData(lat, lon) {
+  // Cache per ~50km
+  if (windData && windDataLat !== null &&
+      Math.abs(windDataLat - lat) < 0.5 &&
+      Math.abs(windDataLon - lon) < 0.5) return windData;
+
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(2)}&longitude=${lon.toFixed(2)}` +
+    `&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m` +
+    `&wind_speed_unit=kn&timezone=Europe%2FAmsterdam&forecast_days=3`;
+
+  try {
+    const res = await fetch(url);
+    const json = await res.json();
+    windData = json;
+    windDataLat = lat;
+    windDataLon = lon;
+    return json;
+  } catch(e) {
+    console.warn('Open-Meteo fout:', e);
+    return null;
+  }
+}
+
+function getWindUurIndex(data) {
+  const nu = new Date();
+  const doel = new Date(nu.getTime() + windUurOffset * 3600000);
+  const tijden = data.hourly.time;
+  // Vind dichtstbijzijnde uur
+  let best = 0;
+  let bestDiff = Infinity;
+  tijden.forEach((t, i) => {
+    const diff = Math.abs(new Date(t).getTime() - doel.getTime());
+    if (diff < bestDiff) { bestDiff = diff; best = i; }
+  });
+  return best;
+}
+
+async function laadWindPijlen() {
+  if (!windActief) return;
+  windLaag.clearLayers();
+  const statusEl = document.getElementById('wind-status');
+  statusEl.style.display = 'block';
+  statusEl.textContent = '⏳ Wind laden…';
+
+  const bounds = map.getBounds().pad(0.1);
+
+  // Haal data op voor centrum van kaart
+  const centrumLat = (bounds.getNorth() + bounds.getSouth()) / 2;
+  const centrumLon = (bounds.getEast() + bounds.getWest()) / 2;
+  const data = await haalWindData(centrumLat, centrumLon);
+
+  if (!data?.hourly) {
+    statusEl.textContent = '⚠ Wind niet beschikbaar';
+    return;
+  }
+
+  const uurIdx = getWindUurIndex(data);
+  const tijdLabel = data.hourly.time[uurIdx]?.replace('T', ' ').slice(0, 16) || '';
+
+  // Toon alleen punten in zichtbaar gebied
+  const zichtbaar = WIND_GRID.filter(p => bounds.contains([p.lat, p.lon]));
+  if (!zichtbaar.length) {
+    statusEl.textContent = '⚠ Zoom in voor windpijlen';
+    return;
+  }
+
+  // Voor elk gridpunt eigen data ophalen
+  for (const punt of zichtbaar) {
+    const pData = await haalWindData(punt.lat, punt.lon);
+    if (!pData?.hourly) continue;
+    const idx = getWindUurIndex(pData);
+    const snelheidKn = pData.hourly.wind_speed_10m[idx] ?? 0;
+    const richtingGr = pData.hourly.wind_direction_10m[idx] ?? 0;
+    const gustsKn    = pData.hourly.wind_gusts_10m[idx] ?? 0;
+    const bf = knaarBeaufort(snelheidKn);
+
+    const icon = maakWindPijlIcon(richtingGr, snelheidKn);
+    L.marker([punt.lat, punt.lon], { icon, zIndexOffset: 450 })
+      .bindPopup(`
+        <b>💨 Wind</b><br>
+        Snelheid: <b>${snelheidKn.toFixed(1)} kn</b> (Bft ${bf.bf})<br>
+        Windstoten: <b>${gustsKn.toFixed(1)} kn</b><br>
+        Richting: <b>${Math.round(richtingGr)}° (${richtingNaarTekst(richtingGr)})</b><br>
+        <small style="color:#888">${tijdLabel} · Open-Meteo</small>
+      `)
+      .addTo(windLaag);
+  }
+
+  statusEl.textContent = `✓ Wind ${tijdLabel.slice(11,16)} · Open-Meteo`;
+  statusEl.style.color = 'var(--teal)';
+
+  // Update sidebar pijl voor dichtstbijzijnde positie
+  const pos = window._laatsteGpsPositie || { lat: centrumLat, lon: centrumLon };
+  updateWindSidebar(data, uurIdx);
+  toon24uWind(data);
+}
+
+function updateWindSidebar(data, uurIdx) {
+  const snelheidKn = data.hourly.wind_speed_10m[uurIdx] ?? 0;
+  const richtingGr = data.hourly.wind_direction_10m[uurIdx] ?? 0;
+  const bf = knaarBeaufort(snelheidKn);
+  const kleur = windKleur(snelheidKn);
+  const tijdStr = data.hourly.time[uurIdx]?.replace('T', ' ').slice(11, 16) || '';
+
+  document.getElementById('wind-pijl').style.transform = `rotate(${richtingGr}deg)`;
+  document.getElementById('wind-pijl').style.color = kleur;
+  document.getElementById('wind-snelheid').textContent = `${snelheidKn.toFixed(1)} kn`;
+  document.getElementById('wind-snelheid').style.color = kleur;
+  document.getElementById('wind-richting').textContent = `${Math.round(richtingGr)}° ${richtingNaarTekst(richtingGr)}`;
+  document.getElementById('wind-beaufort').textContent = `Bft ${bf.bf} — ${bf.omschr}`;
+  document.getElementById('wind-tijd').textContent = tijdStr;
+}
+
+function toon24uWind(data) {
+  const el = document.getElementById('wind-24u');
+  const nu = new Date();
+  const startIdx = getWindUurIndex(data);
+
+  // Toon 24 uur vanaf nu
+  let html = '';
+  for (let i = 0; i < 24; i++) {
+    const idx = startIdx + i;
+    if (idx >= data.hourly.time.length) break;
+    const kn  = data.hourly.wind_speed_10m[idx] ?? 0;
+    const dir = data.hourly.wind_direction_10m[idx] ?? 0;
+    const bf  = knaarBeaufort(kn);
+    const kleur = windKleur(kn);
+    const uur = data.hourly.time[idx]?.slice(11, 16) || '';
+    const isHuidig = i === 0;
+    html += `
+      <div onclick="windNaarUur(${i})" style="
+        flex-shrink:0;width:38px;text-align:center;padding:4px 2px;
+        background:${isHuidig ? 'rgba(167,139,250,0.15)' : 'rgba(255,255,255,0.03)'};
+        border:1px solid ${isHuidig ? 'rgba(167,139,250,0.4)' : 'var(--border)'};
+        border-radius:5px;cursor:pointer;">
+        <div style="font-size:9px;color:var(--muted);">${uur}</div>
+        <div style="transform:rotate(${dir}deg);color:${kleur};font-size:14px;line-height:1.2;">➤</div>
+        <div style="font-size:10px;color:${kleur};font-family:'Teko',sans-serif;">${Math.round(kn)}</div>
+        <div style="font-size:9px;color:var(--muted);">${bf.bf}</div>
+      </div>`;
+  }
+  el.innerHTML = html;
+}
+
+function windNaarUur(stapVanNu) {
+  windUurOffset = stapVanNu;
+  updateWindUurLabel();
+  laadWindPijlen();
+}
+
+function windUurStap(stap) {
+  windUurOffset = Math.max(-6, Math.min(72, windUurOffset + stap));
+  updateWindUurLabel();
+  laadWindPijlen();
+}
+
+function windUurReset() {
+  windUurOffset = 0;
+  updateWindUurLabel();
+  laadWindPijlen();
+}
+
+function updateWindUurLabel() {
+  const labelEl = document.getElementById('wind-uur-label');
+  const subEl   = document.getElementById('wind-uur-sub');
+  if (!labelEl) return;
+  if (windUurOffset === 0) {
+    labelEl.textContent = 'Nu';
+    labelEl.style.color = '#a78bfa';
+    subEl.textContent = 'actueel';
+  } else {
+    const nu = new Date();
+    const doel = new Date(nu.getTime() + windUurOffset * 3600000);
+    const hh = doel.getHours().toString().padStart(2,'0');
+    const mm = doel.getMinutes().toString().padStart(2,'0');
+    labelEl.textContent = `${hh}:${mm}`;
+    labelEl.style.color = windUurOffset < 0 ? 'var(--muted)' : '#f5a623';
+    subEl.textContent = windUurOffset < 0
+      ? `${Math.abs(windUurOffset)}u geleden`
+      : `+${windUurOffset}u voorspelling`;
+  }
+}
+
+function toggleWindlaag(aan) {
+  windActief = aan;
+  if (aan) {
+    windLaag.addTo(map);
+    laadWindPijlen();
+    map.on('moveend zoomend', herlaadWindBijBeweging);
+  } else {
+    map.removeLayer(windLaag);
+    map.off('moveend zoomend', herlaadWindBijBeweging);
+    document.getElementById('wind-status').style.display = 'none';
+    windData = null;
+  }
+}
+
+let windMoveTimer = null;
+function herlaadWindBijBeweging() {
+  clearTimeout(windMoveTimer);
+  windMoveTimer = setTimeout(() => laadWindPijlen(), 1000);
+}
+
+// ── HAVENS ────────────────────────────────────────────────
+const HAVENS = [
+  // Waddenzee - eilanden
+  { naam:'West-Terschelling', lat:53.3630, lon:5.2190, type:'jachthaven', diepgang:2.5, ligplaatsen:250, vhf:31, telefoon:'+31 562 442342', info:'Grootste haven van Terschelling. Goede voorzieningen.' },
+  { naam:'Oost-Vlieland', lat:53.2970, lon:5.0840, type:'jachthaven', diepgang:2.0, ligplaatsen:120, vhf:31, telefoon:'+31 562 451729', info:'Enige haven op Vlieland. Rustig en sfeervol.' },
+  { naam:'Nes (Ameland)', lat:53.4310, lon:5.7890, type:'jachthaven', diepgang:2.0, ligplaatsen:150, vhf:31, telefoon:'+31 519 542044', info:'Hoofdhaven Ameland. Let op droogvallende geul.' },
+  { naam:'Oudeschild (Texel)', lat:53.0400, lon:4.8510, type:'jachthaven', diepgang:2.5, ligplaatsen:350, vhf:31, telefoon:'+31 222 312751', info:'Grootste jachthaven Texel. Goede faciliteiten.' },
+  { naam:'Den Hoorn (Texel)', lat:53.0100, lon:4.7700, type:'ankerplaats', diepgang:1.5, ligplaatsen:0, vhf:0, telefoon:'', info:'Ankerplaats, geen vaste ligplaatsen.' },
+  { naam:'Schiermonnikoog', lat:53.4780, lon:6.1660, type:'jachthaven', diepgang:1.8, ligplaatsen:80, vhf:31, telefoon:'+31 595 531233', info:'Klein en sfeervol. Droogvallende toegangsgeul.' },
+
+  // Waddenzee - vasteland
+  { naam:'Harlingen', lat:53.1750, lon:5.4140, type:'jachthaven', diepgang:3.0, ligplaatsen:400, vhf:11, telefoon:'+31 517 414726', info:'Grote haven, goede uitvalsbasis Waddenzee. Veerhaven.' },
+  { naam:'Kornwerderzand', lat:53.0770, lon:5.3380, type:'jachthaven', diepgang:3.5, ligplaatsen:100, vhf:18, telefoon:'+31 515 231331', info:'Bij sluis Afsluitdijk. Goed beschut.' },
+  { naam:'Lauwersoog', lat:53.4080, lon:6.2010, type:'jachthaven', diepgang:3.0, ligplaatsen:500, vhf:9, telefoon:'+31 519 349040', info:'Grote haven, uitvalsbasis Schiermonnikoog.' },
+  { naam:'Delfzijl', lat:53.3270, lon:6.9340, type:'jachthaven', diepgang:4.0, ligplaatsen:200, vhf:14, telefoon:'+31 596 618441', info:'Industriehaven met jachthaven. Grens Eems.' },
+  { naam:'Den Helder', lat:52.9640, lon:4.7450, type:'jachthaven', diepgang:3.5, ligplaatsen:300, vhf:9, telefoon:'+31 223 614520', info:'Marinehaven, grote jachthaven. Ingang Waddenzee.' },
+  { naam:'Franeker (Harlingen buitenhaven)', lat:53.1800, lon:5.4000, type:'jachthaven', diepgang:2.0, ligplaatsen:60, vhf:0, telefoon:'', info:'Kleine binnenhaven bij Harlingen.' },
+
+  // Zeeland
+  { naam:'Zierikzee', lat:51.6500, lon:3.9120, type:'jachthaven', diepgang:2.0, ligplaatsen:150, vhf:9, telefoon:'+31 111 412012', info:'Historische stad aan het Grevelingenmeer.' },
+  { naam:'Bruinisse', lat:51.6630, lon:4.0780, type:'jachthaven', diepgang:2.5, ligplaatsen:800, vhf:9, telefoon:'+31 111 481500', info:'Grote jachthaven Grevelingenmeer. Populair centrum.' },
+  { naam:'Colijnsplaat', lat:51.5990, lon:3.8490, type:'jachthaven', diepgang:2.5, ligplaatsen:450, vhf:9, telefoon:'+31 113 698622', info:'Haven aan het Veerse Meer.' },
+  { naam:'Veere', lat:51.5560, lon:3.6650, type:'jachthaven', diepgang:2.0, ligplaatsen:1000, vhf:9, telefoon:'+31 118 501535', info:'Grootste jachthaven Veerse Meer. Prachtig stadje.' },
+  { naam:'Middelburg (Arne)', lat:51.5090, lon:3.6530, type:'jachthaven', diepgang:2.5, ligplaatsen:300, vhf:9, telefoon:'+31 118 626868', info:'Kanaalthaven richting Middelburg centrum.' },
+  { naam:'Roompot Marina', lat:51.5770, lon:3.6910, type:'jachthaven', diepgang:2.5, ligplaatsen:1400, vhf:9, telefoon:'+31 113 374500', info:'Grote moderne jachthaven Oosterschelde.' },
+  { naam:'Zandkreek (Kats)', lat:51.5680, lon:3.8740, type:'jachthaven', diepgang:2.0, ligplaatsen:200, vhf:9, telefoon:'+31 113 381522', info:'Kleine jachthaven Veerse Meer/Oosterschelde.' },
+  { naam:'Tholen (Sint-Maartensdijk)', lat:51.5420, lon:4.1510, type:'jachthaven', diepgang:2.0, ligplaatsen:120, vhf:9, telefoon:'+31 166 662289', info:'Haven aan het Schelde-Rijnkanaal.' },
+  { naam:'Bergen op Zoom (Binnenschelde)', lat:51.4880, lon:4.2880, type:'jachthaven', diepgang:2.0, ligplaatsen:250, vhf:9, telefoon:'+31 164 260145', info:'Recreatieplas bij Bergen op Zoom.' },
+  { naam:'Wemeldinge', lat:51.5280, lon:3.9930, type:'jachthaven', diepgang:3.0, ligplaatsen:500, vhf:9, telefoon:'+31 113 621500', info:'Jachthaven aan de Oosterschelde. Goede stroomligging.' },
+  { naam:'Yerseke', lat:51.4930, lon:4.0560, type:'jachthaven', diepgang:2.5, ligplaatsen:100, vhf:9, telefoon:'+31 113 571330', info:'Mosselvisserij haven. Authentiek Zeeuws dorp.' },
+  { naam:'Hansweert', lat:51.4420, lon:4.0080, type:'jachthaven', diepgang:3.0, ligplaatsen:80, vhf:9, telefoon:'+31 113 381000', info:'Haven aan Westerschelde bij sluis.' },
+  { naam:'Terneuzen', lat:51.3340, lon:3.8290, type:'jachthaven', diepgang:3.0, ligplaatsen:150, vhf:9, telefoon:'+31 115 615122', info:'Haven bij sluis Terneuzen, Westerschelde.' },
+  { naam:'Breskens', lat:51.4010, lon:3.5630, type:'jachthaven', diepgang:3.5, ligplaatsen:600, vhf:9, telefoon:'+31 117 382040', info:'Grote jachthaven Westerschelde. Veerboot naar Vlissingen.' },
+  { naam:'Cadzand-Bad', lat:51.3680, lon:3.4090, type:'jachthaven', diepgang:2.0, ligplaatsen:80, vhf:0, telefoon:'', info:'Klein haventje aan de Belgische grens.' },
+  { naam:'Zoutelande', lat:51.4900, lon:3.4810, type:'ankerplaats', diepgang:1.5, ligplaatsen:0, vhf:0, telefoon:'', info:'Ankerplaats voor de kust, geen haven.' },
+  { naam:'Burghsluis', lat:51.6870, lon:3.8030, type:'jachthaven', diepgang:2.0, ligplaatsen:200, vhf:9, telefoon:'+31 111 651415', info:'Grevelingenmeer, rustige omgeving.' },
+  { naam:'Herkingen', lat:51.7380, lon:4.2870, type:'jachthaven', diepgang:2.0, ligplaatsen:350, vhf:9, telefoon:'+31 187 601715', info:'Grevelingenmeer, populaire jachthaven.' },
+  { naam:'Numansdorp (Haringvliet)', lat:51.7180, lon:4.4280, type:'jachthaven', diepgang:2.5, ligplaatsen:300, vhf:9, telefoon:'+31 186 652121', info:'Haven aan het Haringvliet.' },
+  { naam:'Hellevoetsluis', lat:51.8320, lon:4.1330, type:'jachthaven', diepgang:3.0, ligplaatsen:1000, vhf:9, telefoon:'+31 181 312433', info:'Grote historische vestingstad. Uitvalsbasis Haringvliet.' },
+  { naam:'Enkhuizen', lat:52.7030, lon:5.2940, type:'jachthaven', diepgang:2.5, ligplaatsen:1200, vhf:9, telefoon:'+31 228 313353', info:'Grote jachthaven IJsselmeer. Historisch centrum.' },
+  { naam:'Hoorn', lat:52.6420, lon:5.0590, type:'jachthaven', diepgang:2.5, ligplaatsen:600, vhf:9, telefoon:'+31 229 211500', info:'Historische havenstad. Goede voorzieningen.' },
+  { naam:'Medemblik', lat:52.7700, lon:5.1060, type:'jachthaven', diepgang:2.5, ligplaatsen:450, vhf:9, telefoon:'+31 227 541234', info:'Schilderachtige stad, meerdere jachthavens.' },
+
+  // Zeeland/Zuid-Holland kust
+  { naam:'Vlissingen', lat:51.4420, lon:3.5960, type:'jachthaven', diepgang:4.0, ligplaatsen:300, vhf:9, telefoon:'+31 118 414498', info:'Ingang Westerschelde. Grote jachthaven.' },
+  { naam:'Hoek van Holland', lat:51.9780, lon:4.1200, type:'jachthaven', diepgang:3.0, ligplaatsen:200, vhf:9, telefoon:'+31 174 384444', info:'Ingang Nieuwe Waterweg.' },
+  { naam:'Scheveningen', lat:52.1050, lon:4.2720, type:'jachthaven', diepgang:3.5, ligplaatsen:1200, vhf:14, telefoon:'+31 70 3524053', info:'Grote zeejachthaven. Vlak bij Den Haag.' },
+  { naam:'IJmuiden', lat:52.4630, lon:4.5560, type:'jachthaven', diepgang:3.5, ligplaatsen:400, vhf:12, telefoon:'+31 255 563500', info:'Ingang Noordzeekanaal/Amsterdam.' },
+];
+
+const havenLaag = L.layerGroup();
+let havenActief = false;
+
+function maakHavenIcon(type) {
+  const kleur = type === 'jachthaven' ? '#f5a623' : '#4fc3f7';
+  return L.divIcon({
+    className: '',
+    html: `<div style="
+      width:28px;height:28px;
+      background:${kleur};
+      border:2px solid white;
+      border-radius:50%;
+      display:flex;align-items:center;justify-content:center;
+      font-size:14px;
+      box-shadow:0 2px 6px rgba(0,0,0,0.5);
+    ">⚓</div>`,
+    iconSize: [28,28],
+    iconAnchor: [14,14]
+  });
+}
+
+function havenPopup(h) {
+  const vhfTxt = h.vhf ? `VHF ${h.vhf}` : 'geen VHF';
+  const telTxt = h.telefoon ? `<br>📞 ${h.telefoon}` : '';
+  const ligTxt = h.ligplaatsen > 0 ? `${h.ligplaatsen} ligplaatsen` : 'ankerplaats';
+  return `
+    <b>⚓ ${h.naam}</b><br>
+    <small style="color:#4fc3f7">${h.type}</small><br>
+    📏 Max diepgang: <b>${h.diepgang}m</b><br>
+    🛥 ${ligTxt}<br>
+    📻 ${vhfTxt}${telTxt}<br>
+    <small style="color:#aaa;margin-top:4px;display:block">${h.info}</small>
+    <button onclick="zoomNaarHaven('${h.naam}')" style="
+      margin-top:6px;padding:3px 10px;background:rgba(0,200,200,0.2);
+      border:1px solid var(--teal,#00c8c8);border-radius:4px;
+      color:#00c8c8;font-size:11px;cursor:pointer;">
+      🗺 Zoom in
+    </button>
+  `;
+}
+
+function toggleHavens(aan) {
+  havenActief = aan;
+  if (aan) {
+    havenLaag.clearLayers();
+    HAVENS.forEach(h => {
+      L.marker([h.lat, h.lon], { icon: maakHavenIcon(h.type), zIndexOffset: 400 })
+        .bindPopup(havenPopup(h))
+        .addTo(havenLaag);
+    });
+    havenLaag.addTo(map);
+    renderHavenLijst(HAVENS);
+    notify('Havens aan ✓');
+  } else {
+    map.removeLayer(havenLaag);
+  }
+}
+
+function renderHavenLijst(lijst) {
+  const el = document.getElementById('haven-lijst');
+  if (!lijst.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--muted);">Geen havens gevonden</div>';
+    return;
+  }
+  el.innerHTML = lijst.map(h => `
+    <div onclick="zoomNaarHaven('${h.naam}')" style="
+      padding:8px 10px;background:rgba(255,255,255,0.04);
+      border:1px solid var(--border);border-radius:6px;cursor:pointer;
+      transition:border-color 0.2s;"
+      onmouseover="this.style.borderColor='rgba(245,166,35,0.5)'"
+      onmouseout="this.style.borderColor='var(--border)'">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div style="font-family:'Teko',sans-serif;font-size:15px;">⚓ ${h.naam}</div>
+        <div style="font-size:10px;color:var(--amber);">${h.diepgang}m</div>
+      </div>
+      <div style="font-size:10px;color:var(--muted);margin-top:1px;">
+        ${h.type} · VHF ${h.vhf || '—'} · ${h.ligplaatsen > 0 ? h.ligplaatsen + ' pl.' : 'anker'}
+      </div>
+    </div>
+  `).join('');
+}
+
+function zoomNaarHaven(naam) {
+  const h = HAVENS.find(h => h.naam === naam);
+  if (!h) return;
+  map.setView([h.lat, h.lon], 14);
+  // Zoek de marker en open popup
+  havenLaag.eachLayer(layer => {
+    const ll = layer.getLatLng();
+    if (Math.abs(ll.lat - h.lat) < 0.001 && Math.abs(ll.lng - h.lon) < 0.001) {
+      layer.openPopup();
+    }
+  });
+  // Zet havens aan als dat nog niet het geval is
+  if (!havenActief) {
+    document.getElementById('toggle-havens').checked = true;
+    toggleHavens(true);
+  }
+}
+
+function zoekHaven(zoekterm) {
+  const q = zoekterm.toLowerCase().trim();
+  if (!q) {
+    renderHavenLijst(HAVENS);
+    return;
+  }
+  const resultaten = HAVENS.filter(h =>
+    h.naam.toLowerCase().includes(q) ||
+    h.type.toLowerCase().includes(q) ||
+    h.info.toLowerCase().includes(q)
+  );
+  renderHavenLijst(resultaten);
+}
+
+function dichtstbijzijndHaven() {
+  const pos = window._laatsteGpsPositie;
+  if (!pos) { notify('Wacht op GPS positie'); return; }
+  const gesorteerd = [...HAVENS].sort((a, b) => {
+    const dA = Math.hypot(a.lat - pos.lat, a.lon - pos.lon);
+    const dB = Math.hypot(b.lat - pos.lat, b.lon - pos.lon);
+    return dA - dB;
+  });
+  renderHavenLijst(gesorteerd);
+  zoomNaarHaven(gesorteerd[0].naam);
+  notify(`Dichtstbijzijnde haven: ${gesorteerd[0].naam}`);
+}
+
+// Init havenlijst tonen
+renderHavenLijst(HAVENS);
 function toggleSeaMap(on) {
   on ? seaLayer.addTo(map) : map.removeLayer(seaLayer);
 }
@@ -1666,57 +2202,115 @@ function maakStroomPijlIcon(richtingGr, snelheidKn, isLive) {
   });
 }
 
+// ── STROOM UUR NAVIGATIE ──────────────────────────────────
+let stroomUurOffset = 0; // 0 = nu, -1 = 1 uur geleden, +1 = 1 uur vooruit
+
+function stroomUurStap(stap) {
+  stroomUurOffset = Math.max(-12, Math.min(12, stroomUurOffset + stap));
+  updateStroomUurLabel();
+  if (stroomActief) laadStroomPijlen();
+  // Update grote pijl in sidebar
+  const positie = window._laatsteGpsPositie;
+  if (positie) laadStroomsnelheid(positie.lat, positie.lon);
+}
+
+function stroomUurReset() {
+  stroomUurOffset = 0;
+  updateStroomUurLabel();
+  if (stroomActief) laadStroomPijlen();
+  const positie = window._laatsteGpsPositie;
+  if (positie) laadStroomsnelheid(positie.lat, positie.lon);
+}
+
+function updateStroomUurLabel() {
+  const labelEl = document.getElementById('stroom-uur-label');
+  const subEl   = document.getElementById('stroom-uur-sub');
+  if (!labelEl) return;
+  if (stroomUurOffset === 0) {
+    labelEl.textContent = 'Nu';
+    labelEl.style.color = 'var(--teal)';
+    subEl.textContent = 'actuele meting';
+  } else {
+    const nu = new Date();
+    const doel = new Date(nu.getTime() + stroomUurOffset * 3600000);
+    const hh = doel.getHours().toString().padStart(2,'0');
+    const mm = doel.getMinutes().toString().padStart(2,'0');
+    labelEl.textContent = `${hh}:${mm}`;
+    labelEl.style.color = stroomUurOffset < 0 ? 'var(--muted)' : 'var(--amber)';
+    subEl.textContent = stroomUurOffset < 0
+      ? `${Math.abs(stroomUurOffset)} uur geleden`
+      : `over ${stroomUurOffset} uur (berekend)`;
+  }
+}
+
+function getStroomTijdstip() {
+  const nu = new Date();
+  return new Date(nu.getTime() + stroomUurOffset * 3600000);
+}
+
 async function laadStroomPijlen() {
   stroomlaag.clearLayers();
   const rwsUrl = 'https://waterwebservices.rijkswaterstaat.nl/ONLINEWAARNEMINGENSERVICES_DBO/OphalenLaatsteWaarnemingen';
-  const nu = new Date();
+  const tijdstip = getStroomTijdstip();
+  const isHistorisch = stroomUurOffset < 0;
+  const isToekomst   = stroomUurOffset > 0;
 
-  // Haal alleen stations op die zichtbaar zijn in de kaartgrens
   const bounds = map.getBounds().pad(0.2);
   const zichtbaar = KAART_STROOM_STATIONS.filter(s =>
     bounds.contains([s.lat, s.lon])
   );
 
   for (const station of zichtbaar) {
-    const body = {
-      AquoPlusWaarnemingMetadataLijst: [
-        { AquoMetadata: { Compartiment: { Code: 'OW' }, Grootheid: { Code: 'STROOMSHD' } } },
-        { AquoMetadata: { Compartiment: { Code: 'OW' }, Grootheid: { Code: 'STROOMRTG' } } },
-      ],
-      LocatieLijst: [{ Code: station.code, X: station.lon, Y: station.lat }],
-      Periode: {
-        Begindatumtijd: new Date(nu - 2 * 3600000).toISOString(),
-        Einddatumtijd:  nu.toISOString()
-      }
-    };
-
     let snelheidKn = null, richtingGr = null, isLive = false;
 
-    const data = await fetchJson(rwsUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
+    // Alleen RWS data ophalen voor heden en verleden (niet toekomst)
+    if (!isToekomst) {
+      const eindTijd  = new Date(tijdstip.getTime() + 10 * 60000);
+      const beginTijd = new Date(tijdstip.getTime() - 90 * 60000);
+      const body = {
+        AquoPlusWaarnemingMetadataLijst: [
+          { AquoMetadata: { Compartiment: { Code: 'OW' }, Grootheid: { Code: 'STROOMSHD' } } },
+          { AquoMetadata: { Compartiment: { Code: 'OW' }, Grootheid: { Code: 'STROOMRTG' } } },
+        ],
+        LocatieLijst: [{ Code: station.code, X: station.lon, Y: station.lat }],
+        Periode: {
+          Begindatumtijd: beginTijd.toISOString(),
+          Einddatumtijd:  eindTijd.toISOString()
+        }
+      };
 
-    if (data?.WaarnemingenLijst) {
-      for (const wl of data.WaarnemingenLijst) {
-        const metingen = wl.MetingenLijst;
-        if (!metingen?.length) continue;
-        const laatste = metingen[metingen.length - 1];
-        const code = wl.AquoMetadata?.Grootheid?.Code;
-        const val  = laatste.Meetwaarde?.Waarde_Numeriek ?? null;
-        if (val === null) continue;
-        if (code === 'STROOMSHD') snelheidKn = Math.abs(val * 1.94384);
-        if (code === 'STROOMRTG') richtingGr = val;
-        isLive = true;
+      const data = await fetchJson(rwsUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+
+      if (data?.WaarnemingenLijst) {
+        for (const wl of data.WaarnemingenLijst) {
+          const metingen = wl.MetingenLijst;
+          if (!metingen?.length) continue;
+          // Zoek de meting dichtstbij het gewenste tijdstip
+          const doelMs = tijdstip.getTime();
+          const dichtstbij = metingen.reduce((best, m) => {
+            const mTijd = new Date(m.Tijdstip).getTime();
+            const bestTijd = best ? new Date(best.Tijdstip).getTime() : Infinity;
+            return Math.abs(mTijd - doelMs) < Math.abs(bestTijd - doelMs) ? m : best;
+          }, null);
+          if (!dichtstbij) continue;
+          const code = wl.AquoMetadata?.Grootheid?.Code;
+          const val  = dichtstbij.Meetwaarde?.Waarde_Numeriek ?? null;
+          if (val === null) continue;
+          if (code === 'STROOMSHD') snelheidKn = Math.abs(val * 1.94384);
+          if (code === 'STROOMRTG') richtingGr = val;
+          isLive = !isToekomst && stroomUurOffset === 0;
+        }
       }
     }
 
-    // Fallback: bereken eb/vloed richting
+    // Fallback of toekomst: bereken eb/vloed
     if (snelheidKn === null || richtingGr === null) {
-      const ev = bepaalEbVloed(station, nu);
+      const ev = bepaalEbVloed(station, tijdstip);
       snelheidKn = snelheidKn ?? parseFloat(ev.snelheid);
-      // Schat richting op basis van eb/vloed en ligging kust
       const vloedRichtingen = {
         'HARVT': 125, 'DENHDR': 160, 'IJMDBTHVN': 170,
         'HOEKVHLD': 95, 'VLISSGN': 70, 'WESTTSLG': 110,
@@ -1728,13 +2322,18 @@ async function laadStroomPijlen() {
       isLive = false;
     }
 
+    const tijdLabel = stroomUurOffset === 0 ? 'nu'
+      : stroomUurOffset < 0 ? `${Math.abs(stroomUurOffset)}u geleden`
+      : `+${stroomUurOffset}u (berekend)`;
+
     const icon = maakStroomPijlIcon(richtingGr, snelheidKn, isLive);
     L.marker([station.lat, station.lon], { icon, zIndexOffset: 500 })
       .bindPopup(`
         <b>🌊 ${station.naam}</b><br>
         Snelheid: <b>${snelheidKn.toFixed(1)} kn</b><br>
         Richting: <b>${Math.round(richtingGr)}° (${richtingNaarTekst(richtingGr)})</b><br>
-        <small style="color:#888">${isLive ? '✓ RWS live meting' : '~ Berekend'}</small>
+        Tijd: <b>${tijdLabel}</b><br>
+        <small style="color:#888">${isLive ? '✓ RWS live' : isToekomst ? '~ Berekend' : '~ Historisch/berekend'}</small>
       `)
       .addTo(stroomlaag);
   }
@@ -1791,8 +2390,9 @@ function richtingNaarTekst(graden) {
 
 async function laadStroomsnelheid(lat, lon) {
   const station = dichtstbijzijndStroomStation(lat, lon);
+  const tijdstip = getStroomTijdstip();
+  const isToekomst = stroomUurOffset > 0;
 
-  // Toon kaart meteen met laadstatus
   const card = document.getElementById('stroom-card');
   card.style.display = 'block';
   document.getElementById('stroom-snelheid').textContent = '…';
@@ -1801,11 +2401,20 @@ async function laadStroomsnelheid(lat, lon) {
   document.getElementById('stroom-tijd').textContent = '';
 
   // Toon meteen berekende stroom als snelle preview
-  const ebVloedPreview = bepaalEbVloed(station, new Date());
-  toonStroomFallback(ebVloedPreview, station);
+  const ebVloedPreview = bepaalEbVloed(station, tijdstip);
+  toonStroomFallback(ebVloedPreview, station, tijdstip);
+
+  // Toekomst: alleen berekend, geen RWS
+  if (isToekomst) {
+    const ebVloed = bepaalEbVloed(station, tijdstip);
+    toonStroomFallback(ebVloed, station, tijdstip);
+    return;
+  }
 
   const rwsUrl = 'https://waterwebservices.rijkswaterstaat.nl/ONLINEWAARNEMINGENSERVICES_DBO/OphalenLaatsteWaarnemingen';
   const resultaten = {};
+  const eindTijd  = new Date(tijdstip.getTime() + 10 * 60000);
+  const beginTijd = new Date(tijdstip.getTime() - 90 * 60000);
 
   for (const { grootheid, label } of [
     { grootheid: 'STROOMSHD', label: 'snelheid' },
@@ -1817,8 +2426,8 @@ async function laadStroomsnelheid(lat, lon) {
       }],
       LocatieLijst: [{ Code: station.code, X: station.lon, Y: station.lat }],
       Periode: {
-        Begindatumtijd: new Date(Date.now() - 2 * 3600000).toISOString(),
-        Einddatumtijd:  new Date().toISOString()
+        Begindatumtijd: beginTijd.toISOString(),
+        Einddatumtijd:  eindTijd.toISOString()
       }
     };
     const data = await fetchJson(rwsUrl, {
@@ -1828,18 +2437,25 @@ async function laadStroomsnelheid(lat, lon) {
     });
     const metingen = data?.WaarnemingenLijst?.[0]?.MetingenLijst;
     if (metingen?.length) {
-      const laatste = metingen[metingen.length - 1];
-      resultaten[label] = {
-        waarde: laatste.Meetwaarde?.Waarde_Numeriek ?? null,
-        tijd:   new Date(laatste.Tijdstip)
-      };
+      // Kies meting dichtstbij het gewenste tijdstip
+      const doelMs = tijdstip.getTime();
+      const dichtstbij = metingen.reduce((best, m) => {
+        const mTijd = new Date(m.Tijdstip).getTime();
+        const bestTijd = best ? new Date(best.Tijdstip).getTime() : Infinity;
+        return Math.abs(mTijd - doelMs) < Math.abs(bestTijd - doelMs) ? m : best;
+      }, null);
+      if (dichtstbij) {
+        resultaten[label] = {
+          waarde: dichtstbij.Meetwaarde?.Waarde_Numeriek ?? null,
+          tijd:   new Date(dichtstbij.Tijdstip)
+        };
+      }
     }
   }
 
-  // Als geen RWS data: toon eb/vloed op basis van getijfase
   if (!resultaten.snelheid && !resultaten.richting) {
-    const ebVloed = bepaalEbVloed(station, new Date());
-    toonStroomFallback(ebVloed, station);
+    const ebVloed = bepaalEbVloed(station, tijdstip);
+    toonStroomFallback(ebVloed, station, tijdstip);
     return;
   }
 
@@ -1875,15 +2491,16 @@ function bepaalEbVloed(station, now) {
   return { isEb, snelheid: snelheid.toFixed(1), voortgang };
 }
 
-function toonStroomFallback(ebVloed, station) {
+function toonStroomFallback(ebVloed, station, tijdstip) {
   const { isEb, snelheid } = ebVloed;
+  const t = tijdstip || new Date();
   document.getElementById('stroom-snelheid').textContent = `~${snelheid} kn`;
   document.getElementById('stroom-snelheid').style.color = parseFloat(snelheid) > 1.0 ? '#f5a623' : '#4fc3f7';
   document.getElementById('stroom-richting').textContent = isEb ? '← Eb (berekend)' : '→ Vloed (berekend)';
   document.getElementById('stroom-pijl').style.transform = isEb ? 'rotate(180deg)' : 'rotate(0deg)';
   document.getElementById('stroom-pijl').style.color = isEb ? '#f5a623' : '#4fc3f7';
   document.getElementById('stroom-station').textContent = '📍 ' + station.naam;
-  document.getElementById('stroom-tijd').textContent = new Date().toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
+  document.getElementById('stroom-tijd').textContent = t.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
 }
 
 function toonStroom(resultaten, station) {
@@ -2124,6 +2741,7 @@ function verwerkKaartBestand(file) {
       let bin = '';
       bytes.forEach(b => bin += String.fromCharCode(b));
       eigenKaartDataUrl = `data:${mime};base64,` + btoa(bin);
+      document.getElementById('coord-sectie').style.display = 'block';
       klaarMetBestand(file.name, statusEl);
       return;
     }
@@ -2153,6 +2771,7 @@ function verwerkKaartBestand(file) {
         }
         ctx.putImageData(img, 0, 0);
         eigenKaartDataUrl = canvas.toDataURL('image/png');
+        document.getElementById('coord-sectie').style.display = 'block';
         klaarMetBestand(file.name, statusEl);
       } catch(err) { statusEl.style.color='var(--danger)'; statusEl.textContent='⚠ BMP fout: '+err.message; }
       return;
@@ -2370,16 +2989,32 @@ function slaInstellingenOp() {
 
 function pasInstellingenToe() {
   // Afstandlabel in header
-  document.querySelector('#hdr-dist').closest('.stat').querySelector('.stat-label').textContent =
-    instellingen.afstand === 'nm' ? 'NM gevaren' : 'km gevaren';
+  const afstandLabel = instellingen.afstand === 'nm' ? 'NM gevaren' : 'km gevaren';
+  document.querySelector('#hdr-dist').closest('.stat').querySelector('.stat-label').textContent = afstandLabel;
 
-  // Kaartoriëntatie
+  // Badge eenheid (afstand)
+  const badgeEenheid = document.getElementById('badge-eenheid');
+  badgeEenheid.textContent = instellingen.afstand === 'nm' ? 'NM' : 'KM';
+  badgeEenheid.style.color = 'var(--teal)';
+  badgeEenheid.style.borderColor = 'rgba(0,200,200,0.4)';
+
+  // Badge oriëntatie
+  const badgeOri = document.getElementById('badge-orientatie');
   if (instellingen.orientatie === 'course') {
+    badgeOri.textContent = '⬆ KOERS';
+    badgeOri.style.color = 'var(--amber)';
+    badgeOri.style.borderColor = 'rgba(245,166,35,0.5)';
     map.on('locationfound', draaiKaartOpKoers);
   } else {
+    badgeOri.textContent = 'N ↑';
+    badgeOri.style.color = 'var(--muted)';
+    badgeOri.style.borderColor = 'rgba(0,200,200,0.4)';
     map.off('locationfound', draaiKaartOpKoers);
-    map.setBearing ? map.setBearing(0) : null;
+    if (map.setBearing) map.setBearing(0);
   }
+
+  // Snelheidseenheid badge in speed display
+  document.getElementById('speed-unit').textContent = instellingen.snelheid === 'kmh' ? 'KM/H' : 'KN';
 }
 
 function draaiKaartOpKoers(e) {
