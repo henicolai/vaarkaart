@@ -761,20 +761,17 @@
       <form class="contact-form" onsubmit="verstuurFormulier(event)">
         <div class="form-field">
           <label class="form-label">Naam</label>
-          <input class="form-input" type="text" placeholder="Uw naam" required>
+          <input class="form-input" type="text" id="contact-naam" placeholder="Uw naam" required>
         </div>
         <div class="form-field">
           <label class="form-label">E-mail</label>
-          <input class="form-input" type="email" placeholder="uw@email.nl" required>
+          <input class="form-input" type="email" id="contact-email" placeholder="uw@email.nl" required>
         </div>
         <div class="form-field">
           <label class="form-label">Bericht</label>
-          <textarea class="form-input" placeholder="Uw bericht…" required></textarea>
+          <textarea class="form-input" id="contact-bericht" placeholder="Uw bericht…" required></textarea>
         </div>
-        <button type="submit" class="form-submit">Verstuur →</button>
-        <div id="form-bevestiging" style="display:none;color:var(--teal);font-size:15px;margin-top:4px;">
-          ✓ Bericht ontvangen — bedankt!
-        </div>
+        <button type="submit" class="form-submit">Verstuur via e-mail →</button>
       </form>
 
       <div class="contact-info">
@@ -818,8 +815,16 @@
 <script>
 function verstuurFormulier(e) {
   e.preventDefault();
-  document.getElementById('form-bevestiging').style.display = 'block';
-  e.target.reset();
+  const naam    = document.getElementById('contact-naam').value;
+  const email   = document.getElementById('contact-email').value;
+  const bericht = document.getElementById('contact-bericht').value;
+  const onderwerp = encodeURIComponent('VaarKaart feedback van ' + naam);
+  const body = encodeURIComponent(
+    'Naam: ' + naam + '\n' +
+    'E-mail: ' + email + '\n\n' +
+    bericht
+  );
+  window.location.href = `mailto:hnicolai@gmail.com?subject=${onderwerp}&body=${body}`;
 }
 
 // Fade-in on scroll
