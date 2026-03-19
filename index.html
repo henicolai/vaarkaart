@@ -592,7 +592,7 @@
     <div class="feature-card">
       <span class="feature-icon">⛵</span>
       <div class="feature-title">GPS Positie</div>
-      <p class="feature-desc">Je boot verschijnt live op de kaart. Koppel een externe GPS ontvanger voor maximale nauwkeurigheid op het water.</p>
+      <p class="feature-desc">Je boot verschijnt live op de kaart. Snelheid in knopen of km/h, coördinaten in drie formaten. Scherm wakker houden via Wake Lock.</p>
     </div>
     <div class="feature-card">
       <span class="feature-icon">📍</span>
@@ -601,23 +601,43 @@
     </div>
     <div class="feature-card">
       <span class="feature-icon">🔴</span>
-      <div class="feature-title">Officiële RWS Boeien</div>
-      <p class="feature-desc">Alle drijvende boeien en vaste bakens van Rijkswaterstaat direct op de kaart, met IALA kleurcodering.</p>
+      <div class="feature-title">RWS Boeien & Bakens</div>
+      <p class="feature-desc">Alle officiële boeien en bakens van Rijkswaterstaat via OpenSeaMap, altijd bijgewerkt.</p>
     </div>
     <div class="feature-card">
       <span class="feature-icon">🌊</span>
       <div class="feature-title">Getijden & Stroom</div>
-      <p class="feature-desc">Hoog- en laagwater tijden van het dichtstbijzijnde RWS meetstation. Actuele stroomsnelheid en -richting als pijlen op de kaart.</p>
+      <p class="feature-desc">Hoog- en laagwater van het dichtstbijzijnde RWS station. Stroompijlen op de kaart — bladeren per uur, tot 12 uur terug en vooruit.</p>
+    </div>
+    <div class="feature-card">
+      <span class="feature-icon">💨</span>
+      <div class="feature-title">Windvoorspelling</div>
+      <p class="feature-desc">Windpijlen op de kaart via Open-Meteo weermodel. Richting, snelheid en Beaufort schaal. 72 uur voorspelling met 24-uurs tijdlijn.</p>
+    </div>
+    <div class="feature-card">
+      <span class="feature-icon">⚓</span>
+      <div class="feature-title">Havens</div>
+      <p class="feature-desc">Meer dan 50 havens langs Waddenzee, Zeeland en IJsselmeer met diepgang, ligplaatsen en VHF kanaal. Zoeken op naam of dichtstbijzijnde haven.</p>
     </div>
     <div class="feature-card">
       <span class="feature-icon">🗺</span>
       <div class="feature-title">Eigen Zeekaarten</div>
-      <p class="feature-desc">Laad je eigen zeekaarten als PNG of JPG in. Positioneer ze met hoekcoördinaten exact op de juiste plek.</p>
+      <p class="feature-desc">Laad meerdere eigen kaarten als PNG, JPG of BMP. Coördinaten worden onthouden tussen sessies. Stel doorzichtigheid in per kaart.</p>
+    </div>
+    <div class="feature-card">
+      <span class="feature-icon">📌</span>
+      <div class="feature-title">GPX Waypoints</div>
+      <p class="feature-desc">Sleep een GPX bestand op de kaart en waypoints verschijnen direct. Klik op een waypoint om er naartoe te zoomen.</p>
     </div>
     <div class="feature-card">
       <span class="feature-icon">📏</span>
       <div class="feature-title">Dieptekaart</div>
       <p class="feature-desc">Gekleurde dieptelaag en dieptecijfers voor de Waddenzee en kustwateren. Geulen direct zichtbaar op de kaart.</p>
+    </div>
+    <div class="feature-card">
+      <span class="feature-icon">⚙</span>
+      <div class="feature-title">Instellingen</div>
+      <p class="feature-desc">Kies eenheden (knopen/km/h, km/NM), coördinatenformaat (DD, DDM, DMS) en kaartoriëntatie (Noord of Koers omhoog). Instellingen worden onthouden.</p>
     </div>
   </div>
 </section>
@@ -634,24 +654,24 @@
   <div class="section">
     <div class="section-label">Aan de slag</div>
     <h2 class="section-title">Handleiding</h2>
-    <p class="section-sub">In vijf stappen op het water met VaarKaart.</p>
+    <p class="section-sub">In zes stappen op het water met VaarKaart.</p>
 
     <div class="steps">
       <div class="step">
         <div class="step-num">01</div>
         <div>
-          <div class="step-title">Open de app</div>
-          <p class="step-desc">Klik op "Open App" rechtsboven of open <code style="color:var(--teal)">vaarkaart.html</code> direct in Chrome of Edge. Geef toestemming voor locatietoegang wanneer de browser daarom vraagt.</p>
-          <span class="step-tip">💡 Beste resultaat via een webserver of GitHub Pages</span>
+          <div class="step-title">App openen & installeren</div>
+          <p class="step-desc">Open de app via de knop rechtsboven. Geef toestemming voor locatietoegang. In Chrome/Edge op Android kies je "App installeren" via de drie puntjes om VaarKaart als PWA op je startscherm te zetten — dan werkt de app als een echte Android-app.</p>
+          <span class="step-tip">💡 Beste resultaat via GitHub Pages of als geïnstalleerde PWA</span>
         </div>
       </div>
 
       <div class="step">
         <div class="step-num">02</div>
         <div>
-          <div class="step-title">GPS activeren</div>
-          <p class="step-desc">Je positie verschijnt automatisch als ⛵ op de kaart. Sluit een externe GPS ontvanger aan voor betere nauwkeurigheid. Gebruik de knop "Centreer op mij" om direct naar je positie te springen.</p>
-          <span class="step-tip">📡 Werkt met USB en Bluetooth GPS ontvangers</span>
+          <div class="step-title">GPS & instellingen</div>
+          <p class="step-desc">Je positie verschijnt automatisch als ⛵ op de kaart. Open via de zijbalk ⚙ Instellingen om eenheden (kn/km/h, km/NM), coördinatenformaat en kaartoriëntatie in te stellen. Zet "Scherm wakker houden" aan zodat de app niet wegvalt tijdens het varen.</p>
+          <span class="step-tip">📡 Instellingen worden onthouden na herladen</span>
         </div>
       </div>
 
@@ -659,24 +679,33 @@
         <div class="step-num">03</div>
         <div>
           <div class="step-title">Kaartlagen instellen</div>
-          <p class="step-desc">Zet via de schakelaar in de zijbalk de gewenste lagen aan: OpenSeaMap vaarwegen, RWS boeien, stroompijlen of de dieptekaart. De OpenSeaMap laag staat standaard aan en toont vaarwegen, bakens en dieptecijfers.</p>
+          <p class="step-desc">Zet via de schakelaars in de zijbalk de gewenste lagen aan: OpenSeaMap vaarwegen, RWS boeien, stroompijlen, windpijlen, dieptekaart of havens. Stroompijlen en windpijlen kunnen per uur worden doorgeklikt met de ◀ ▶ knoppen in de zijbalk.</p>
         </div>
       </div>
 
       <div class="step">
         <div class="step-num">04</div>
         <div>
-          <div class="step-title">Eigen zeekaart laden</div>
-          <p class="step-desc">Sla je zeekaart op als PNG of JPG. Sleep het bestand op het uploadkader in de zijbalk. Vul de NW en ZO hoekcoördinaten in decimale graden in en klik "Kaart laden". De kaart wordt precies over de basiskaart gelegd.</p>
-          <span class="step-tip">📌 BMP eerst omzetten naar PNG</span>
+          <div class="step-title">Havens opzoeken</div>
+          <p class="step-desc">Open de Havens sectie in de zijbalk. Zoek op naam of tik 📍 om de dichtstbijzijnde haven te vinden. Klik op een haven voor diepgang, VHF kanaal en contactgegevens. Zet "Havens op kaart" aan om alle havens als ⚓ markers te zien.</p>
+          <span class="step-tip">⚓ Meer dan 50 havens: Waddenzee, Zeeland, IJsselmeer</span>
         </div>
       </div>
 
       <div class="step">
         <div class="step-num">05</div>
         <div>
-          <div class="step-title">Route opnemen</div>
-          <p class="step-desc">Druk op "Start opname" om je vaarroute als oranje lijn op te nemen. Druk op "Stop & sla op" om de route te bewaren. Opgeslagen routes zijn later terug te vinden onderaan de zijbalk en kunnen worden getoond of verwijderd.</p>
+          <div class="step-title">Eigen zeekaart laden</div>
+          <p class="step-desc">Sleep een PNG, JPG of BMP zeekaart op het uploadkader in de zijbalk. Vul de NW en ZO hoekcoördinaten in en klik "Kaart laden". De coördinaten worden onthouden — na herladen zie je de kaart in de lijst en kun je met één klik de coördinaten terugzetten.</p>
+          <span class="step-tip">📌 Meerdere kaarten tegelijk, elk met eigen doorzichtigheid</span>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">06</div>
+        <div>
+          <div class="step-title">Route opnemen & GPX</div>
+          <p class="step-desc">Druk op "Start opname" om je vaarroute als oranje lijn op te nemen. Druk op "Stop & sla op" om de route te bewaren. Sleep een GPX bestand op het kader om waypoints te laden — klik op een waypoint in de lijst om er naartoe te zoomen.</p>
         </div>
       </div>
     </div>
@@ -702,16 +731,16 @@
     </div>
     <div class="about-stats">
       <div class="stat-box">
-        <div class="stat-val">10+</div>
+        <div class="stat-val">12</div>
         <div class="stat-label">RWS meetstations</div>
       </div>
       <div class="stat-box">
-        <div class="stat-val">∞</div>
-        <div class="stat-label">Eigen kaarten</div>
+        <div class="stat-val">50+</div>
+        <div class="stat-label">Havens</div>
       </div>
       <div class="stat-box">
-        <div class="stat-val">Live</div>
-        <div class="stat-label">Getijden & stroom</div>
+        <div class="stat-val">72u</div>
+        <div class="stat-label">Windvoorspelling</div>
       </div>
       <div class="stat-box">
         <div class="stat-val">Gratis</div>
