@@ -1,5 +1,5 @@
-// VaarKaart Service Worker — v3.0
-const CACHE = 'vaarkaart-v3';
+// VaarKaart Service Worker — v4.0
+const CACHE = 'vaarkaart-v4';
 
 // Bestanden die offline beschikbaar moeten zijn
 const OFFLINE_FILES = [
