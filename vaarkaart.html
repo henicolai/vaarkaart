@@ -1638,16 +1638,23 @@ function verbindAIS() {
     try { verwerkAISBericht(JSON.parse(event.data)); } catch(e) {}
   };
 
-  aisSocket.onerror = () => {
+  aisSocket.onerror = (e) => {
     statusEl.style.color = 'var(--danger)';
     statusEl.textContent = '⚠ AIS verbindingsfout';
   };
 
   aisSocket.onclose = (e) => {
-    if (aisActief) {
-      statusEl.style.color = 'var(--amber)';
-      statusEl.textContent = `↻ AIS herverbinden…`;
-      aisHerverbindTimer = setTimeout(verbindAIS, 4000);
+    console.warn('AIS close:', e.code, e.reason);
+    const statusEl = document.getElementById('ais-status');
+    if (e.code === 4001 || e.code === 4003) {
+      // Ongeldige API key of niet geautoriseerd
+      statusEl.style.color = 'var(--danger)';
+      statusEl.textContent = `⚠ AIS: ongeldige API key (code ${e.code})`;
+      aisActief = false;
+      document.getElementById('toggle-ais').checked = false;
+    } else if (aisActief) {
+      // Stil herverbinden
+      aisHerverbindTimer = setTimeout(verbindAIS, 3000);
     }
   };
 }
