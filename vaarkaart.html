@@ -1577,92 +1577,77 @@ const AIS_API_KEY = '79a5b4281be6d589dd7917be53879ccb6b0a95aa';
 const aisLaag = L.layerGroup();
 let aisActief = false;
 let aisSocket = null;
-let aisSchepen = {}; // MMSI → { marker, data }
+let aisSchepen = {};
 let aisHerverbindTimer = null;
 
 const AIS_SCHEEPTYPE = {
-  20:'Vleugelboor', 21:'WIG', 22:'WIG', 23:'WIG', 24:'WIG', 25:'WIG', 26:'WIG', 27:'WIG', 28:'WIG', 29:'WIG',
-  30:'Vissersboot', 31:'Sleper', 32:'Sleper', 33:'Baggerschip', 34:'Duikschip', 35:'Militair', 36:'Zeilschip',
-  37:'Pleziervaartuig', 40:'HSC', 50:'Loods', 51:'SAR', 52:'Sleepboot', 53:'Havenvaartuig',
+  30:'Vissersboot', 31:'Sleper', 32:'Sleper', 33:'Baggerschip',
+  36:'Zeilschip', 37:'Pleziervaartuig',
   60:'Passagiersschip', 70:'Vrachtschip', 80:'Tanker', 90:'Overig'
 };
 
 function getScheeptype(type) {
-  const basis = Math.floor(type / 10) * 10;
-  return AIS_SCHEEPTYPE[type] || AIS_SCHEEPTYPE[basis] || 'Schip';
+  return AIS_SCHEEPTYPE[Math.floor(type/10)*10] || AIS_SCHEEPTYPE[type] || 'Schip';
 }
 
-function aisKleur(scheeptype) {
-  if (scheeptype >= 60 && scheeptype < 70) return '#4fc3f7'; // passagier - blauw
-  if (scheeptype >= 70 && scheeptype < 80) return '#f5a623'; // vracht - oranje
-  if (scheeptype >= 80 && scheeptype < 90) return '#e84545'; // tanker - rood
-  if (scheeptype === 30) return '#34d399';                    // vissers - groen
-  if (scheeptype === 36 || scheeptype === 37) return '#a78bfa'; // zeil/plezier - paars
-  return '#00c8c8'; // overig - teal
+function aisKleur(t) {
+  if (t >= 60 && t < 70) return '#4fc3f7';
+  if (t >= 70 && t < 80) return '#f5a623';
+  if (t >= 80 && t < 90) return '#e84545';
+  if (t === 30) return '#34d399';
+  if (t === 36 || t === 37) return '#a78bfa';
+  return '#00c8c8';
 }
 
-function maakAISIcon(koers, scheeptype, sog) {
+function maakAISIcon(koers, scheeptype) {
   const kleur = aisKleur(scheeptype);
-  const grootte = 20;
+  const g = 20;
   return L.divIcon({
     className: '',
-    html: `<div style="
-      width:${grootte}px;height:${grootte}px;
-      display:flex;align-items:center;justify-content:center;
-      transform:rotate(${koers}deg);
-      filter:drop-shadow(0 0 3px ${kleur});
-    ">
-      <svg viewBox="0 0 24 24" width="${grootte}" height="${grootte}">
+    html: `<div style="width:${g}px;height:${g}px;display:flex;align-items:center;justify-content:center;transform:rotate(${koers}deg);filter:drop-shadow(0 0 3px ${kleur});">
+      <svg viewBox="0 0 24 24" width="${g}" height="${g}">
         <polygon points="12,2 18,20 12,16 6,20" fill="${kleur}" stroke="rgba(255,255,255,0.7)" stroke-width="1.5"/>
-      </svg>
-    </div>`,
-    iconSize: [grootte, grootte],
-    iconAnchor: [grootte/2, grootte/2]
+      </svg></div>`,
+    iconSize: [g,g], iconAnchor: [g/2,g/2]
   });
 }
 
 function verbindAIS() {
-  if (aisSocket) { aisSocket.close(); aisSocket = null; }
+  if (aisSocket) { try { aisSocket.close(); } catch(e) {} aisSocket = null; }
   const statusEl = document.getElementById('ais-status');
   statusEl.style.display = 'block';
   statusEl.style.color = 'var(--muted)';
   statusEl.textContent = '⏳ AIS verbinden…';
 
-  const bounds = map.getBounds().pad(0.05);
-  aisSocket = new WebSocket(`wss://stream.aisstream.io/v0/stream`);
+  aisSocket = new WebSocket('wss://stream.aisstream.io/v0/stream');
 
   aisSocket.onopen = () => {
+    const b = map.getBounds().pad(0.05);
+    // BoundingBoxes: [[[minLat, minLon], [maxLat, maxLon]]]
     const sub = {
       APIKey: AIS_API_KEY,
-      BoundingBoxes: [[
-        [bounds.getSouth(), bounds.getWest()],
-        [bounds.getNorth(), bounds.getEast()]
-      ]],
+      BoundingBoxes: [[[b.getSouth(), b.getWest()], [b.getNorth(), b.getEast()]]],
       FilterMessageTypes: ['PositionReport', 'ShipStaticData']
     };
     aisSocket.send(JSON.stringify(sub));
     statusEl.style.color = 'var(--teal)';
-    statusEl.textContent = '✓ AIS live — schepen verschijnen op kaart';
+    statusEl.textContent = '✓ AIS verbonden — schepen laden…';
   };
 
   aisSocket.onmessage = (event) => {
-    try {
-      const msg = JSON.parse(event.data);
-      verwerkAISBericht(msg);
-    } catch(e) {}
+    try { verwerkAISBericht(JSON.parse(event.data)); } catch(e) {}
   };
 
-  aisSocket.onerror = (err) => {
-    console.error('AIS WebSocket fout:', err);
+  aisSocket.onerror = () => {
     statusEl.style.color = 'var(--danger)';
-    statusEl.textContent = '⚠ AIS verbindingsfout — zie console (F12)';
+    statusEl.textContent = '⚠ AIS verbindingsfout';
   };
 
-  aisSocket.onclose = (event) => {
-    console.warn('AIS gesloten:', event.code, event.reason);
+  aisSocket.onclose = (e) => {
     if (aisActief) {
-      statusEl.textContent = `↻ AIS herverbinden (code ${event.code})…`;
-      aisHerverbindTimer = setTimeout(verbindAIS, 5000);
+      statusEl.style.color = 'var(--amber)';
+      statusEl.textContent = `↻ AIS herverbinden…`;
+      aisHerverbindTimer = setTimeout(verbindAIS, 4000);
     }
   };
 }
@@ -1671,57 +1656,42 @@ function verwerkAISBericht(msg) {
   const type = msg.MessageType;
   const meta = msg.MetaData;
   if (!meta) return;
-
   const mmsi = meta.MMSI;
   const lat  = meta.latitude;
   const lon  = meta.longitude;
-  if (!mmsi || !lat || !lon) return;
+  if (!mmsi || lat == null || lon == null) return;
 
   const bestaand = aisSchepen[mmsi];
 
   if (type === 'PositionReport') {
-    const pr   = msg.Message?.PositionReport;
-    const koers = pr?.TrueHeading ?? pr?.Cog ?? 0;
+    const pr    = msg.Message?.PositionReport;
+    const koers = pr?.TrueHeading < 511 ? pr.TrueHeading : (pr?.Cog ?? 0);
     const sog   = pr?.Sog ?? 0;
     const scheeptype = bestaand?.scheeptype ?? 0;
 
     if (bestaand) {
       bestaand.marker.setLatLng([lat, lon]);
-      bestaand.marker.setIcon(maakAISIcon(koers, scheeptype, sog));
-      bestaand.koers = koers;
-      bestaand.sog = sog;
-      bestaand.lat = lat;
-      bestaand.lon = lon;
-      updateAISPopup(mmsi);
+      bestaand.marker.setIcon(maakAISIcon(koers, scheeptype));
+      Object.assign(bestaand, { koers, sog, lat, lon });
+      if (bestaand.marker.isPopupOpen()) bestaand.marker.setPopupContent(buildAISPopup(mmsi));
     } else {
-      const marker = L.marker([lat, lon], {
-        icon: maakAISIcon(koers, scheeptype, sog),
-        zIndexOffset: 300
-      }).addTo(aisLaag);
+      const marker = L.marker([lat, lon], { icon: maakAISIcon(koers, scheeptype), zIndexOffset: 300 })
+        .bindPopup(() => buildAISPopup(mmsi)).addTo(aisLaag);
       aisSchepen[mmsi] = { marker, mmsi, naam: meta.ShipName?.trim() || `MMSI ${mmsi}`, koers, sog, scheeptype, lat, lon, bestemming: '', diepgang: 0 };
-      marker.bindPopup(() => buildAISPopup(mmsi));
     }
 
   } else if (type === 'ShipStaticData') {
     const sd = msg.Message?.ShipStaticData;
     const naam = sd?.Name?.trim() || meta.ShipName?.trim() || `MMSI ${mmsi}`;
     const scheeptype = sd?.Type ?? 0;
-    const bestemming = sd?.Destination?.trim() || '';
-    const diepgang   = sd?.MaximumStaticDraught ?? 0;
-
     if (bestaand) {
-      bestaand.naam = naam;
-      bestaand.scheeptype = scheeptype;
-      bestaand.bestemming = bestemming;
-      bestaand.diepgang   = diepgang;
-      bestaand.marker.setIcon(maakAISIcon(bestaand.koers, scheeptype, bestaand.sog));
-      updateAISPopup(mmsi);
+      Object.assign(bestaand, { naam, scheeptype, bestemming: sd?.Destination?.trim() || '', diepgang: sd?.MaximumStaticDraught ?? 0 });
+      bestaand.marker.setIcon(maakAISIcon(bestaand.koers, scheeptype));
     } else {
-      aisSchepen[mmsi] = { naam, scheeptype, bestemming, diepgang, mmsi, koers: 0, sog: 0, lat, lon };
+      aisSchepen[mmsi] = { naam, scheeptype, bestemming: sd?.Destination?.trim() || '', diepgang: sd?.MaximumStaticDraught ?? 0, mmsi, koers: 0, sog: 0, lat, lon };
     }
   }
 
-  // Update teller
   const n = Object.keys(aisSchepen).length;
   document.getElementById('ais-status').textContent = `✓ AIS live — ${n} schepen`;
 }
@@ -1729,26 +1699,15 @@ function verwerkAISBericht(msg) {
 function buildAISPopup(mmsi) {
   const s = aisSchepen[mmsi];
   if (!s) return '';
-  const type = getScheeptype(s.scheeptype);
   const kleur = aisKleur(s.scheeptype);
-  const sogKn = instellingen.snelheid === 'kmh' ? (s.sog * 1.852).toFixed(1) + ' km/h' : s.sog.toFixed(1) + ' kn';
-  return `
-    <b style="color:${kleur}">⛵ ${s.naam}</b><br>
+  const sogStr = instellingen.snelheid === 'kmh' ? `${(s.sog * 1.852).toFixed(1)} km/h` : `${s.sog.toFixed(1)} kn`;
+  return `<b style="color:${kleur}">⛵ ${s.naam}</b><br>
     <small style="color:#888">MMSI: ${mmsi}</small><br>
-    Type: ${type}<br>
-    Snelheid: <b>${sogKn}</b><br>
-    Koers: <b>${Math.round(s.koers)}°</b><br>
+    Type: ${getScheeptype(s.scheeptype)}<br>
+    Snelheid: <b>${sogStr}</b> · Koers: <b>${Math.round(s.koers)}°</b><br>
     ${s.bestemming ? `Bestemming: <b>${s.bestemming}</b><br>` : ''}
     ${s.diepgang ? `Diepgang: <b>${s.diepgang}m</b><br>` : ''}
-    Positie: <small>${formatCoord(s.lat, s.lon)}</small>
-  `;
-}
-
-function updateAISPopup(mmsi) {
-  const s = aisSchepen[mmsi];
-  if (s?.marker?.isPopupOpen()) {
-    s.marker.setPopupContent(buildAISPopup(mmsi));
-  }
+    <small>${formatCoord(s.lat, s.lon)}</small>`;
 }
 
 function toggleAIS(aan) {
@@ -1759,7 +1718,7 @@ function toggleAIS(aan) {
     verbindAIS();
     map.on('moveend', herlaadAISBijBeweging);
   } else {
-    if (aisSocket) { aisSocket.close(); aisSocket = null; }
+    if (aisSocket) { try { aisSocket.close(); } catch(e) {} aisSocket = null; }
     clearTimeout(aisHerverbindTimer);
     map.removeLayer(aisLaag);
     aisLaag.clearLayers();
@@ -1773,12 +1732,20 @@ let aisMoveTimer = null;
 function herlaadAISBijBeweging() {
   clearTimeout(aisMoveTimer);
   aisMoveTimer = setTimeout(() => {
-    // Herverbind met nieuwe bounding box
+    if (!aisSocket || aisSocket.readyState !== WebSocket.OPEN) { verbindAIS(); return; }
+    // Stuur nieuwe bounding box op zelfde verbinding
+    const b = map.getBounds().pad(0.05);
+    aisSocket.send(JSON.stringify({
+      APIKey: AIS_API_KEY,
+      BoundingBoxes: [[[b.getSouth(), b.getWest()], [b.getNorth(), b.getEast()]]],
+      FilterMessageTypes: ['PositionReport', 'ShipStaticData']
+    }));
     aisLaag.clearLayers();
     aisSchepen = {};
-    verbindAIS();
   }, 1500);
 }
+
+// ── HAVENS ────────────────────────────────────────────────
 
 // ── HAVENS ────────────────────────────────────────────────
 const HAVENS = [
