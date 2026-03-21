@@ -1652,14 +1652,16 @@ function verbindAIS() {
     } catch(e) {}
   };
 
-  aisSocket.onerror = () => {
+  aisSocket.onerror = (err) => {
+    console.error('AIS WebSocket fout:', err);
     statusEl.style.color = 'var(--danger)';
-    statusEl.textContent = '⚠ AIS verbindingsfout';
+    statusEl.textContent = '⚠ AIS verbindingsfout — zie console (F12)';
   };
 
-  aisSocket.onclose = () => {
+  aisSocket.onclose = (event) => {
+    console.warn('AIS gesloten:', event.code, event.reason);
     if (aisActief) {
-      statusEl.textContent = '↻ AIS herverbinden…';
+      statusEl.textContent = `↻ AIS herverbinden (code ${event.code})…`;
       aisHerverbindTimer = setTimeout(verbindAIS, 5000);
     }
   };
