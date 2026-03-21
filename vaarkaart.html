@@ -18,8 +18,6 @@
   <!-- Leaflet -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-  <!-- Leaflet-rotate plugin voor Koers omhoog -->
-  <script src="https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate-src.js"></script>
 
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Teko:wght@300;400;500;600&family=Source+Sans+3:wght@300;400;600&display=swap');
@@ -372,18 +370,8 @@
       bottom: 30px;
       right: 16px;
       z-index: 500;
-      width: 60px; height: 60px;
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      font-family: 'Teko', sans-serif;
-      font-size: 18px;
-      color: var(--teal);
-    }
-    .compass-n {
-      color: var(--danger);
-      font-weight: 600;
+      width: 70px; height: 70px;
+      cursor: pointer;
     }
 
     /* Speed badge */
@@ -566,19 +554,6 @@
       </label>
     </div>
 
-    <!-- Kaartoriëntatie -->
-    <div class="setting-group">
-      <div class="setting-group-title">Kaartoriëntatie</div>
-      <label class="setting-option" id="opt-north">
-        <input type="radio" name="orientatie" value="north" checked onchange="slaInstellingenOp()">
-        <div><div class="setting-label">Noord omhoog (N up)</div><div class="setting-sublabel">Vaste kaartoriëntatie</div></div>
-      </label>
-      <label class="setting-option" id="opt-course">
-        <input type="radio" name="orientatie" value="course" onchange="slaInstellingenOp()">
-        <div><div class="setting-label">Koers omhoog (Course up)</div><div class="setting-sublabel">Kaart draait mee met vaarrichting</div></div>
-      </label>
-    </div>
-
     <!-- Coördinatenformaat -->
     <div class="setting-group">
       <div class="setting-group-title">Coördinatenformaat</div>
@@ -749,6 +724,15 @@
         </label>
       </div>
 
+      <div class="toggle-row">
+        <span class="toggle-label">AIS scheepvaart</span>
+        <label class="toggle">
+          <input type="checkbox" id="toggle-ais" onchange="toggleAIS(this.checked)">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div id="ais-status" style="display:none;font-size:11px;color:var(--muted);margin-top:2px;margin-bottom:4px;"></div>
+
       <div id="diepte-legenda" style="display:none;margin-top:6px;padding:7px 10px;background:rgba(0,0,0,0.2);border-radius:6px;">
         <div style="font-size:10px;color:var(--muted);margin-bottom:4px;letter-spacing:1px;">DIEPTE T.O.V. NAP</div>
         <div style="display:flex;height:12px;border-radius:3px;overflow:hidden;border:1px solid rgba(255,255,255,0.1);">
@@ -801,18 +785,22 @@
 
     <!-- Havens -->
     <div class="sidebar-section">
-      <div class="sidebar-title">⚓ Havens</div>
-
-      <!-- Zoekbalk -->
-      <div style="display:flex;gap:6px;margin-bottom:10px;">
-        <input id="haven-zoek" type="text" placeholder="Zoek haven…"
-          style="flex:1;padding:6px 10px;background:rgba(255,255,255,0.07);
-          border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:13px;"
-          oninput="zoekHaven(this.value)" onkeydown="if(event.key==='Escape')this.value=''">
-        <button class="btn btn-ghost" onclick="dichtstbijzijndHaven()" style="padding:6px 10px;font-size:12px;" title="Dichtstbijzijnde haven">📍</button>
+      <div class="sidebar-title" onclick="toggleSectie('havens-inhoud', this)"
+        style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;">
+        ⚓ Havens <span id="havens-pijl" style="font-size:12px;color:var(--muted);">▼</span>
       </div>
 
-      <div id="haven-lijst" style="display:flex;flex-direction:column;gap:4px;max-height:300px;overflow-y:auto;"></div>
+      <div id="havens-inhoud">
+        <!-- Zoekbalk -->
+        <div style="display:flex;gap:6px;margin-bottom:10px;">
+          <input id="haven-zoek" type="text" placeholder="Zoek haven…"
+            style="flex:1;padding:6px 10px;background:rgba(255,255,255,0.07);
+            border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:13px;"
+            oninput="zoekHaven(this.value)" onkeydown="if(event.key==='Escape')this.value=''">
+          <button class="btn btn-ghost" onclick="dichtstbijzijndHaven()" style="padding:6px 10px;font-size:12px;" title="Dichtstbijzijnde haven">📍</button>
+        </div>
+        <div id="haven-lijst" style="display:flex;flex-direction:column;gap:4px;max-height:300px;overflow-y:auto;"></div>
+      </div>
     </div>
 
     <!-- Eigen kaarten -->
@@ -929,7 +917,18 @@
 
     <!-- GPX Waypoints -->
     <div class="sidebar-section">
-      <div class="sidebar-title">📌 GPX Waypoints</div>
+      <div class="sidebar-title">📌 Waypoints</div>
+
+      <!-- Los waypoint toevoegen -->
+      <button class="btn btn-ghost" id="btn-waypoint-modus" onclick="toggleWaypointModus()"
+        style="width:100%;margin-bottom:8px;display:flex;align-items:center;justify-content:center;gap:6px;">
+        📌 Tik op kaart om waypoint te zetten
+      </button>
+      <div id="waypoint-modus-hint" style="display:none;font-size:11px;color:var(--amber);text-align:center;margin-bottom:8px;padding:5px;background:rgba(245,166,35,0.1);border-radius:5px;border:1px solid rgba(245,166,35,0.3);">
+        ✋ Tik op de kaart om een waypoint te plaatsen — tik opnieuw om te stoppen
+      </div>
+
+      <!-- GPX laden -->
       <div id="gpx-dropzone" style="
         border:2px dashed rgba(245,166,35,0.4);border-radius:8px;padding:12px;
         text-align:center;cursor:pointer;margin-bottom:8px;
@@ -958,8 +957,38 @@
       <div class="speed-num" id="speed-num">0.0</div>
       <div class="speed-unit" id="speed-unit">KN</div>
     </div>
-    <div class="compass">
-      <span class="compass-n">N</span>
+    <div class="compass" title="Kompas — draait mee met GPS richting" onclick="centerOnMe()">
+      <svg id="kompas-roos" viewBox="0 0 70 70" width="70" height="70" style="transition:transform 0.5s ease;">
+        <!-- Achtergrond cirkel -->
+        <circle cx="35" cy="35" r="33" fill="rgba(10,22,40,0.88)" stroke="rgba(0,200,200,0.35)" stroke-width="1.5"/>
+        <!-- Gradenverdeling -->
+        <g stroke="rgba(0,200,200,0.2)" stroke-width="0.8">
+          <line x1="35" y1="4" x2="35" y2="10"/>
+          <line x1="35" y1="60" x2="35" y2="66"/>
+          <line x1="4" y1="35" x2="10" y2="35"/>
+          <line x1="60" y1="35" x2="66" y2="35"/>
+        </g>
+        <g stroke="rgba(0,200,200,0.12)" stroke-width="0.5">
+          <line x1="35" y1="4" x2="35" y2="8" transform="rotate(45 35 35)"/>
+          <line x1="35" y1="4" x2="35" y2="8" transform="rotate(135 35 35)"/>
+          <line x1="35" y1="4" x2="35" y2="8" transform="rotate(225 35 35)"/>
+          <line x1="35" y1="4" x2="35" y2="8" transform="rotate(315 35 35)"/>
+        </g>
+        <!-- Noord pijl (rood) -->
+        <polygon points="35,6 38.5,35 35,31 31.5,35" fill="#e84545"/>
+        <!-- Zuid pijl (wit/teal) -->
+        <polygon points="35,64 38.5,35 35,39 31.5,35" fill="rgba(0,200,200,0.6)"/>
+        <!-- Windstreken -->
+        <text x="35" y="19" text-anchor="middle" font-family="Teko,sans-serif" font-size="10" fill="#e84545" font-weight="600">N</text>
+        <text x="35" y="57" text-anchor="middle" font-family="Teko,sans-serif" font-size="8" fill="rgba(0,200,200,0.7)">Z</text>
+        <text x="55" y="38" text-anchor="middle" font-family="Teko,sans-serif" font-size="8" fill="rgba(255,255,255,0.5)">O</text>
+        <text x="15" y="38" text-anchor="middle" font-family="Teko,sans-serif" font-size="8" fill="rgba(255,255,255,0.5)">W</text>
+        <!-- Middenstip -->
+        <circle cx="35" cy="35" r="3" fill="rgba(0,200,200,0.8)"/>
+        <circle cx="35" cy="35" r="1.5" fill="#0a1628"/>
+        <!-- Graden label -->
+        <text id="kompas-graden" x="35" y="47" text-anchor="middle" font-family="Teko,sans-serif" font-size="7" fill="rgba(0,200,200,0.6)">000°</text>
+      </svg>
     </div>
     <!-- Status badges rechtsonder -->
     <div id="kaart-badges" style="
@@ -970,10 +999,6 @@
         background:rgba(10,22,40,0.85);border:1px solid rgba(0,200,200,0.4);
         border-radius:5px;padding:3px 8px;font-size:11px;font-family:'Teko',sans-serif;
         letter-spacing:1px;color:var(--teal);text-align:center;">KM</div>
-      <div id="badge-orientatie" style="
-        background:rgba(10,22,40,0.85);border:1px solid rgba(0,200,200,0.4);
-        border-radius:5px;padding:3px 8px;font-size:11px;font-family:'Teko',sans-serif;
-        letter-spacing:1px;color:var(--muted);text-align:center;">N↑</div>
     </div>
   </div>
 </div>
@@ -986,9 +1011,6 @@ const map = L.map('map', {
   center: [52.37, 4.90],
   zoom: 13,
   zoomControl: false,
-  rotate: true,
-  rotateControl: false,
-  bearing: 0,
 });
 
 L.control.zoom({ position: 'topright' }).addTo(map);
@@ -1075,6 +1097,14 @@ function onPosition(pos) {
   // Koers omhoog — draai kaart mee met vaarrichting
   if (instellingen.orientatie === 'course') {
     updateKoersOmhoog(heading);
+  }
+
+  // Kompasroos meedraaiend met GPS heading
+  if (heading !== null && heading !== undefined) {
+    const roos = document.getElementById('kompas-roos');
+    if (roos) roos.style.transform = `rotate(${-heading}deg)`;
+    const gradenEl = document.getElementById('kompas-graden');
+    if (gradenEl) gradenEl.textContent = Math.round(heading).toString().padStart(3,'0') + '°';
   }
 
   // Snelheid op basis van instelling
@@ -1274,141 +1304,7 @@ function deleteRoute(id) {
 
 // ── DIEPTELAGEN ───────────────────────────────────────────
 
-// Gekleurde dieptelaag — PDOK luchtfoto toont Waddenzee geulen perfect
-// + OpenSeaMap dieptelaag bovenop voor dieptecijfers
-const diepteKleurAchtergrond = L.tileLayer.wms(
-  'https://service.pdok.nl/hwh/luchtfotorgb/wms/v1_0',
-  { layers: 'Actueel_ortho25', format: 'image/png', transparent: false, attribution: '© PDOK Luchtfoto', maxZoom: 19 }
-);
 
-// OpenSeaMap heeft eigen dieptelaag met goede details voor NL kustwater
-const diepteSeaLayer = L.tileLayer('https://tiles.openseamap.org/depth/{z}/{x}/{y}.png', {
-  attribution: '© OpenSeaMap depth',
-  opacity: 0.9,
-  maxZoom: 18,
-  errorTileUrl: '',
-});
-
-let diepteKleurAan = false;
-let diepteKleurMoveTimer = null;
-const diepteKleurLayer = L.layerGroup();
-
-async function laadDiepteKleur() {
-  diepteKleurLayer.clearLayers();
-  const statusEl = document.getElementById('dieptecijfers-status');
-
-  const zoom = map.getZoom();
-  if (zoom < 10) {
-    if (statusEl) { statusEl.style.display = 'block'; statusEl.textContent = '🔍 Zoom in naar niveau 10+ voor dieptepunten'; }
-    return;
-  }
-
-  const b = map.getBounds();
-  const bbox = `${b.getWest()},${b.getSouth()},${b.getEast()},${b.getNorth()}`;
-
-  // Probeer meerdere PDOK endpoints
-  const urls = [
-    `https://service.pdok.nl/rws/vaarpuntenwolk/wfs/v1_0?service=WFS&version=2.0.0&request=GetFeature&typeName=vaarpuntenwolk:vaarpuntenwolk&outputFormat=application/json&bbox=${bbox},EPSG:4326&srsName=EPSG:4326&count=400`,
-    `https://corsproxy.io/?${encodeURIComponent(`https://service.pdok.nl/rws/vaarpuntenwolk/wfs/v1_0?service=WFS&version=2.0.0&request=GetFeature&typeName=vaarpuntenwolk:vaarpuntenwolk&outputFormat=application/json&bbox=${bbox},EPSG:4326&srsName=EPSG:4326&count=400`)}`,
-    `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://service.pdok.nl/rws/vaarpuntenwolk/wfs/v1_0?service=WFS&version=2.0.0&request=GetFeature&typeName=vaarpuntenwolk:vaarpuntenwolk&outputFormat=application/json&bbox=${bbox},EPSG:4326&srsName=EPSG:4326&count=400`)}`
-  ];
-
-  let data = null;
-  for (const url of urls) {
-    try {
-      const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
-      if (!res.ok) continue;
-      const text = await res.text();
-      const json = JSON.parse(text);
-      if (json?.features?.length > 0) { data = json; break; }
-    } catch(e) { continue; }
-  }
-
-  if (!data?.features?.length) {
-    if (statusEl) { statusEl.style.display='block'; statusEl.textContent = '⚠ Geen dieptedata — luchtfoto toont geulen'; }
-    return;
-  }
-
-  data.features.forEach(f => {
-    if (!f.geometry) return;
-    const [lon, lat] = f.geometry.coordinates;
-    const props = f.properties || {};
-    const raw = props.diepte ?? props.DIEPTE ?? props.value ?? null;
-    if (raw === null) return;
-    const diepteM = Math.abs(raw) / 10;
-
-    const kleur = diepteM < 0.5 ? '#ffff44'
-                : diepteM < 1.5 ? '#aaee88'
-                : diepteM < 3.0 ? '#44cccc'
-                : diepteM < 6.0 ? '#2288dd'
-                : '#0044aa';
-
-    const r = zoom < 12 ? 50 : zoom < 13 ? 30 : zoom < 14 ? 18 : 10;
-
-    L.circleMarker([lat, lon], { radius: r, fillColor: kleur, fillOpacity: 0.8, stroke: false })
-      .bindPopup(`<b>${diepteM.toFixed(1)} m</b> onder NAP`)
-      .addTo(diepteKleurLayer);
-  });
-
-  if (statusEl) { statusEl.style.display='block'; statusEl.textContent = `📏 ${data.features.length} dieptepunten`; }
-}
-
-function toggleDiepteKleur(aan) {
-  const legenda = document.getElementById('diepte-legenda');
-  if (aan) {
-    diepteKleurAan = true;
-    // Satelliet achtergrond — toont Waddenzee geulen direct zichtbaar
-    map.removeLayer(lightLayer);
-    diepteKleurAchtergrond.addTo(map);
-    diepteSeaLayer.addTo(map);
-    diepteKleurLayer.addTo(map);
-    seaLayer.addTo(map);
-    legenda.style.display = 'block';
-    laadDiepteKleur();
-    map.on('moveend zoomend', herlaadDiepteKleurOpBeweging);
-    notify('Dieptekaart aan — luchtfoto + dieptepunten');
-  } else {
-    diepteKleurAan = false;
-    map.removeLayer(diepteKleurAchtergrond);
-    map.removeLayer(diepteSeaLayer);
-    map.removeLayer(diepteKleurLayer);
-    // Zorg dat basiskaart weer zichtbaar is
-    if (!map.hasLayer(satLayer)) lightLayer.addTo(map);
-    if (document.getElementById('toggle-sea').checked) seaLayer.addTo(map);
-    map.off('moveend zoomend', herlaadDiepteKleurOpBeweging);
-    if (!document.getElementById('toggle-diepte-cijfers').checked)
-      legenda.style.display = 'none';
-  }
-}
-
-function herlaadDiepteKleurOpBeweging() {
-  clearTimeout(diepteKleurMoveTimer);
-  diepteKleurMoveTimer = setTimeout(laadDiepteKleur, 700);
-}
-
-// Dieptecijfers — OpenSeaMap seamark laag bevat al dieptecijfers
-// Aparte dieptetile laag bestaat niet publiekelijk beschikbaar
-function toggleDiepteCijfers(aan) {
-  const statusEl = document.getElementById('dieptecijfers-status');
-  const legenda  = document.getElementById('diepte-legenda');
-  if (aan) {
-    if (!map.hasLayer(seaLayer)) seaLayer.addTo(map);
-    document.getElementById('toggle-sea').checked = true;
-    legenda.style.display = 'block';
-    statusEl.style.display = 'block';
-    if (map.getZoom() < 13) {
-      map.setZoom(14);
-      statusEl.textContent = '📏 Ingezoomd naar zoom 14 — dieptecijfers zichtbaar in kaart';
-    } else {
-      statusEl.textContent = '📏 Dieptecijfers in OpenSeaMap laag (kleine zwarte cijfers)';
-    }
-    notify('Zoom in op de Waddenzee — dieptecijfers staan in de kaartlaag');
-  } else {
-    statusEl.style.display = 'none';
-    if (!document.getElementById('toggle-diepte-kleur').checked)
-      legenda.style.display = 'none';
-  }
-}
 
 // ── WIND ──────────────────────────────────────────────────
 const windLaag = L.layerGroup();
@@ -1676,6 +1572,212 @@ function herlaadWindBijBeweging() {
   windMoveTimer = setTimeout(() => laadWindPijlen(), 1000);
 }
 
+// ── AIS SCHEEPVAART ───────────────────────────────────────
+const AIS_API_KEY = '79a5b4281be6d589dd7917be53879ccb6b0a95aa';
+const aisLaag = L.layerGroup();
+let aisActief = false;
+let aisSocket = null;
+let aisSchepen = {}; // MMSI → { marker, data }
+let aisHerverbindTimer = null;
+
+const AIS_SCHEEPTYPE = {
+  20:'Vleugelboor', 21:'WIG', 22:'WIG', 23:'WIG', 24:'WIG', 25:'WIG', 26:'WIG', 27:'WIG', 28:'WIG', 29:'WIG',
+  30:'Vissersboot', 31:'Sleper', 32:'Sleper', 33:'Baggerschip', 34:'Duikschip', 35:'Militair', 36:'Zeilschip',
+  37:'Pleziervaartuig', 40:'HSC', 50:'Loods', 51:'SAR', 52:'Sleepboot', 53:'Havenvaartuig',
+  60:'Passagiersschip', 70:'Vrachtschip', 80:'Tanker', 90:'Overig'
+};
+
+function getScheeptype(type) {
+  const basis = Math.floor(type / 10) * 10;
+  return AIS_SCHEEPTYPE[type] || AIS_SCHEEPTYPE[basis] || 'Schip';
+}
+
+function aisKleur(scheeptype) {
+  if (scheeptype >= 60 && scheeptype < 70) return '#4fc3f7'; // passagier - blauw
+  if (scheeptype >= 70 && scheeptype < 80) return '#f5a623'; // vracht - oranje
+  if (scheeptype >= 80 && scheeptype < 90) return '#e84545'; // tanker - rood
+  if (scheeptype === 30) return '#34d399';                    // vissers - groen
+  if (scheeptype === 36 || scheeptype === 37) return '#a78bfa'; // zeil/plezier - paars
+  return '#00c8c8'; // overig - teal
+}
+
+function maakAISIcon(koers, scheeptype, sog) {
+  const kleur = aisKleur(scheeptype);
+  const grootte = 20;
+  return L.divIcon({
+    className: '',
+    html: `<div style="
+      width:${grootte}px;height:${grootte}px;
+      display:flex;align-items:center;justify-content:center;
+      transform:rotate(${koers}deg);
+      filter:drop-shadow(0 0 3px ${kleur});
+    ">
+      <svg viewBox="0 0 24 24" width="${grootte}" height="${grootte}">
+        <polygon points="12,2 18,20 12,16 6,20" fill="${kleur}" stroke="rgba(255,255,255,0.7)" stroke-width="1.5"/>
+      </svg>
+    </div>`,
+    iconSize: [grootte, grootte],
+    iconAnchor: [grootte/2, grootte/2]
+  });
+}
+
+function verbindAIS() {
+  if (aisSocket) { aisSocket.close(); aisSocket = null; }
+  const statusEl = document.getElementById('ais-status');
+  statusEl.style.display = 'block';
+  statusEl.style.color = 'var(--muted)';
+  statusEl.textContent = '⏳ AIS verbinden…';
+
+  const bounds = map.getBounds().pad(0.05);
+  aisSocket = new WebSocket(`wss://stream.aisstream.io/v0/stream`);
+
+  aisSocket.onopen = () => {
+    const sub = {
+      APIKey: AIS_API_KEY,
+      BoundingBoxes: [[
+        [bounds.getSouth(), bounds.getWest()],
+        [bounds.getNorth(), bounds.getEast()]
+      ]],
+      FilterMessageTypes: ['PositionReport', 'ShipStaticData']
+    };
+    aisSocket.send(JSON.stringify(sub));
+    statusEl.style.color = 'var(--teal)';
+    statusEl.textContent = '✓ AIS live — schepen verschijnen op kaart';
+  };
+
+  aisSocket.onmessage = (event) => {
+    try {
+      const msg = JSON.parse(event.data);
+      verwerkAISBericht(msg);
+    } catch(e) {}
+  };
+
+  aisSocket.onerror = () => {
+    statusEl.style.color = 'var(--danger)';
+    statusEl.textContent = '⚠ AIS verbindingsfout';
+  };
+
+  aisSocket.onclose = () => {
+    if (aisActief) {
+      statusEl.textContent = '↻ AIS herverbinden…';
+      aisHerverbindTimer = setTimeout(verbindAIS, 5000);
+    }
+  };
+}
+
+function verwerkAISBericht(msg) {
+  const type = msg.MessageType;
+  const meta = msg.MetaData;
+  if (!meta) return;
+
+  const mmsi = meta.MMSI;
+  const lat  = meta.latitude;
+  const lon  = meta.longitude;
+  if (!mmsi || !lat || !lon) return;
+
+  const bestaand = aisSchepen[mmsi];
+
+  if (type === 'PositionReport') {
+    const pr   = msg.Message?.PositionReport;
+    const koers = pr?.TrueHeading ?? pr?.Cog ?? 0;
+    const sog   = pr?.Sog ?? 0;
+    const scheeptype = bestaand?.scheeptype ?? 0;
+
+    if (bestaand) {
+      bestaand.marker.setLatLng([lat, lon]);
+      bestaand.marker.setIcon(maakAISIcon(koers, scheeptype, sog));
+      bestaand.koers = koers;
+      bestaand.sog = sog;
+      bestaand.lat = lat;
+      bestaand.lon = lon;
+      updateAISPopup(mmsi);
+    } else {
+      const marker = L.marker([lat, lon], {
+        icon: maakAISIcon(koers, scheeptype, sog),
+        zIndexOffset: 300
+      }).addTo(aisLaag);
+      aisSchepen[mmsi] = { marker, mmsi, naam: meta.ShipName?.trim() || `MMSI ${mmsi}`, koers, sog, scheeptype, lat, lon, bestemming: '', diepgang: 0 };
+      marker.bindPopup(() => buildAISPopup(mmsi));
+    }
+
+  } else if (type === 'ShipStaticData') {
+    const sd = msg.Message?.ShipStaticData;
+    const naam = sd?.Name?.trim() || meta.ShipName?.trim() || `MMSI ${mmsi}`;
+    const scheeptype = sd?.Type ?? 0;
+    const bestemming = sd?.Destination?.trim() || '';
+    const diepgang   = sd?.MaximumStaticDraught ?? 0;
+
+    if (bestaand) {
+      bestaand.naam = naam;
+      bestaand.scheeptype = scheeptype;
+      bestaand.bestemming = bestemming;
+      bestaand.diepgang   = diepgang;
+      bestaand.marker.setIcon(maakAISIcon(bestaand.koers, scheeptype, bestaand.sog));
+      updateAISPopup(mmsi);
+    } else {
+      aisSchepen[mmsi] = { naam, scheeptype, bestemming, diepgang, mmsi, koers: 0, sog: 0, lat, lon };
+    }
+  }
+
+  // Update teller
+  const n = Object.keys(aisSchepen).length;
+  document.getElementById('ais-status').textContent = `✓ AIS live — ${n} schepen`;
+}
+
+function buildAISPopup(mmsi) {
+  const s = aisSchepen[mmsi];
+  if (!s) return '';
+  const type = getScheeptype(s.scheeptype);
+  const kleur = aisKleur(s.scheeptype);
+  const sogKn = instellingen.snelheid === 'kmh' ? (s.sog * 1.852).toFixed(1) + ' km/h' : s.sog.toFixed(1) + ' kn';
+  return `
+    <b style="color:${kleur}">⛵ ${s.naam}</b><br>
+    <small style="color:#888">MMSI: ${mmsi}</small><br>
+    Type: ${type}<br>
+    Snelheid: <b>${sogKn}</b><br>
+    Koers: <b>${Math.round(s.koers)}°</b><br>
+    ${s.bestemming ? `Bestemming: <b>${s.bestemming}</b><br>` : ''}
+    ${s.diepgang ? `Diepgang: <b>${s.diepgang}m</b><br>` : ''}
+    Positie: <small>${formatCoord(s.lat, s.lon)}</small>
+  `;
+}
+
+function updateAISPopup(mmsi) {
+  const s = aisSchepen[mmsi];
+  if (s?.marker?.isPopupOpen()) {
+    s.marker.setPopupContent(buildAISPopup(mmsi));
+  }
+}
+
+function toggleAIS(aan) {
+  aisActief = aan;
+  const statusEl = document.getElementById('ais-status');
+  if (aan) {
+    aisLaag.addTo(map);
+    verbindAIS();
+    map.on('moveend', herlaadAISBijBeweging);
+  } else {
+    if (aisSocket) { aisSocket.close(); aisSocket = null; }
+    clearTimeout(aisHerverbindTimer);
+    map.removeLayer(aisLaag);
+    aisLaag.clearLayers();
+    aisSchepen = {};
+    map.off('moveend', herlaadAISBijBeweging);
+    statusEl.style.display = 'none';
+  }
+}
+
+let aisMoveTimer = null;
+function herlaadAISBijBeweging() {
+  clearTimeout(aisMoveTimer);
+  aisMoveTimer = setTimeout(() => {
+    // Herverbind met nieuwe bounding box
+    aisLaag.clearLayers();
+    aisSchepen = {};
+    verbindAIS();
+  }, 1500);
+}
+
 // ── HAVENS ────────────────────────────────────────────────
 const HAVENS = [
   // Waddenzee - eilanden
@@ -1695,9 +1797,9 @@ const HAVENS = [
   { naam:'Franeker (Harlingen buitenhaven)', lat:53.1800, lon:5.4000, type:'jachthaven', diepgang:2.0, ligplaatsen:60, vhf:0, telefoon:'', info:'Kleine binnenhaven bij Harlingen.' },
 
   // Zeeland
-  { naam:'Zierikzee', lat:51.6500, lon:3.9120, type:'jachthaven', diepgang:2.0, ligplaatsen:150, vhf:9, telefoon:'+31 111 412012', info:'Historische stad aan het Grevelingenmeer.' },
+  { naam:'Zierikzee', lat:51.6500, lon:3.9120, type:'jachthaven', diepgang:2.0, ligplaatsen:150, vhf:9, telefoon:'+31 111 412012', info:'Historische stad aan de Oosterschelde.' },
   { naam:'Bruinisse', lat:51.6630, lon:4.0780, type:'jachthaven', diepgang:2.5, ligplaatsen:800, vhf:9, telefoon:'+31 111 481500', info:'Grote jachthaven Grevelingenmeer. Populair centrum.' },
-  { naam:'Colijnsplaat', lat:51.5990, lon:3.8490, type:'jachthaven', diepgang:2.5, ligplaatsen:450, vhf:9, telefoon:'+31 113 698622', info:'Haven aan het Veerse Meer.' },
+  { naam:'Colijnsplaat', lat:51.5990, lon:3.8490, type:'jachthaven', diepgang:2.5, ligplaatsen:450, vhf:9, telefoon:'+31 113 698622', info:'Haven aan de Oosterschelde.' },
   { naam:'Veere', lat:51.5560, lon:3.6650, type:'jachthaven', diepgang:2.0, ligplaatsen:1000, vhf:9, telefoon:'+31 118 501535', info:'Grootste jachthaven Veerse Meer. Prachtig stadje.' },
   { naam:'Middelburg (Arne)', lat:51.5090, lon:3.6530, type:'jachthaven', diepgang:2.5, ligplaatsen:300, vhf:9, telefoon:'+31 118 626868', info:'Kanaalthaven richting Middelburg centrum.' },
   { naam:'Roompot Marina', lat:51.5770, lon:3.6910, type:'jachthaven', diepgang:2.5, ligplaatsen:1400, vhf:9, telefoon:'+31 113 374500', info:'Grote moderne jachthaven Oosterschelde.' },
@@ -1711,7 +1813,7 @@ const HAVENS = [
   { naam:'Breskens', lat:51.4010, lon:3.5630, type:'jachthaven', diepgang:3.5, ligplaatsen:600, vhf:9, telefoon:'+31 117 382040', info:'Grote jachthaven Westerschelde. Veerboot naar Vlissingen.' },
   { naam:'Cadzand-Bad', lat:51.3680, lon:3.4090, type:'jachthaven', diepgang:2.0, ligplaatsen:80, vhf:0, telefoon:'', info:'Klein haventje aan de Belgische grens.' },
   { naam:'Zoutelande', lat:51.4900, lon:3.4810, type:'ankerplaats', diepgang:1.5, ligplaatsen:0, vhf:0, telefoon:'', info:'Ankerplaats voor de kust, geen haven.' },
-  { naam:'Burghsluis', lat:51.6870, lon:3.8030, type:'jachthaven', diepgang:2.0, ligplaatsen:200, vhf:9, telefoon:'+31 111 651415', info:'Grevelingenmeer, rustige omgeving.' },
+  { naam:'Burghsluis', lat:51.6870, lon:3.8030, type:'jachthaven', diepgang:2.0, ligplaatsen:200, vhf:9, telefoon:'+31 111 651415', info:'Oosterschelde, rustige omgeving.' },
   { naam:'Herkingen', lat:51.7380, lon:4.2870, type:'jachthaven', diepgang:2.0, ligplaatsen:350, vhf:9, telefoon:'+31 187 601715', info:'Grevelingenmeer, populaire jachthaven.' },
   { naam:'Numansdorp (Haringvliet)', lat:51.7180, lon:4.4280, type:'jachthaven', diepgang:2.5, ligplaatsen:300, vhf:9, telefoon:'+31 186 652121', info:'Haven aan het Haringvliet.' },
   { naam:'Hellevoetsluis', lat:51.8320, lon:4.1330, type:'jachthaven', diepgang:3.0, ligplaatsen:1000, vhf:9, telefoon:'+31 181 312433', info:'Grote historische vestingstad. Uitvalsbasis Haringvliet.' },
@@ -1851,6 +1953,10 @@ function dichtstbijzijndHaven() {
   renderHavenLijst(gesorteerd);
   zoomNaarHaven(gesorteerd[0].naam);
   notify(`Dichtstbijzijnde haven: ${gesorteerd[0].naam}`);
+}
+
+function seaLayerAanAlsAan() {
+  if (document.getElementById('toggle-sea').checked) seaLayer.addTo(map);
 }
 
 function toggleSeaMap(on) {
@@ -2572,8 +2678,7 @@ let diepteLegendaZichtbaar = false;
 function toggleDiepte(aan) {
   if (aan) {
     gebcoLayer.addTo(map);
-    // Houd zeekaart + pijlen bovenop
-    seaLayer.addTo(map);
+    seaLayerAanAlsAan();
     if (stroomMapAan) stroomMapLayer.addTo(map);
     if (posMarker) posMarker.addTo(map);
     if (!diepteLegendaZichtbaar) { diepteLegenda.addTo(map); diepteLegendaZichtbaar = true; }
@@ -2585,17 +2690,145 @@ function toggleDiepte(aan) {
   }
 }
 
-function toggleDieptecijfers(aan) {
+// Gekleurde dieptelaag — PDOK luchtfoto toont Waddenzee geulen perfect
+const diepteKleurAchtergrond = L.tileLayer.wms(
+  'https://service.pdok.nl/hwh/luchtfotorgb/wms/v1_0',
+  { layers: 'Actueel_ortho25', format: 'image/png', transparent: false, attribution: '© PDOK Luchtfoto', maxZoom: 19 }
+);
+
+const diepteSeaLayer = L.tileLayer('https://tiles.openseamap.org/depth/{z}/{x}/{y}.png', {
+  attribution: '© OpenSeaMap depth', opacity: 0.9, maxZoom: 18, errorTileUrl: '',
+});
+
+let diepteKleurAan = false;
+let diepteKleurMoveTimer = null;
+const diepteKleurLayer = L.layerGroup();
+
+async function laadDiepteKleur() {
+  diepteKleurLayer.clearLayers();
+  const statusEl = document.getElementById('dieptecijfers-status');
+  const zoom = map.getZoom();
+  if (zoom < 10) {
+    if (statusEl) { statusEl.style.display = 'block'; statusEl.textContent = '🔍 Zoom in naar niveau 10+ voor dieptepunten'; }
+    return;
+  }
+}
+
+function toggleDiepteKleur(aan) {
+  const legenda = document.getElementById('diepte-legenda');
   if (aan) {
-    dieptecijferLayer.addTo(map);
-    seaLayer.addTo(map);
-    if (stroomMapAan) stroomMapLayer.addTo(map);
+    diepteKleurAan = true;
+    diepteKleurAchtergrond.addTo(map);
+    diepteSeaLayer.addTo(map);
+    seaLayerAanAlsAan();
+    legenda.style.display = 'block';
+    notify('Dieptekaart aan');
   } else {
-    map.removeLayer(dieptecijferLayer);
+    diepteKleurAan = false;
+    map.removeLayer(diepteKleurAchtergrond);
+    map.removeLayer(diepteSeaLayer);
+    if (!map.hasLayer(satLayer)) lightLayer.addTo(map);
+    if (document.getElementById('toggle-sea').checked) seaLayer.addTo(map);
+    map.off('moveend zoomend', herlaadDiepteKleurOpBeweging);
+    if (!document.getElementById('toggle-diepte-cijfers').checked)
+      legenda.style.display = 'none';
+  }
+}
+
+function herlaadDiepteKleurOpBeweging() {
+  clearTimeout(diepteKleurMoveTimer);
+  diepteKleurMoveTimer = setTimeout(laadDiepteKleur, 700);
+}
+
+function toggleDiepteCijfers(aan) {
+  const statusEl = document.getElementById('dieptecijfers-status');
+  const legenda  = document.getElementById('diepte-legenda');
+  if (aan) {
+    seaLayerAanAlsAan();
+    legenda.style.display = 'block';
+    statusEl.style.display = 'block';
+    if (map.getZoom() < 13) {
+      map.setZoom(14);
+      statusEl.textContent = '📏 Ingezoomd naar zoom 14 — dieptecijfers zichtbaar in kaart';
+    } else {
+      statusEl.textContent = '📏 Dieptecijfers in OpenSeaMap laag (kleine zwarte cijfers)';
+    }
+    notify('Zoom in op de Waddenzee — dieptecijfers staan in de kaartlaag');
+  } else {
+    statusEl.style.display = 'none';
+    if (!document.getElementById('toggle-diepte-kleur').checked)
+      legenda.style.display = 'none';
   }
 }
 
 // ── STROOMPIJLEN OP KAART ─────────────────────────────────
+
+// ── HANDMATIGE WAYPOINTS ──────────────────────────────────
+let waypointModus = false;
+
+function toggleWaypointModus() {
+  waypointModus = !waypointModus;
+  const btn  = document.getElementById('btn-waypoint-modus');
+  const hint = document.getElementById('waypoint-modus-hint');
+  if (waypointModus) {
+    btn.style.borderColor  = 'rgba(245,166,35,0.6)';
+    btn.style.color        = 'var(--amber)';
+    btn.textContent        = '✋ Waypoint modus actief — tik op kaart';
+    hint.style.display     = 'block';
+    map.getContainer().style.cursor = 'crosshair';
+  } else {
+    btn.style.borderColor  = '';
+    btn.style.color        = '';
+    btn.textContent        = '📌 Tik op kaart om waypoint te zetten';
+    hint.style.display     = 'none';
+    map.getContainer().style.cursor = '';
+  }
+}
+
+let waypointTeller = 1;
+
+map.on('click', function(e) {
+  if (!waypointModus) return;
+  const lat  = e.latlng.lat;
+  const lon  = e.latlng.lng;
+  const naam = `WP ${waypointTeller++}`;
+
+  const icon = L.divIcon({
+    className: '',
+    html: `<div style="width:24px;height:24px;background:#f5a623;border:2px solid white;
+      border-radius:50% 50% 50% 0;transform:rotate(-45deg);
+      box-shadow:0 2px 6px rgba(0,0,0,0.5);"></div>`,
+    iconSize: [24,24], iconAnchor: [12,24]
+  });
+
+  const coordStr = formatCoord(lat, lon);
+  const marker = L.marker([lat, lon], { icon, zIndexOffset: 600 })
+    .bindPopup(`
+      <b>📌 ${naam}</b><br>
+      <small style="color:#888">${coordStr}</small><br>
+      <button onclick="verwijderWaypoint('${naam}')" style="
+        margin-top:5px;padding:2px 8px;background:rgba(232,69,69,0.2);
+        border:1px solid rgba(232,69,69,0.4);border-radius:4px;
+        color:#e84545;font-size:11px;cursor:pointer;">✕ Verwijder</button>
+    `)
+    .addTo(gpxLaag)
+    .openPopup();
+
+  gpxWaypoints.push({ naam, lat, lon, marker });
+  renderGpxLijst();
+  document.getElementById('btn-gpx-wis').style.display = 'block';
+  notify(`📌 ${naam} geplaatst`);
+});
+
+function verwijderWaypoint(naam) {
+  const idx = gpxWaypoints.findIndex(wp => wp.naam === naam);
+  if (idx === -1) return;
+  map.removeLayer(gpxWaypoints[idx].marker);
+  gpxWaypoints.splice(idx, 1);
+  renderGpxLijst();
+  if (!gpxWaypoints.length) document.getElementById('btn-gpx-wis').style.display = 'none';
+  notify('Waypoint verwijderd');
+}
 
 // ── GPX WAYPOINTS ─────────────────────────────────────────
 const gpxLaag = L.layerGroup().addTo(map);
@@ -2658,7 +2891,7 @@ function laadGpx(file) {
         });
         const marker = L.marker([lat, lon], { icon, zIndexOffset: 600 })
           .bindPopup(`<b>📌 ${naam}</b>${desc?'<br><small>'+desc+'</small>':''}
-            <br><small style="color:#888">${lat.toFixed(5)}° ${lon.toFixed(5)}°</small>`)
+            <br><small style="color:#888">${formatCoord(lat, lon)}</small>`)
           .addTo(gpxLaag);
         gpxWaypoints.push({ naam, lat, lon, marker });
         bounds.push([lat, lon]);
@@ -2828,8 +3061,8 @@ function laadOpgeslagenKaarten() {
     <div style="background:rgba(255,255,255,0.04);border:1px dashed rgba(0,200,200,0.3);border-radius:6px;padding:8px 10px;margin-bottom:4px;">
       <div style="font-family:'Teko',sans-serif;font-size:14px;margin-bottom:4px;color:var(--muted);">🗺 ${k.naam}</div>
       <div style="font-size:10px;color:var(--muted);margin-bottom:5px;">
-        NW ${k.bounds[1][0].toFixed(4)}°, ${k.bounds[1][1].toFixed(4)}° &nbsp;·&nbsp;
-        ZO ${k.bounds[0][0].toFixed(4)}°, ${k.bounds[0][1].toFixed(4)}°
+        NW ${formatCoord(k.bounds[1][0], k.bounds[1][1])}<br>
+        ZO ${formatCoord(k.bounds[0][0], k.bounds[0][1])}
       </div>
       <div style="display:flex;gap:4px;">
         <button class="btn-sm" onclick="herslaadKaart(${k.id})" style="color:var(--teal);border-color:rgba(0,200,200,0.3);">
@@ -2972,7 +3205,6 @@ function verwijderKaart(id) {
 // ── INSTELLINGEN ─────────────────────────────────────────
 let instellingen = {
   snelheid:    'kn',
-  orientatie:  'north',
   coordformaat:'dd',
   afstand:     'km',
   ...JSON.parse(localStorage.getItem('vaarkaart_instellingen') || '{}')
@@ -2980,7 +3212,6 @@ let instellingen = {
 
 function laadInstellingenUI() {
   document.querySelector(`input[name=snelheid][value="${instellingen.snelheid}"]`).checked = true;
-  document.querySelector(`input[name=orientatie][value="${instellingen.orientatie}"]`).checked = true;
   document.querySelector(`input[name=coordformaat][value="${instellingen.coordformaat}"]`).checked = true;
   document.querySelector(`input[name=afstand][value="${instellingen.afstand}"]`).checked = true;
   pasInstellingenToe();
@@ -2988,7 +3219,6 @@ function laadInstellingenUI() {
 
 function slaInstellingenOp() {
   instellingen.snelheid    = document.querySelector('input[name=snelheid]:checked').value;
-  instellingen.orientatie  = document.querySelector('input[name=orientatie]:checked').value;
   instellingen.coordformaat= document.querySelector('input[name=coordformaat]:checked').value;
   instellingen.afstand     = document.querySelector('input[name=afstand]:checked').value;
   localStorage.setItem('vaarkaart_instellingen', JSON.stringify(instellingen));
@@ -3000,27 +3230,11 @@ function pasInstellingenToe() {
   const afstandLabel = instellingen.afstand === 'nm' ? 'NM gevaren' : 'km gevaren';
   document.querySelector('#hdr-dist').closest('.stat').querySelector('.stat-label').textContent = afstandLabel;
 
-  // Badge eenheid (afstand)
+  // Badge eenheid
   const badgeEenheid = document.getElementById('badge-eenheid');
   badgeEenheid.textContent = instellingen.afstand === 'nm' ? 'NM' : 'KM';
-  badgeEenheid.style.color = 'var(--teal)';
-  badgeEenheid.style.borderColor = 'rgba(0,200,200,0.4)';
 
-  // Badge oriëntatie
-  const badgeOri = document.getElementById('badge-orientatie');
-  if (instellingen.orientatie === 'course') {
-    badgeOri.textContent = '⬆ KOERS';
-    badgeOri.style.color = 'var(--amber)';
-    badgeOri.style.borderColor = 'rgba(245,166,35,0.5)';
-  } else {
-    badgeOri.textContent = 'N ↑';
-    badgeOri.style.color = 'var(--muted)';
-    badgeOri.style.borderColor = 'rgba(0,200,200,0.4)';
-    // Terug naar Noord
-    try { map.setBearing(0); } catch(err) {}
-  }
-
-  // Snelheidseenheid badge in speed display
+  // Snelheidseenheid
   document.getElementById('speed-unit').textContent = instellingen.snelheid === 'kmh' ? 'KM/H' : 'KN';
 }
 
@@ -3162,6 +3376,16 @@ document.addEventListener('visibilitychange', async () => {
     await activeerWakeLock();
   }
 });
+
+// ── INKLAPBARE SECTIES ────────────────────────────────────
+function toggleSectie(id, titleEl) {
+  const inhoud = document.getElementById(id);
+  const pijlId = id.replace('-inhoud', '-pijl');
+  const pijl   = document.getElementById(pijlId);
+  const open   = inhoud.style.display !== 'none';
+  inhoud.style.display = open ? 'none' : 'block';
+  if (pijl) pijl.textContent = open ? '▶' : '▼';
+}
 
 // ── INIT ──────────────────────────────────────────────────
 renderRoutesList();
