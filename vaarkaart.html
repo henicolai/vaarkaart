@@ -655,6 +655,87 @@
       <button class="btn btn-ghost" id="btn-clear" onclick="clearCurrent()">✕ Wis huidig spoor</button>
     </div>
 
+    <!-- Route Planner -->
+    <div class="sidebar-section">
+      <div class="sidebar-title" onclick="toggleSectie('routeplanner-inhoud', this)"
+        style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;">
+        🧭 Route Planner <span id="routeplanner-pijl" style="font-size:12px;color:var(--muted);">▼</span>
+      </div>
+
+      <div id="routeplanner-inhoud">
+
+        <!-- Modus knoppen -->
+        <div style="display:flex;gap:4px;margin-bottom:10px;">
+          <button id="rp-btn-start" class="btn btn-ghost" onclick="rpSetModus('start')"
+            style="flex:1;font-size:12px;border-color:rgba(0,200,200,0.3);">
+            🟢 Startpunt
+          </button>
+          <button id="rp-btn-eind" class="btn btn-ghost" onclick="rpSetModus('eind')"
+            style="flex:1;font-size:12px;border-color:rgba(232,69,69,0.3);">
+            🔴 Eindpunt
+          </button>
+          <button class="btn btn-ghost" onclick="rpWis()" style="padding:4px 8px;font-size:12px;">✕</button>
+        </div>
+
+        <div id="rp-modus-hint" style="font-size:11px;color:var(--amber);text-align:center;
+          padding:5px;background:rgba(245,166,35,0.1);border-radius:5px;
+          border:1px solid rgba(245,166,35,0.3);margin-bottom:8px;display:none;">
+          Tik op de kaart om het punt te zetten
+        </div>
+
+        <!-- Punt invoer -->
+        <div style="display:grid;grid-template-columns:auto 1fr auto;gap:4px;align-items:center;margin-bottom:4px;">
+          <span style="font-size:11px;color:var(--teal);">🟢 Van</span>
+          <div id="rp-start-label" style="font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">niet ingesteld</div>
+          <button class="btn-sm" onclick="rpGebruikGPS('start')" title="Gebruik GPS positie">📍</button>
+        </div>
+        <div style="display:grid;grid-template-columns:auto 1fr auto;gap:4px;align-items:center;margin-bottom:10px;">
+          <span style="font-size:11px;color:var(--danger);">🔴 Naar</span>
+          <div id="rp-eind-label" style="font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">niet ingesteld</div>
+          <button class="btn-sm" onclick="rpKiesHaven()" title="Kies haven">⚓</button>
+        </div>
+
+        <!-- Haven kiezen als eindpunt -->
+        <div id="rp-haven-zoek" style="display:none;margin-bottom:8px;">
+          <input type="text" placeholder="Zoek haven als eindpunt…"
+            style="width:100%;padding:6px 10px;background:rgba(255,255,255,0.07);
+            border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:12px;"
+            oninput="rpFilterHavens(this.value)">
+          <div id="rp-haven-resultaten" style="max-height:120px;overflow-y:auto;margin-top:4px;display:flex;flex-direction:column;gap:3px;"></div>
+        </div>
+
+        <!-- Tussenpunten -->
+        <div style="margin-bottom:8px;">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">
+            Tussenpunten <span style="color:var(--amber)">(voor route over water)</span>
+          </div>
+          <button class="btn btn-ghost" onclick="rpVoegTussenToe()" style="width:100%;font-size:12px;margin-bottom:4px;">
+            + Tussenpunten invoeren
+          </button>
+          <div id="rp-tussen-lijst" style="display:flex;flex-direction:column;gap:3px;max-height:150px;overflow-y:auto;"></div>
+        </div>
+
+        <!-- Resultaat -->
+        <div id="rp-resultaat" style="display:none;background:rgba(0,200,200,0.08);
+          border:1px solid rgba(0,200,200,0.3);border-radius:8px;padding:10px;text-align:center;">
+          <div id="rp-afstand" style="font-family:'Teko',sans-serif;font-size:28px;color:var(--teal);"></div>
+          <div id="rp-koers" style="font-size:12px;color:var(--muted);margin-top:2px;"></div>
+          <div id="rp-tijd" style="font-size:11px;color:var(--muted);margin-top:2px;"></div>
+          <div style="font-size:10px;color:var(--amber);margin-top:4px;">⚠ Peillijn — voeg tussenpunten toe voor route over water</div>
+        </div>
+
+        <!-- Externe routers -->
+        <div id="rp-extern" style="display:none;margin-top:8px;display:flex;flex-direction:column;gap:4px;">
+          <div style="font-size:10px;color:var(--muted);text-align:center;margin-bottom:2px;">Open in externe navigator</div>
+          <div style="display:flex;gap:4px;">
+            <button class="btn btn-ghost" onclick="rpOpenNavionics()" style="flex:1;font-size:11px;">🗺 Navionics</button>
+            <button class="btn btn-ghost" onclick="rpExportGPX()" style="flex:1;font-size:11px;">📥 Export GPX</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
     <!-- Kaartlagen -->
     <div class="sidebar-section">
       <div class="sidebar-title">🗺 Lagen</div>
@@ -1068,10 +1149,22 @@ const boatIcon = L.divIcon({
 
 function startGPS() {
   if (!navigator.geolocation) {
-    setGPSStatus('error', 'Geen GPS beschikbaar');
+    setGPSStatus('error', 'Geen locatie beschikbaar');
     return;
   }
-  watchId = navigator.geolocation.watchPosition(onPosition, onGPSError, {
+  // Probeer eerst nauwkeurige GPS, daarna WiFi als fallback
+  watchId = navigator.geolocation.watchPosition(onPosition, (err) => {
+    if (err.code === 2 || err.code === 3) {
+      // Geen GPS signaal — probeer WiFi locatie
+      navigator.geolocation.watchPosition(onPosition, onGPSError, {
+        enableHighAccuracy: false,
+        maximumAge: 10000,
+        timeout: 15000
+      });
+    } else {
+      onGPSError(err);
+    }
+  }, {
     enableHighAccuracy: true,
     maximumAge: 2000,
     timeout: 10000
@@ -1162,7 +1255,46 @@ function onPosition(pos) {
 }
 
 function onGPSError(err) {
-  setGPSStatus('error', 'GPS fout: ' + err.message);
+  let msg = '';
+  let uitleg = '';
+
+  switch(err.code) {
+    case 2: // POSITION_UNAVAILABLE
+      msg = '📡 GPS signaal niet beschikbaar';
+      uitleg = 'Schakel locatieservices in via Android instellingen';
+      break;
+    case 3: // TIMEOUT
+      msg = '⏱ GPS time-out';
+      uitleg = 'Wacht even en probeer opnieuw';
+      break;
+    default:
+      msg = '⚠ GPS niet beschikbaar';
+      uitleg = 'Controleer locatiemachtigingen in Android instellingen';
+  }
+
+  document.getElementById('gps-dot').className = 'gps-dot error';
+  document.getElementById('gps-text').innerHTML = msg;
+
+  const card = document.querySelector('.gps-card');
+  let uitlegEl = document.getElementById('gps-uitleg');
+  if (!uitlegEl) {
+    uitlegEl = document.createElement('div');
+    uitlegEl.id = 'gps-uitleg';
+    uitlegEl.style.cssText = 'margin-top:8px;font-size:11px;color:var(--amber);line-height:1.4;';
+    card.appendChild(uitlegEl);
+  }
+  uitlegEl.innerHTML = `${uitleg}<br>
+    <button onclick="herprobeerGPS()" class="btn btn-ghost" style="margin-top:6px;font-size:11px;width:100%;">
+      🔄 Opnieuw proberen
+    </button>`;
+}
+
+function herprobeerGPS() {
+  const uitlegEl = document.getElementById('gps-uitleg');
+  if (uitlegEl) uitlegEl.innerHTML = '⏳ Verbinden…';
+  document.getElementById('gps-text').textContent = 'Wacht op GPS…';
+  if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+  startGPS();
 }
 
 function setGPSStatus(type, msg) {
@@ -1569,13 +1701,231 @@ function herlaadWindBijBeweging() {
   windMoveTimer = setTimeout(() => laadWindPijlen(), 1000);
 }
 
+// ── ROUTE PLANNER ─────────────────────────────────────────
+let rpModus = null;
+let rpStart = null;
+let rpEind  = null;
+let rpLijn  = null;
+let rpStartMarker = null;
+let rpEindMarker  = null;
+let rpTussen = [];
+let rpTussenModus = false;
+
+function rpSetModus(modus) {
+  rpModus = modus;
+  rpTussenModus = false;
+  const hint = document.getElementById('rp-modus-hint');
+  hint.style.display = 'block';
+  hint.textContent = modus === 'start'
+    ? '🟢 Tik op de kaart voor het startpunt'
+    : '🔴 Tik op de kaart voor het eindpunt';
+  document.getElementById('rp-haven-zoek').style.display = 'none';
+  document.getElementById('rp-btn-start').style.background = modus === 'start' ? 'rgba(0,200,200,0.2)' : '';
+  document.getElementById('rp-btn-eind').style.background  = modus === 'eind'  ? 'rgba(232,69,69,0.2)'  : '';
+}
+
+function rpGebruikGPS(modus) {
+  const pos = window._laatsteGpsPositie;
+  if (!pos) { notify('Wacht op GPS positie'); return; }
+  rpZetPunt(modus, pos.lat, pos.lon, 'Mijn positie (GPS)');
+}
+
+function rpKiesHaven() {
+  rpModus = 'eind';
+  const zoek = document.getElementById('rp-haven-zoek');
+  zoek.style.display = zoek.style.display === 'none' ? 'block' : 'none';
+  if (zoek.style.display === 'block') { rpFilterHavens(''); zoek.querySelector('input').focus(); }
+}
+
+function rpFilterHavens(q) {
+  const lijst = q ? HAVENS.filter(h => h.naam.toLowerCase().includes(q.toLowerCase())) : HAVENS;
+  document.getElementById('rp-haven-resultaten').innerHTML = lijst.slice(0,8).map(h => `
+    <div onclick="rpZetPunt('eind',${h.lat},${h.lon},'${h.naam.replace(/'/g,"\\'")}');document.getElementById('rp-haven-zoek').style.display='none';"
+      style="padding:5px 8px;background:rgba(255,255,255,0.04);border:1px solid var(--border);
+      border-radius:5px;cursor:pointer;font-size:12px;">
+      ⚓ ${h.naam} <span style="color:var(--muted);font-size:10px;">— ${h.diepgang}m</span>
+    </div>`).join('');
+}
+
+function rpZetPunt(modus, lat, lon, naam) {
+  const kleur = modus === 'start' ? '#34d399' : '#e84545';
+  const icon = L.divIcon({
+    className: '',
+    html: `<div style="width:16px;height:16px;background:${kleur};border:3px solid white;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.5);"></div>`,
+    iconSize: [16,16], iconAnchor: [8,8]
+  });
+  if (modus === 'start') {
+    if (rpStartMarker) map.removeLayer(rpStartMarker);
+    rpStart = { lat, lon, naam };
+    rpStartMarker = L.marker([lat, lon], { icon, zIndexOffset: 700 }).bindPopup(`🟢 <b>Start:</b> ${naam}`).addTo(map);
+    document.getElementById('rp-start-label').textContent = naam;
+    document.getElementById('rp-start-label').style.color = 'var(--teal)';
+  } else {
+    if (rpEindMarker) map.removeLayer(rpEindMarker);
+    rpEind = { lat, lon, naam };
+    rpEindMarker = L.marker([lat, lon], { icon, zIndexOffset: 700 }).bindPopup(`🔴 <b>Eind:</b> ${naam}`).addTo(map);
+    document.getElementById('rp-eind-label').textContent = naam;
+    document.getElementById('rp-eind-label').style.color = 'var(--danger)';
+  }
+  rpModus = null;
+  document.getElementById('rp-modus-hint').style.display = 'none';
+  document.getElementById('rp-btn-start').style.background = '';
+  document.getElementById('rp-btn-eind').style.background = '';
+  if (rpStart && rpEind) rpBerekenRoute();
+}
+
+function rpVoegTussenToe() {
+  rpTussenModus = !rpTussenModus;
+  rpModus = null;
+  const btn = document.querySelector('[onclick="rpVoegTussenToe()"]');
+  const hint = document.getElementById('rp-modus-hint');
+  if (rpTussenModus) {
+    hint.style.display = 'block';
+    hint.textContent = '🟡 Tik op de kaart — blijft actief. Klik knop om te stoppen.';
+    if (btn) { btn.style.borderColor = 'rgba(245,166,35,0.6)'; btn.style.color = 'var(--amber)'; btn.textContent = '⏹ Stop tussenpunten invoeren'; }
+  } else {
+    hint.style.display = 'none';
+    if (btn) { btn.style.borderColor = ''; btn.style.color = ''; btn.textContent = '+ Tussenpunten invoeren'; }
+  }
+}
+
+function rpRenderTussenLijst() {
+  document.getElementById('rp-tussen-lijst').innerHTML = rpTussen.map((p, i) => `
+    <div style="display:flex;align-items:center;gap:6px;padding:4px 8px;
+      background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:5px;">
+      <span style="font-size:10px;color:var(--amber);">WP${i+1}</span>
+      <span style="font-size:10px;color:var(--muted);flex:1;">${p.lat.toFixed(4)}° ${p.lon.toFixed(4)}°</span>
+      <button onclick="rpVerwijderTussen(${i})" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:12px;">✕</button>
+    </div>`).join('');
+}
+
+function rpVerwijderTussen(i) {
+  map.removeLayer(rpTussen[i].marker);
+  rpTussen.splice(i, 1);
+  rpRenderTussenLijst();
+  if (rpStart && rpEind) rpBerekenRoute();
+}
+
+function rpOpenNavionics() {
+  if (!rpStart || !rpEind) { notify('Stel eerst start en eindpunt in'); return; }
+  window.open(`https://webapp.navionics.com/#boating@8&map=&wp=blk!${rpStart.lat}!${rpStart.lon}&wp=blk!${rpEind.lat}!${rpEind.lon}`, '_blank');
+}
+
+function rpOpenOpenCPN() {
+  notify('GPX wordt gedownload — open in OpenCPN');
+  rpExportGPX();
+}
+
+function rpOpenGoogleMaps() {
+  if (!rpStart || !rpEind) { notify('Stel eerst start en eindpunt in'); return; }
+  const tussens = rpTussen.map(p => `${p.lat},${p.lon}`).join('/');
+  const via = tussens ? `/${tussens}` : '';
+  window.open(`https://www.google.com/maps/dir/${rpStart.lat},${rpStart.lon}${via}/${rpEind.lat},${rpEind.lon}`, '_blank');
+}
+
+function rpExportGPX() {
+  if (!rpStart || !rpEind) return;
+  const punten = [rpStart, ...rpTussen, rpEind];
+  const gpx = `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="VaarKaart">\n  <rte>\n    <name>VaarKaart Route</name>\n    ${punten.map((p,i)=>`<rtept lat="${p.lat}" lon="${p.lon}"><name>WP${i}</name></rtept>`).join('\n    ')}\n  </rte>\n</gpx>`;
+  const blob = new Blob([gpx], { type: 'application/gpx+xml' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'vaarkaart-route.gpx';
+  a.click();
+  notify('Route geëxporteerd als GPX');
+}
+
+function haversine(lat1, lon1, lat2, lon2) {
+  const R = 6371000;
+  const dLat = (lat2-lat1)*Math.PI/180;
+  const dLon = (lon2-lon1)*Math.PI/180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function berekenKoers(lat1, lon1, lat2, lon2) {
+  const dLon = (lon2-lon1)*Math.PI/180;
+  const y = Math.sin(dLon)*Math.cos(lat2*Math.PI/180);
+  const x = Math.cos(lat1*Math.PI/180)*Math.sin(lat2*Math.PI/180) - Math.sin(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.cos(dLon);
+  return ((Math.atan2(y,x)*180/Math.PI)+360)%360;
+}
+
+function rpBerekenRoute() {
+  if (rpLijn) { if (Array.isArray(rpLijn)) rpLijn.forEach(l=>map.removeLayer(l)); else map.removeLayer(rpLijn); }
+  const punten = [rpStart, ...rpTussen, rpEind];
+  const coords = punten.map(p=>[p.lat,p.lon]);
+  const lijnen = [];
+  for (let i=0; i<coords.length-1; i++) {
+    lijnen.push(L.polyline([coords[i],coords[i+1]], {color:'#f5a623',weight:3,dashArray:'8,6',opacity:0.9}).addTo(map));
+  }
+  rpLijn = lijnen;
+  let totaalM = 0;
+  for (let i=0; i<punten.length-1; i++) totaalM += haversine(punten[i].lat,punten[i].lon,punten[i+1].lat,punten[i+1].lon);
+  const afstandStr = formatAfstand(totaalM);
+  const eenheid = instellingen.afstand === 'nm' ? 'NM' : 'km';
+  const koers = berekenKoers(rpStart.lat,rpStart.lon,rpEind.lat,rpEind.lon);
+  const koersStr = `${Math.round(koers)}° ${richtingNaarTekst(koers)}`;
+  const tijdUur = (totaalM/1852)/5;
+  const uren = Math.floor(tijdUur);
+  const min = Math.round((tijdUur-uren)*60);
+  const tijdStr = uren>0 ? `~${uren}u ${min}min bij 5 kn` : `~${min}min bij 5 kn`;
+  document.getElementById('rp-afstand').textContent = `${afstandStr} ${eenheid}`;
+  document.getElementById('rp-koers').textContent = rpTussen.length ? `${punten.length-1} segmenten · beginkoers ${koersStr}` : `Koers: ${koersStr}`;
+  document.getElementById('rp-tijd').textContent = tijdStr;
+  document.getElementById('rp-resultaat').style.display = 'block';
+  document.getElementById('rp-extern').style.display = 'flex';
+  map.fitBounds(L.latLngBounds(coords), {padding:[40,40]});
+  notify(`Route: ${afstandStr} ${eenheid} · ${tijdStr}`);
+}
+
+function rpWis() {
+  if (rpLijn) { if (Array.isArray(rpLijn)) rpLijn.forEach(l=>map.removeLayer(l)); else map.removeLayer(rpLijn); }
+  if (rpStartMarker) map.removeLayer(rpStartMarker);
+  if (rpEindMarker)  map.removeLayer(rpEindMarker);
+  rpTussen.forEach(p=>map.removeLayer(p.marker));
+  rpLijn=rpStart=rpEind=rpStartMarker=rpEindMarker=null;
+  rpTussen=[]; rpModus=null; rpTussenModus=false;
+  const tBtn = document.querySelector('[onclick="rpVoegTussenToe()"]');
+  if (tBtn) { tBtn.style.borderColor=''; tBtn.style.color=''; tBtn.textContent='+ Tussenpunten invoeren'; }
+  document.getElementById('rp-start-label').textContent='niet ingesteld';
+  document.getElementById('rp-start-label').style.color='var(--muted)';
+  document.getElementById('rp-eind-label').textContent='niet ingesteld';
+  document.getElementById('rp-eind-label').style.color='var(--muted)';
+  document.getElementById('rp-resultaat').style.display='none';
+  document.getElementById('rp-extern').style.display='none';
+  document.getElementById('rp-modus-hint').style.display='none';
+  document.getElementById('rp-haven-zoek').style.display='none';
+  document.getElementById('rp-tussen-lijst').innerHTML='';
+  document.getElementById('rp-btn-start').style.background='';
+  document.getElementById('rp-btn-eind').style.background='';
+  notify('Route gewist');
+}
+
+// Kaart klik voor route planner
+map.on('click', function(e) {
+  if (waypointModus) return;
+  const lat = e.latlng.lat;
+  const lon = e.latlng.lng;
+  if (rpTussenModus) {
+    const icon = L.divIcon({className:'',html:`<div style="width:12px;height:12px;background:#f5a623;border:2px solid white;border-radius:50%;box-shadow:0 2px 4px rgba(0,0,0,0.5);"></div>`,iconSize:[12,12],iconAnchor:[6,6]});
+    const marker = L.marker([lat,lon],{icon,zIndexOffset:650}).bindPopup(`🟡 Tussenpunt ${rpTussen.length+1}`).addTo(map);
+    rpTussen.push({lat,lon,marker});
+    rpRenderTussenLijst();
+    // Modus blijft actief — geen reset
+    if (rpStart && rpEind) rpBerekenRoute();
+    notify(`Tussenpunt ${rpTussen.length} toegevoegd`);
+    return;
+  }
+  if (!rpModus) return;
+  rpZetPunt(rpModus, lat, lon, formatCoord(lat, lon));
+});
+
 // ── AIS SCHEEPVAART ───────────────────────────────────────
 function openAIS() {
   const pos = window._laatsteGpsPositie;
   const lat = pos ? pos.lat.toFixed(4) : map.getCenter().lat.toFixed(4);
   const lon = pos ? pos.lon.toFixed(4) : map.getCenter().lng.toFixed(4);
   const zoom = Math.min(map.getZoom(), 14);
-  // VesselFinder opent op huidige positie met OpenSeaMap-achtige ondergrond
   window.open(`https://www.vesselfinder.com/?lat=${lat}&lon=${lon}&zoom=${zoom}`, '_blank');
 }
 
@@ -1781,22 +2131,6 @@ function toggleSatellite(on) {
 }
 
 // ── UTILS ─────────────────────────────────────────────────
-function haversine(lat1, lon1, lat2, lon2) {
-  const R = 6371000;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-}
-
-let notifyTimer;
-function notify(msg) {
-  const el = document.getElementById('notify');
-  el.textContent = msg;
-  el.classList.add('show');
-  clearTimeout(notifyTimer);
-  notifyTimer = setTimeout(() => el.classList.remove('show'), 2800);
-}
 
 // ── DIEPTELAGEN ───────────────────────────────────────────
 
