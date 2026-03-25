@@ -18,6 +18,8 @@
   <!-- Leaflet -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <!-- Leaflet-rotate voor Koers omhoog -->
+  <script src="https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate-src.js"></script>
 
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Teko:wght@300;400;500;600&family=Source+Sans+3:wght@300;400;600&display=swap');
@@ -1090,6 +1092,9 @@ const map = L.map('map', {
   center: [52.37, 4.90],
   zoom: 13,
   zoomControl: false,
+  rotate: true,
+  rotateControl: false,
+  bearing: 0,
 });
 
 L.control.zoom({ position: 'topright' }).addTo(map);
