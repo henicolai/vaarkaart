@@ -1,912 +1,131 @@
 <!DOCTYPE html>
 <html lang="nl">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VaarKaart — Handleiding</title>
-<link href="https://fonts.googleapis.com/css2?family=Teko:wght@300;400;500;600&family=Source+Sans+3:wght@300;400;600&display=swap" rel="stylesheet">
-<style>
-:root {
-  --navy:   #0a1628;
-  --deep:   #0d1f3c;
-  --water:  #0e3d5e;
-  --teal:   #00c8c8;
-  --amber:  #f5a623;
-  --danger: #e84545;
-  --white:  #e8f0f8;
-  --muted:  #7a9ab8;
-  --card:   rgba(13,31,60,0.92);
-  --border: rgba(0,200,200,0.18);
-}
-
-* { box-sizing: border-box; margin: 0; padding: 0; }
-
-body {
-  font-family: 'Source Sans 3', sans-serif;
-  background: var(--navy);
-  color: var(--white);
-  min-height: 100vh;
-}
-
-/* ── HEADER ── */
-header {
-  background: var(--deep);
-  border-bottom: 1px solid var(--border);
-  padding: 0 24px;
-  height: 56px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-}
-
-.brand { display: flex; align-items: center; gap: 10px; }
-.brand-icon {
-  width: 32px; height: 32px;
-  background: var(--teal);
-  clip-path: polygon(50% 0%,80% 25%,100% 50%,80% 75%,50% 100%,20% 75%,0% 50%,20% 25%);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 16px;
-}
-.brand-name {
-  font-family: 'Teko', sans-serif;
-  font-size: 26px; font-weight: 500; letter-spacing: 2px;
-  color: var(--white);
-}
-.brand-name span { color: var(--teal); }
-.brand-sub {
-  font-size: 12px; color: var(--muted);
-  letter-spacing: 1px; text-transform: uppercase;
-  margin-top: 1px;
-}
-
-.back-btn {
-  background: transparent;
-  border: 1px solid var(--border);
-  color: var(--teal);
-  font-family: 'Teko', sans-serif;
-  font-size: 15px;
-  letter-spacing: 1px;
-  padding: 6px 14px;
-  border-radius: 6px;
-  cursor: pointer;
-  text-decoration: none;
-  display: flex; align-items: center; gap: 6px;
-  transition: background 0.2s;
-}
-.back-btn:hover { background: rgba(0,200,200,0.1); }
-
-/* ── LAYOUT ── */
-.page {
-  max-width: 860px;
-  margin: 0 auto;
-  padding: 40px 24px 80px;
-}
-
-/* ── HERO ── */
-.hero {
-  text-align: center;
-  padding: 32px 0 40px;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 40px;
-}
-.hero-title {
-  font-family: 'Teko', sans-serif;
-  font-size: 48px; font-weight: 500;
-  letter-spacing: 3px;
-  color: var(--white);
-  line-height: 1;
-  margin-bottom: 12px;
-}
-.hero-title span { color: var(--teal); }
-.hero-sub {
-  font-size: 16px; color: var(--muted);
-  max-width: 520px; margin: 0 auto;
-  line-height: 1.6;
-}
-.version-badge {
-  display: inline-block;
-  margin-top: 14px;
-  font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase;
-  padding: 4px 12px;
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  color: var(--muted);
-}
-
-/* ── INHOUDSOPGAVE ── */
-.toc {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-left: 3px solid var(--teal);
-  border-radius: 8px;
-  padding: 20px 24px;
-  margin-bottom: 40px;
-}
-.toc-title {
-  font-family: 'Teko', sans-serif;
-  font-size: 14px; letter-spacing: 2px; text-transform: uppercase;
-  color: var(--teal); margin-bottom: 14px;
-}
-.toc-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4px 24px;
-}
-@media(max-width: 540px) { .toc-grid { grid-template-columns: 1fr; } }
-.toc-item {
-  font-size: 14px; color: var(--muted);
-  text-decoration: none;
-  padding: 4px 0;
-  display: flex; align-items: center; gap: 8px;
-  transition: color 0.2s;
-  border-bottom: 1px solid rgba(0,200,200,0.06);
-}
-.toc-item:hover { color: var(--teal); }
-.toc-item .num {
-  font-family: 'Teko', sans-serif;
-  font-size: 13px; color: var(--teal); opacity: 0.6;
-  min-width: 18px;
-}
-
-/* ── SECTIES ── */
-.section {
-  margin-bottom: 40px;
-  scroll-margin-top: 72px;
-}
-.section-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 18px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid var(--border);
-}
-.section-icon {
-  font-size: 24px;
-  width: 44px; height: 44px;
-  background: rgba(0,200,200,0.08);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-}
-.section-title {
-  font-family: 'Teko', sans-serif;
-  font-size: 24px; font-weight: 500; letter-spacing: 1px;
-  color: var(--white);
-  line-height: 1;
-}
-.section-subtitle {
-  font-size: 12px; color: var(--muted);
-  letter-spacing: 1px; text-transform: uppercase;
-  margin-top: 2px;
-}
-
-/* ── CARDS ── */
-.card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 18px 20px;
-  margin-bottom: 12px;
-}
-.card.highlight {
-  border-color: rgba(0,200,200,0.35);
-  background: rgba(0,200,200,0.05);
-}
-.card.amber {
-  border-color: rgba(245,166,35,0.35);
-  background: rgba(245,166,35,0.04);
-}
-.card.danger {
-  border-color: rgba(232,69,69,0.35);
-  background: rgba(232,69,69,0.04);
-}
-.card.wadplanner {
-  border-color: rgba(0,200,200,0.4);
-  background: rgba(0,200,200,0.06);
-  border-left: 3px solid var(--teal);
-}
-
-.card-title {
-  font-family: 'Teko', sans-serif;
-  font-size: 16px; letter-spacing: 1px;
-  color: var(--teal);
-  margin-bottom: 8px;
-  text-transform: uppercase;
-}
-.card.amber .card-title { color: var(--amber); }
-.card.danger .card-title { color: var(--danger); }
-
-p { font-size: 14px; color: var(--white); line-height: 1.75; opacity: 0.88; margin-bottom: 8px; }
-p:last-child { margin-bottom: 0; }
-
-/* ── STEPS ── */
-.steps { list-style: none; padding: 0; margin: 8px 0; }
-.steps li {
-  font-size: 14px; color: var(--white); opacity: 0.88;
-  line-height: 1.65;
-  padding: 5px 0 5px 20px;
-  position: relative;
-  border-bottom: 1px solid rgba(0,200,200,0.05);
-}
-.steps li:last-child { border-bottom: none; }
-.steps li::before {
-  content: '→';
-  position: absolute; left: 0;
-  color: var(--teal); opacity: 0.65;
-}
-.steps.numbered { list-style: none; counter-reset: step-counter; }
-.steps.numbered li { padding-left: 28px; }
-.steps.numbered li::before {
-  content: counter(step-counter);
-  counter-increment: step-counter;
-  background: rgba(0,200,200,0.15);
-  border: 1px solid rgba(0,200,200,0.3);
-  border-radius: 50%;
-  width: 18px; height: 18px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 11px; font-family: 'Teko', sans-serif;
-  color: var(--teal); opacity: 1;
-  top: 6px;
-}
-
-/* ── KBD / LABELS ── */
-kbd {
-  background: rgba(0,200,200,0.12);
-  border: 1px solid rgba(0,200,200,0.3);
-  border-radius: 4px;
-  padding: 1px 7px;
-  font-size: 12px;
-  font-family: monospace;
-  color: var(--teal);
-  white-space: nowrap;
-}
-.lbl-teal  { color: var(--teal); font-weight: 600; }
-.lbl-amber { color: var(--amber); font-weight: 600; }
-.lbl-red   { color: var(--danger); font-weight: 600; }
-.lbl-muted { color: var(--muted); }
-
-/* ── FEATURE GRID ── */
-.feature-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin-bottom: 12px;
-}
-@media(max-width: 540px) { .feature-grid { grid-template-columns: 1fr; } }
-.feature-item {
-  background: rgba(255,255,255,0.03);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 12px 14px;
-}
-.feature-name {
-  font-family: 'Teko', sans-serif;
-  font-size: 15px; letter-spacing: 0.5px;
-  color: var(--teal); margin-bottom: 4px;
-}
-.feature-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
-
-/* ── TIP BOX ── */
-.tip {
-  background: rgba(245,166,35,0.07);
-  border: 1px solid rgba(245,166,35,0.25);
-  border-left: 3px solid var(--amber);
-  border-radius: 6px;
-  padding: 12px 16px;
-  font-size: 13px; color: var(--white); line-height: 1.6;
-  margin: 10px 0;
-}
-.tip strong { color: var(--amber); }
-
-.warn {
-  background: rgba(232,69,69,0.07);
-  border: 1px solid rgba(232,69,69,0.25);
-  border-left: 3px solid var(--danger);
-  border-radius: 6px;
-  padding: 12px 16px;
-  font-size: 13px; color: var(--white); line-height: 1.6;
-  margin: 10px 0;
-}
-.warn strong { color: var(--danger); }
-
-/* ── ROUTE BADGE ── */
-.route-badge {
-  display: inline-block;
-  font-size: 11px; letter-spacing: 0.5px;
-  padding: 2px 9px;
-  border-radius: 20px;
-  margin: 2px 2px;
-  border: 1px solid;
-}
-.rb-teal  { border-color: rgba(0,200,200,0.4); color: var(--teal); }
-.rb-amber { border-color: rgba(245,166,35,0.4); color: var(--amber); }
-.rb-muted { border-color: rgba(122,154,184,0.35); color: var(--muted); }
-
-/* ── DIVIDER ── */
-.divider {
-  font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
-  color: var(--muted); margin: 24px 0 16px;
-  display: flex; align-items: center; gap: 10px;
-}
-.divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
-
-/* ── SCROLLBAR ── */
-::-webkit-scrollbar { width: 5px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-
-/* ── FOOTER ── */
-footer {
-  background: var(--deep);
-  border-top: 1px solid var(--border);
-  padding: 20px 24px;
-  text-align: center;
-  font-size: 12px; color: var(--muted);
-  line-height: 1.6;
-}
-footer a { color: var(--teal); text-decoration: none; }
-footer a:hover { text-decoration: underline; }
-
-/* ── MARIFOON TABEL ── */
-.mar-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
-.mar-table th { text-align: left; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); padding: 6px 10px; border-bottom: 1px solid var(--border); }
-.mar-table td { padding: 7px 10px; border-bottom: 1px solid rgba(0,200,200,0.06); color: var(--white); }
-.mar-table tr:last-child td { border-bottom: none; }
-.mar-table .ch { color: var(--teal); font-weight: 600; font-family: 'Teko', sans-serif; font-size: 15px; }
-
-@media print {
-  header { position: relative; }
-  .back-btn { display: none; }
-  .section { page-break-inside: avoid; }
-}
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VaarKaart — Handleiding</title>
+  <link href="https://fonts.googleapis.com/css2?family=Teko:wght@300;400;500;600;700&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap" rel="stylesheet">
+  <style>
+    :root { --navy:#08111f; --deep:#0b1929; --teal:#00c8c8; --gold:#c9a84c; --white:#e8f2f8; --muted:#6a8fa8; --border:rgba(0,200,200,0.15); }
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+    html { scroll-behavior:smooth; }
+    body { font-family:'Crimson Pro',Georgia,serif; background:var(--navy); color:var(--white); }
+    nav { position:fixed; top:0; left:0; right:0; z-index:1000; display:flex; align-items:center; justify-content:space-between; padding:0 32px; height:60px; background:rgba(8,17,31,0.95); border-bottom:1px solid var(--border); backdrop-filter:blur(8px); }
+    .brand { font-family:'Teko',sans-serif; font-size:24px; letter-spacing:3px; color:var(--teal); }
+    .brand span { color:var(--white); }
+    .nav-link { color:var(--white); text-decoration:none; font-size:16px; opacity:0.8; transition:opacity 0.2s; }
+    .nav-link:hover { opacity:1; color:var(--teal); }
+    .btn-open { background:var(--teal); color:#000; padding:8px 20px; border-radius:6px; text-decoration:none; font-family:'Teko',sans-serif; font-size:16px; letter-spacing:1px; }
+    .btn-open:hover { background:#00e0e0; }
+    .hero { padding:120px 32px 60px; text-align:center; max-width:800px; margin:0 auto; }
+    .hero h1 { font-family:'Teko',sans-serif; font-size:52px; letter-spacing:3px; color:var(--teal); margin-bottom:16px; }
+    .hero p { font-size:20px; color:var(--muted); margin-bottom:32px; }
+    .section { max-width:900px; margin:0 auto; padding:60px 32px; }
+    .section-title { font-family:'Teko',sans-serif; font-size:36px; letter-spacing:2px; color:var(--teal); margin-bottom:8px; }
+    .section-sub { color:var(--muted); margin-bottom:32px; font-size:17px; }
+    .features-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:16px; margin-bottom:48px; }
+    .feature-card { background:var(--deep); border:1px solid var(--border); border-radius:10px; padding:20px; transition:transform 0.2s,border-color 0.2s; }
+    .feature-card:hover { transform:translateY(-3px); border-color:rgba(0,200,200,0.35); }
+    .feature-icon { font-size:28px; margin-bottom:8px; display:block; }
+    .feature-title { font-family:'Teko',sans-serif; font-size:18px; letter-spacing:1px; color:var(--white); margin-bottom:6px; }
+    .feature-desc { font-size:15px; color:var(--muted); line-height:1.5; }
+    .steps { display:flex; flex-direction:column; gap:24px; }
+    .step { display:flex; gap:20px; align-items:flex-start; }
+    .step-num { font-family:'Teko',sans-serif; font-size:36px; color:var(--teal); min-width:50px; line-height:1; }
+    .step-title { font-family:'Teko',sans-serif; font-size:20px; color:var(--white); margin-bottom:6px; }
+    .step-desc { font-size:16px; color:var(--muted); line-height:1.6; }
+    .step-tip { display:inline-block; margin-top:8px; font-size:13px; color:var(--teal); background:rgba(0,200,200,0.08); padding:4px 10px; border-radius:4px; border:1px solid var(--border); }
+    footer { text-align:center; padding:32px; border-top:1px solid var(--border); color:var(--muted); font-size:14px; }
+  </style>
 </head>
 <body>
+<nav>
+  <div class="brand">VAAR<span>KAART</span></div>
+  <a href="index.html" class="btn-open">⚓ Open App</a>
+</nav>
 
-<!-- HEADER -->
-<header>
-  <div class="brand">
-    <div class="brand-icon">⚓</div>
-    <div>
-      <div class="brand-name">VAAR<span>KAART</span></div>
-      <div class="brand-sub">Handleiding</div>
-    </div>
+<div class="hero">
+  <h1>HANDLEIDING</h1>
+  <p>Alles wat je nodig hebt om met VaarKaart aan de slag te gaan.</p>
+  <a href="index.html" class="btn-open" style="font-size:18px;padding:12px 32px;">⚓ Open VaarKaart App</a>
+</div>
+
+<div class="section">
+  <div class="section-title">Functies</div>
+  <div class="section-sub">Wat VaarKaart biedt voor de pleziervaart.</div>
+  <div class="features-grid">
+    <div class="feature-card"><span class="feature-icon">⛵</span><div class="feature-title">GPS Positie</div><p class="feature-desc">Live positie op de kaart. Snelheid in knopen of km/h. Wake Lock houdt het scherm wakker tijdens het varen.</p></div>
+    <div class="feature-card"><span class="feature-icon">🌊</span><div class="feature-title">Stroom & Getijden</div><p class="feature-desc">RWS stroompijlen op de kaart. Hoog- en laagwater tijden. Bladeren per uur, 12 uur terug en vooruit.</p></div>
+    <div class="feature-card"><span class="feature-icon">💨</span><div class="feature-title">Wind</div><p class="feature-desc">Windpijlen via Open-Meteo weermodel. Beaufort schaal. 72 uur voorspelling met tijdlijn.</p></div>
+    <div class="feature-card"><span class="feature-icon">⚓</span><div class="feature-title">Havens</div><p class="feature-desc">50+ havens langs Waddenzee, Zeeland en IJsselmeer. Diepgang, VHF kanaal en contactgegevens.</p></div>
+    <div class="feature-card"><span class="feature-icon">🧭</span><div class="feature-title">Route Planner</div><p class="feature-desc">Start- en eindpunt instellen via GPS, kaart of haven. Tussenpunten voor route over water. Export als GPX.</p></div>
+    <div class="feature-card"><span class="feature-icon">🗺</span><div class="feature-title">Eigen Zeekaarten</div><p class="feature-desc">PNG, JPG of BMP uploaden met hoekcoördinaten. Meerdere kaarten tegelijk. Coördinaten onthouden.</p></div>
+    <div class="feature-card"><span class="feature-icon">📌</span><div class="feature-title">Waypoints</div><p class="feature-desc">GPX bestanden laden of handmatig op kaart tikken. Coördinaten in gekozen formaat.</p></div>
+    <div class="feature-card"><span class="feature-icon">🔴</span><div class="feature-title">Boeien & Bakens</div><p class="feature-desc">Officiële RWS boeien via OpenSeaMap. Altijd bijgewerkt.</p></div>
+    <div class="feature-card"><span class="feature-icon">📏</span><div class="feature-title">Dieptekaart</div><p class="feature-desc">Gekleurde dieptelaag en dieptecijfers voor Waddenzee en kustwateren.</p></div>
+    <div class="feature-card"><span class="feature-icon">⚙</span><div class="feature-title">Instellingen</div><p class="feature-desc">Eenheden (kn/km/h, km/NM), coördinatenformaat (DD/DDM/DMS) en kaartoriëntatie.</p></div>
   </div>
-  <a href="index.html" class="back-btn">← Naar de kaart</a>
-</header>
+</div>
 
-<div class="page">
-
-  <!-- HERO -->
-  <div class="hero">
-    <div class="hero-title">VAAR<span>KAART</span></div>
-    <p class="hero-sub">GPS-navigatie voor de Nederlandse pleziervaart — met getijden, wind, stroom, eigen zeekaarten en ingebouwde WadPlanner.</p>
-    <div class="version-badge">Versie 2026 · Waddenzee editie</div>
-  </div>
-
-  <!-- INHOUDSOPGAVE -->
-  <div class="toc">
-    <div class="toc-title">📋 Inhoudsopgave</div>
-    <div class="toc-grid">
-      <a class="toc-item" href="#gps"><span class="num">1</span> ⚡ GPS Positie</a>
-      <a class="toc-item" href="#route"><span class="num">2</span> 📍 Route opnemen</a>
-      <a class="toc-item" href="#planner"><span class="num">3</span> 🧭 Route Planner</a>
-      <a class="toc-item" href="#lagen"><span class="num">4</span> 🗺 Kaartlagen</a>
-      <a class="toc-item" href="#wind"><span class="num">5</span> 💨 Wind</a>
-      <a class="toc-item" href="#havens"><span class="num">6</span> ⚓ Havens</a>
-      <a class="toc-item" href="#eigen"><span class="num">7</span> 🗺 Eigen Zeekaarten</a>
-      <a class="toc-item" href="#stroom"><span class="num">8</span> 🌊 Stroom & Getijden</a>
-      <a class="toc-item" href="#waypoints"><span class="num">9</span> 📌 Waypoints & GPX</a>
-      <a class="toc-item" href="#wadplanner"><span class="num">10</span> ⚓ WadPlanner</a>
-      <a class="toc-item" href="#instellingen"><span class="num">11</span> ⚙ Instellingen</a>
-      <a class="toc-item" href="#marifoon"><span class="num">12</span> 📻 Marifoon</a>
-      <a class="toc-item" href="#tips"><span class="num">13</span> 💡 Tips & trucs</a>
-      <a class="toc-item" href="#disclaimer"><span class="num">14</span> ⚠ Disclaimer</a>
-    </div>
-  </div>
-
-  <!-- 1. GPS -->
-  <div class="section" id="gps">
-    <div class="section-header">
-      <div class="section-icon">⚡</div>
+<div style="background:var(--deep);border-top:1px solid var(--border);border-bottom:1px solid var(--border);">
+<div class="section">
+  <div class="section-title">Aan de slag</div>
+  <div class="section-sub">In zes stappen op het water met VaarKaart.</div>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">01</div>
       <div>
-        <div class="section-title">GPS Positie</div>
-        <div class="section-subtitle">Locatie & navigatie</div>
+        <div class="step-title">App openen & installeren</div>
+        <p class="step-desc">Open de app via de knop rechtsboven. Geef toestemming voor locatietoegang. In Chrome/Edge op Android kies je "App installeren" via de drie puntjes — dan staat VaarKaart als echte app op je startscherm.</p>
+        <span class="step-tip">💡 Werkt het beste als geïnstalleerde PWA op Android</span>
       </div>
     </div>
-    <div class="card">
-      <p>VaarKaart gebruikt de GPS van je apparaat om je positie, snelheid en koers te bepalen. De positie wordt continu bijgewerkt en getoond op de kaart als een blauw bootje.</p>
-      <ul class="steps">
-        <li>De <span class="lbl-teal">groene stip</span> in de GPS-kaart geeft aan dat GPS actief is en een fix heeft.</li>
-        <li>Een <span class="lbl-red">rode stip</span> of foutmelding betekent dat de locatie niet beschikbaar is — controleer je locatiemachtigingen.</li>
-        <li>De nauwkeurigheid (in meters) wordt getoond onder de coördinaten.</li>
-        <li>Gebruik <kbd>🎯 Centreer op mij</kbd> om de kaart opnieuw op je positie te centreren.</li>
-      </ul>
-    </div>
-    <div class="tip">
-      <strong>Let op:</strong> GPS werkt alleen op een beveiligde verbinding (<strong>https://</strong>) of op localhost. Op GitHub Pages werkt het automatisch. Geef locatiemachtiging wanneer de browser daarom vraagt.
-    </div>
-  </div>
-
-  <!-- 2. ROUTE OPNEMEN -->
-  <div class="section" id="route">
-    <div class="section-header">
-      <div class="section-icon">📍</div>
+    <div class="step">
+      <div class="step-num">02</div>
       <div>
-        <div class="section-title">Route opnemen</div>
-        <div class="section-subtitle">GPS-spoor vastleggen</div>
+        <div class="step-title">GPS & instellingen</div>
+        <p class="step-desc">Je positie verschijnt automatisch als ⛵ op de kaart. Open via de zijbalk ⚙ Instellingen om eenheden, coördinatenformaat en kaartoriëntatie in te stellen. Zet "Scherm wakker houden" aan zodat de app niet wegvalt tijdens het varen.</p>
+        <span class="step-tip">📡 Instellingen worden onthouden na herladen</span>
       </div>
     </div>
-    <div class="card">
-      <p>Neem je gevaren route op als GPS-spoor. Het spoor wordt als gekleurde lijn op de kaart getoond.</p>
-      <ul class="steps numbered">
-        <li>Klik <kbd>▶ Start opname</kbd> om te beginnen. Een rood <em>Opname actief</em> lampje verschijnt.</li>
-        <li>Vaar je route — het spoor wordt automatisch bijgehouden.</li>
-        <li>Klik <kbd>⏹ Stop & sla op</kbd> om te stoppen. Je wordt gevraagd de route een naam te geven.</li>
-        <li>De route wordt opgeslagen onder <strong>💾 Opgeslagen routes</strong> en blijft bewaard in de browser.</li>
-      </ul>
-    </div>
-    <div class="card amber">
-      <div class="card-title">Opgeslagen routes beheren</div>
-      <ul class="steps">
-        <li>Klik op een route in de lijst om hem op de kaart te tonen.</li>
-        <li>Gebruik de kleine knoppen naast elke route om te hernoemen, exporteren als GPX of te verwijderen.</li>
-        <li>Routes worden opgeslagen in de browser (localStorage) en blijven beschikbaar na herstarten.</li>
-      </ul>
-    </div>
-  </div>
-
-  <!-- 3. ROUTE PLANNER -->
-  <div class="section" id="planner">
-    <div class="section-header">
-      <div class="section-icon">🧭</div>
+    <div class="step">
+      <div class="step-num">03</div>
       <div>
-        <div class="section-title">Route Planner</div>
-        <div class="section-subtitle">Plan een tocht van A naar B</div>
+        <div class="step-title">Kaartlagen instellen</div>
+        <p class="step-desc">Zet via de schakelaars de gewenste lagen aan: OpenSeaMap vaarwegen, boeien, stroompijlen, windpijlen of havens. Gebruik de ◀ ▶ knoppen bij stroom en wind om door de uren te bladeren.</p>
       </div>
     </div>
-    <div class="card">
-      <p>Plan een route van een startpunt naar een eindpunt. De planner berekent afstand, koers en geschatte vaartijd.</p>
-      <ul class="steps numbered">
-        <li>Klik <kbd>🟢 Startpunt</kbd> — tik dan op de kaart om je vertrekpunt te zetten, of gebruik <kbd>📍</kbd> voor je GPS-positie.</li>
-        <li>Klik <kbd>🔴 Eindpunt</kbd> — tik op de kaart, of kies een haven via de <kbd>⚓</kbd> knop.</li>
-        <li>Voeg optioneel <span class="lbl-amber">tussenpunten</span> toe om de route langs de vaargeul te leiden — klik <kbd>+ Tussenpunten invoeren</kbd>.</li>
-        <li>De afstand, koers en vaartijd verschijnen automatisch zodra start en eind zijn ingesteld.</li>
-      </ul>
-    </div>
-    <div class="feature-grid">
-      <div class="feature-item">
-        <div class="feature-name">🗺 Open in Navionics</div>
-        <div class="feature-desc">Start je route direct in de Navionics app voor gedetailleerde nautische navigatie.</div>
-      </div>
-      <div class="feature-item">
-        <div class="feature-name">📥 Export GPX</div>
-        <div class="feature-desc">Exporteer je geplande route als GPX-bestand voor gebruik in OpenCPN of andere navigatiesoftware.</div>
-      </div>
-    </div>
-    <div class="tip">
-      <strong>Tip:</strong> De peillijn geeft de kortste afstand over het water. Voeg tussenpunten toe langs de vaargeul voor een realistische route over de Waddenzee.
-    </div>
-  </div>
-
-  <!-- 4. LAGEN -->
-  <div class="section" id="lagen">
-    <div class="section-header">
-      <div class="section-icon">🗺</div>
+    <div class="step">
+      <div class="step-num">04</div>
       <div>
-        <div class="section-title">Kaartlagen</div>
-        <div class="section-subtitle">Overlays & basiskaarten</div>
+        <div class="step-title">Route plannen</div>
+        <p class="step-desc">Open de Route Planner sectie. Stel een startpunt in via GPS of door op de kaart te tikken. Kies een haven als eindpunt of tik op de kaart. Voeg tussenpunten toe om land te omzeilen — de route blijft actief zodat je meerdere punten achter elkaar kunt zetten.</p>
+        <span class="step-tip">🧭 Export als GPX voor gebruik in OpenCPN of Navionics</span>
       </div>
     </div>
-    <div class="feature-grid">
-      <div class="feature-item">
-        <div class="feature-name">OpenSeaMap</div>
-        <div class="feature-desc">Vaarwegen, boeien, bakens en dieptes bovenop de basiskaart. Essentieel voor de Waddenzee.</div>
-      </div>
-      <div class="feature-item">
-        <div class="feature-name">Satelliet ondergrond</div>
-        <div class="feature-desc">Luchtfoto-achtergrond. Handig om de omgeving te herkennen bij het binnenvaren van een haven.</div>
-      </div>
-      <div class="feature-item">
-        <div class="feature-name">RWS boeien & bakens</div>
-        <div class="feature-desc">Officiële markeringen van Rijkswaterstaat — rode en groene boeien, lichtopstanden en seinpalen.</div>
-      </div>
-      <div class="feature-item">
-        <div class="feature-name">Stroompijlen</div>
-        <div class="feature-desc">Actuele stroomrichting en snelheid op de kaart, bijgewerkt via RWS-meetstations. Kleur geeft eb/vloed aan.</div>
-      </div>
-      <div class="feature-item">
-        <div class="feature-name">Windpijlen</div>
-        <div class="feature-desc">Actuele windrichting per gridpunt op de kaart op basis van Open-Meteo weerdata.</div>
-      </div>
-      <div class="feature-item">
-        <div class="feature-name">Dieptekaart (kleur)</div>
-        <div class="feature-desc">Kleurcodering van waterdiepte t.o.v. NAP — van geel (droog) tot donkerblauw (diep). Met legenda.</div>
-      </div>
-      <div class="feature-item">
-        <div class="feature-name">Dieptecijfers (RWS)</div>
-        <div class="feature-desc">Officiële RWS-dieptemetingen als getal op de kaart. Zichtbaar vanaf zoomniveau 10.</div>
-      </div>
-      <div class="feature-item">
-        <div class="feature-name">Havens op kaart</div>
-        <div class="feature-desc">Haven-iconen met naam en informatie. Klik op een icoon voor details en zoomknop.</div>
-      </div>
-    </div>
-    <div class="card amber">
-      <div class="card-title">AIS Scheepvaart</div>
-      <p>Opent <strong>MarineTraffic</strong> in een nieuw tabblad, gecentreerd op je huidige kaartpositie. Toont live AIS-posities van schepen in de buurt.</p>
-    </div>
-  </div>
-
-  <!-- 5. WIND -->
-  <div class="section" id="wind">
-    <div class="section-header">
-      <div class="section-icon">💨</div>
+    <div class="step">
+      <div class="step-num">05</div>
       <div>
-        <div class="section-title">Wind</div>
-        <div class="section-subtitle">Actuele weerdata via Open-Meteo</div>
+        <div class="step-title">Eigen zeekaart laden</div>
+        <p class="step-desc">Sleep een PNG, JPG of BMP zeekaart op het uploadkader. Vul NW en ZO coördinaten in en klik Laden. Coördinaten worden onthouden — na herladen staan ze klaar in de lijst.</p>
+        <span class="step-tip">📌 Meerdere kaarten tegelijk, elk met eigen doorzichtigheid</span>
       </div>
     </div>
-    <div class="card">
-      <p>Toont actuele windsnelheid, windrichting en Beaufort-schaal voor je huidige GPS-positie. Data komt van Open-Meteo en wordt automatisch geladen.</p>
-      <ul class="steps">
-        <li>De <span class="lbl-muted" style="color:#a78bfa;">paarse pijl</span> geeft de windrichting aan (vanwaar de wind komt).</li>
-        <li>Gebruik <kbd>◀</kbd> en <kbd>▶</kbd> om per uur voor- of terug te bladeren in de verwachting.</li>
-        <li>Klik <kbd>Nu</kbd> om terug te gaan naar de actuele waarden.</li>
-        <li>De 24-uurs balk onderaan toont het windverloop op de dag — het huidige uur is gemarkeerd.</li>
-      </ul>
-    </div>
-    <div class="tip">
-      <strong>Tip:</strong> Combineer de windverwachting met de WadPlanner om te beoordelen of de wind gunstig staat voor je vaarroute — onthoud dat windopzet de werkelijke waterstand beïnvloedt.
-    </div>
-  </div>
-
-  <!-- 6. HAVENS -->
-  <div class="section" id="havens">
-    <div class="section-header">
-      <div class="section-icon">⚓</div>
+    <div class="step">
+      <div class="step-num">06</div>
       <div>
-        <div class="section-title">Havens</div>
-        <div class="section-subtitle">Nederlandse jachthavens</div>
-      </div>
-    </div>
-    <div class="card">
-      <p>De havendatabase bevat jachthavens en aanlegplaatsen langs de Waddenzee, het IJsselmeer, de Noordzee en de Delta.</p>
-      <ul class="steps">
-        <li>Typ een naam in het zoekvak om havens te filteren.</li>
-        <li>Klik <kbd>📍</kbd> om de dichtstbijzijnde haven te vinden op basis van je GPS-positie.</li>
-        <li>Klik op een haven in de lijst om op de kaart in te zoomen.</li>
-        <li>Schakel <strong>Havens op kaart</strong> in om alle havens als iconen op de kaart te zien.</li>
-      </ul>
-    </div>
-  </div>
-
-  <!-- 7. EIGEN KAARTEN -->
-  <div class="section" id="eigen">
-    <div class="section-header">
-      <div class="section-icon">🗺</div>
-      <div>
-        <div class="section-title">Eigen Zeekaarten</div>
-        <div class="section-subtitle">Georeferentie eigen kaartafbeeldingen</div>
-      </div>
-    </div>
-    <div class="card highlight">
-      <p>Laad eigen kaartafbeeldingen (PNG, JPG of BMP) als overlay op de kaart. Handig voor gescande RWS-zeekaarten of eigen plattegronden.</p>
-    </div>
-    <div class="card">
-      <div class="card-title">Kaart toevoegen</div>
-      <ul class="steps numbered">
-        <li>Sleep een PNG, JPG of BMP naar het dropvlak, of klik om een bestand te kiezen.</li>
-        <li>Vul de <strong>NW-hoekcoördinaat</strong> in (breedte en lengte, decimale graden).</li>
-        <li>Vul de <strong>ZO-hoekcoördinaat</strong> in (breedte en lengte, decimale graden).</li>
-        <li>Stel de gewenste <strong>doorzichtigheid</strong> in (10–100%).</li>
-        <li>Klik <kbd>📂 Kaart toevoegen</kbd> — de kaart verschijnt direct op de juiste positie.</li>
-      </ul>
-    </div>
-    <div class="feature-grid">
-      <div class="feature-item">
-        <div class="feature-name">👁 Toon / Verberg</div>
-        <div class="feature-desc">Schakel de kaartoverlay snel aan of uit zonder hem te verwijderen.</div>
-      </div>
-      <div class="feature-item">
-        <div class="feature-name">🔍 Zoom</div>
-        <div class="feature-desc">Zoom de kaart in op het gebied van de overlay.</div>
-      </div>
-      <div class="feature-item">
-        <div class="feature-name">💧 Opacity</div>
-        <div class="feature-desc">Pas de transparantie aan via een invoerprompt (10–100).</div>
-      </div>
-      <div class="feature-item">
-        <div class="feature-name">✕ Verwijder</div>
-        <div class="feature-desc">Verwijdert de kaart permanent uit de lijst en de kaart.</div>
-      </div>
-    </div>
-    <div class="tip">
-      <strong>Tip:</strong> Kaarten worden opgeslagen in de browser en zijn na herstarten automatisch weer beschikbaar. De coördinaten vind je op de hoeken van je papieren zeekaart of via Google Maps (rechtermuisklik → coördinaten kopiëren).
-    </div>
-  </div>
-
-  <!-- 8. STROOM & GETIJDEN -->
-  <div class="section" id="stroom">
-    <div class="section-header">
-      <div class="section-icon">🌊</div>
-      <div>
-        <div class="section-title">Stroom &amp; Getijden</div>
-        <div class="section-subtitle">RWS meetstations · astronomisch getij</div>
-      </div>
-    </div>
-    <div class="card">
-      <p>Toont de actuele stroomsnelheid en richting bij het dichtstbijzijnde RWS-meetstation. Bij het laden wordt automatisch Harlingen als standaard gebruikt totdat GPS beschikbaar is.</p>
-      <ul class="steps">
-        <li>De grote <span class="lbl-teal">blauwe pijl</span> geeft de stroomrichting aan, de snelheid staat ernaast in knopen.</li>
-        <li>Gebruik <kbd>◀</kbd> en <kbd>▶</kbd> om per uur te bladeren.</li>
-        <li>Klik <kbd>Nu</kbd> om terug naar de actuele meting te gaan.</li>
-        <li>Hoog- en laagwatertijden worden automatisch geladen voor het dichtstbijzijnde station.</li>
-        <li><span class="lbl-teal">Blauw</span> = hoogwatertijd · <span class="lbl-amber">Amber</span> = laagwatertijd.</li>
-      </ul>
-    </div>
-    <div class="tip">
-      <strong>Wantij:</strong> Op de Waddenzee ontmoeten eb- en vloedgolven van oost en west elkaar bij het wantij — het ondiepste en kalmste punt. Rond hoogwater is de waterstand het hoogst en kan het wantij worden overgestoken (mits diepgang toelaat). De WadPlanner houdt hier rekening mee.
-    </div>
-  </div>
-
-  <!-- 9. WAYPOINTS & GPX -->
-  <div class="section" id="waypoints">
-    <div class="section-header">
-      <div class="section-icon">📌</div>
-      <div>
-        <div class="section-title">Waypoints &amp; GPX</div>
-        <div class="section-subtitle">Losse punten en GPX-import</div>
-      </div>
-    </div>
-    <div class="card">
-      <p>Plaats losse waypoints op de kaart of importeer een GPX-bestand met bestaande waypoints.</p>
-      <ul class="steps">
-        <li>Klik <kbd>📌 Tik op kaart om waypoint te zetten</kbd> — de modus is actief zolang het oranje kader zichtbaar is.</li>
-        <li>Tik op de gewenste positie op de kaart — er verschijnt een oranje pin met coördinaten.</li>
-        <li>Tik opnieuw op de knop om de modus te stoppen.</li>
-        <li>Sleep een <strong>GPX-bestand</strong> naar het dropvlak om waypoints te importeren.</li>
-        <li>Gebruik <kbd>✕ Wis alle waypoints</kbd> om alle pins in één keer te verwijderen.</li>
-      </ul>
-    </div>
-    <div class="tip">
-      <strong>Tip:</strong> GPX-bestanden kun je exporteren uit OpenCPN, Navionics of andere navigatieprogramma's. Na import verschijnen alle waypoints als oranje pinnen op de kaart.
-    </div>
-  </div>
-
-  <!-- 10. WADPLANNER -->
-  <div class="section" id="wadplanner">
-    <div class="section-header">
-      <div class="section-icon">⚓</div>
-      <div>
-        <div class="section-title">WadPlanner</div>
-        <div class="section-subtitle">Getijgericht vaaradvies · Waddenzee</div>
-      </div>
-    </div>
-
-    <div class="card wadplanner">
-      <p>De WadPlanner berekent de optimale vertrektijd voor tochten op de Waddenzee op basis van astronomische getijden, jouw diepgang en vaarsnelheid. De geplande route verschijnt als gouden stippellijn direct op de VaarKaart.</p>
-    </div>
-
-    <div class="divider">Hoe te gebruiken</div>
-
-    <div class="card">
-      <div class="card-title">Stap voor stap</div>
-      <ul class="steps numbered">
-        <li>Kies je <strong>vertrekhaven</strong> in het dropdown-menu — de route verschijnt meteen op de kaart.</li>
-        <li>Kies je <strong>bestemming</strong> — de vaargeulroute wordt direct getekend inclusief kritieke punten.</li>
-        <li>Vul de <strong>datum</strong> in. Getijdata is beschikbaar van 23 maart t/m 30 juni 2026.</li>
-        <li>Voer je <strong>diepgang</strong> in (meters) — de app waarschuwt automatisch bij wantijbeperkingen.</li>
-        <li>Voer je gemiddelde <strong>vaarsnelheid</strong> in (knopen) voor een nauwkeurige aankomsttijd.</li>
-        <li>Klik <kbd>⚓ Bereken vaaradvies</kbd>.</li>
-      </ul>
-    </div>
-
-    <div class="divider">Wat je terugkrijgt</div>
-
-    <div class="feature-grid">
-      <div class="feature-item">
-        <div class="feature-name" style="color:var(--teal)">✦ Vertrektijden</div>
-        <div class="feature-desc">Optimaal (teal), laat (amber) of nacht (rood) — gebaseerd op hoogwater en de specifieke getijstrategie per route.</div>
-      </div>
-      <div class="feature-item">
-        <div class="feature-name" style="color:var(--amber)">⚠ Diepgangcheck</div>
-        <div class="feature-desc">Automatische melding als jouw diepgang te groot is voor de wantijroute. Geeft de maximaal toegestane diepgang aan.</div>
-      </div>
-      <div class="feature-item">
-        <div class="feature-name" style="color:var(--teal)">〰 Getijcurve</div>
-        <div class="feature-desc">Sinus-grafiek van het getij met hoog/laagwaterpunten en verticale lijnen op de aanbevolen vertrektijden.</div>
-      </div>
-      <div class="feature-item">
-        <div class="feature-name" style="color:var(--teal)">🗺 Route op kaart</div>
-        <div class="feature-desc">Echte vaargeulpunten als gouden stippellijn. Rode markers tonen kritieke punten met uitleg.</div>
-      </div>
-    </div>
-
-    <div class="divider">Beschikbare routes</div>
-
-    <div class="card">
-      <div class="card-title">Vertrekhavens</div>
-      <p>
-        <span class="route-badge rb-teal">Harlingen</span>
-        <span class="route-badge rb-teal">Den Helder</span>
-        <span class="route-badge rb-teal">Kornwerderzand</span>
-        <span class="route-badge rb-teal">Holwerd</span>
-        <span class="route-badge rb-teal">Lauwersoog</span>
-        <span class="route-badge rb-teal">Delfzijl</span>
-        <span class="route-badge rb-muted">Oudeschild (Texel)</span>
-        <span class="route-badge rb-muted">West-Terschelling</span>
-        <span class="route-badge rb-muted">Vlieland Haven</span>
-        <span class="route-badge rb-muted">Nes (Ameland)</span>
-        <span class="route-badge rb-muted">Schiermonnikoog</span>
-      </p>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Bestemmingen</div>
-      <p>
-        <span class="route-badge rb-amber">Terschelling</span>
-        <span class="route-badge rb-amber">Vlieland</span>
-        <span class="route-badge rb-amber">Ameland</span>
-        <span class="route-badge rb-amber">Schiermonnikoog</span>
-        <span class="route-badge rb-amber">Texel</span>
-        <span class="route-badge rb-muted">Harlingen</span>
-        <span class="route-badge rb-muted">Lauwersoog</span>
-        <span class="route-badge rb-muted">Den Helder</span>
-        <span class="route-badge rb-muted">Delfzijl</span>
-        <span class="route-badge rb-muted">Borkum (D)</span>
-      </p>
-    </div>
-
-    <div class="divider">Diepgangbeperkingen per route</div>
-
-    <div class="card">
-      <ul class="steps">
-        <li><strong>Harlingen → Ameland (buitenom):</strong> Wantijroute direct is max <span class="lbl-amber">1,40 m</span> — met 1,90 m diepgang verplicht buitenom via Noordzee.</li>
-        <li><strong>Terschelling → Ameland (Blauwe Balg):</strong> Max <span class="lbl-amber">1,50 m</span>. Blauwe Balg alleen toegankelijk <strong>15 mei – 1 september</strong>, 3u vóór t/m 2u na HW.</li>
-        <li><strong>Lauwersoog → Ameland (wantij):</strong> Wierumerwad en Pinkewad max <span class="lbl-amber">1,35 m</span>.</li>
-        <li><strong>Holwerd → Ameland (veerbootgeul):</strong> Intensief gebaggerde geul, check altijd <a href="https://waddendata.nl" target="_blank" style="color:var(--teal)">waddendata.nl</a>.</li>
-        <li><strong>Schiermonnikoog haven:</strong> Drempel <span class="lbl-amber">1,50 m</span> bij LW — binnenvaren vóór of rond HW.</li>
-        <li><strong>Buitengaatse routes</strong> (via Noordzee): geen diepgangbeperking op de route zelf.</li>
-      </ul>
-    </div>
-
-    <div class="warn">
-      <strong>⚠ Disclaimer WadPlanner:</strong> De WadPlanner gebruikt astronomische getijden van Rijkswaterstaat 2026. Windopzet, weersinvloeden en actuele morfologische veranderingen van geulen zijn <strong>niet</strong> meegenomen. Controleer altijd actuele dieptes via <a href="https://nautin.nl" target="_blank" style="color:var(--teal)">nautin.nl</a> en <a href="https://waddendata.nl" target="_blank" style="color:var(--teal)">waddendata.nl</a>. De vaargeullijnen op de kaart zijn indicatief en geen vervanging voor officiële RWS-zeekaarten (1811.1–1811.4).
-    </div>
-  </div>
-
-  <!-- 11. INSTELLINGEN -->
-  <div class="section" id="instellingen">
-    <div class="section-header">
-      <div class="section-icon">⚙</div>
-      <div>
-        <div class="section-title">Instellingen</div>
-        <div class="section-subtitle">Eenheden & weergave</div>
-      </div>
-    </div>
-    <div class="feature-grid">
-      <div class="feature-item">
-        <div class="feature-name">Snelheid</div>
-        <div class="feature-desc">Knopen (kn) of kilometer per uur (km/h). Geldt voor GPS-snelheid, windsnelheid en de snelheidsbadge op de kaart.</div>
-      </div>
-      <div class="feature-item">
-        <div class="feature-name">Coördinatenformaat</div>
-        <div class="feature-desc">Decimale graden (DD), graden+decimale minuten (DDM) of graden+minuten+seconden (DMS).</div>
-      </div>
-      <div class="feature-item">
-        <div class="feature-name">Afstand</div>
-        <div class="feature-desc">Zeemijl (NM) of kilometer (km). Geldt voor de gevaren afstand in de header en de Route Planner.</div>
-      </div>
-      <div class="feature-item">
-        <div class="feature-name">Scherm wakker houden</div>
-        <div class="feature-desc">Voorkomt dat het scherm uitvalt tijdens navigatie via de Wake Lock API. Niet alle browsers ondersteunen dit.</div>
+        <div class="step-title">Route opnemen & waypoints</div>
+        <p class="step-desc">Druk op "Start opname" om je vaarroute vast te leggen. Sleep een GPX bestand voor waypoints, of tik op de kaart via de waypoint modus. Klik op een waypoint in de lijst om er naartoe te zoomen.</p>
       </div>
     </div>
   </div>
-
-  <!-- 12. MARIFOON -->
-  <div class="section" id="marifoon">
-    <div class="section-header">
-      <div class="section-icon">📻</div>
-      <div>
-        <div class="section-title">Marifoon</div>
-        <div class="section-subtitle">VHF kanalen Waddenzee</div>
-      </div>
-    </div>
-    <div class="card">
-      <p>Uitluisterplicht op de Waddenzee geldt op meerdere kanalen. De WadPlanner geeft per route het relevante kanaal aan.</p>
-      <table class="mar-table">
-        <thead><tr><th>Kanaal</th><th>Post</th><th>Gebruik</th></tr></thead>
-        <tbody>
-          <tr><td class="ch">2</td><td>Brandaris (Terschelling)</td><td>Uitluisterplicht Vliestroom, Terschelling, Vlieland. Weerbericht 30min na elk oneven uur.</td></tr>
-          <tr><td class="ch">4</td><td>CMW Waddenzee</td><td>Centrale Meldpost Waddenzee — melden verontreiniging, ontbrekende markering, informatie.</td></tr>
-          <tr><td class="ch">5</td><td>Brandaris / Schiermonnikoog</td><td>Scheepvaartberichten oost-Waddenzee. 30min na elk oneven uur.</td></tr>
-          <tr><td class="ch">11</td><td>Harlingen haven</td><td>Havencoördinatie Harlingen — aanvragen ligplaats, brugbediening.</td></tr>
-          <tr><td class="ch">16</td><td>Kustwacht</td><td>Nood-, spoed- en veiligheidsverkeer. Stormwaarschuwingen. Altijd uitluisteren op zee.</td></tr>
-          <tr><td class="ch">20</td><td>Delfzijl Traffic</td><td>Verkeerscentrale Delfzijl — verplicht uitluisteren op de Eems.</td></tr>
-          <tr><td class="ch">62</td><td>Den Helder Traffic</td><td>Verkeerscentrale Den Helder — verplicht uitluisteren Marsdiep, Schulpengat, Molengat.</td></tr>
-          <tr><td class="ch">23 / 83</td><td>Kustwacht</td><td>KNMI weerbericht 08:05, 13:05, 19:05, 23:05 uur.</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- 13. TIPS -->
-  <div class="section" id="tips">
-    <div class="section-header">
-      <div class="section-icon">💡</div>
-      <div>
-        <div class="section-title">Tips &amp; trucs</div>
-        <div class="section-subtitle">Het meeste uit VaarKaart halen</div>
-      </div>
-    </div>
-    <div class="card">
-      <ul class="steps">
-        <li><strong>PWA installeren:</strong> Tik in je browser op <em>"Toevoegen aan startscherm"</em> (of het deelicoon) voor een app-ervaring zonder adresbalk. VaarKaart werkt dan ook offline met gecachte kaarten.</li>
-        <li><strong>Sidebar verbergen:</strong> Klik <kbd>◀ Menu</kbd> om de sidebar in te klappen en de volledige kaart te zien. Klik <kbd>▶ Menu</kbd> om hem terug te halen.</li>
-        <li><strong>Kompasroos:</strong> De kompasroos rechtsonder draait automatisch mee met je GPS-koers en toont de vaarrichting in graden.</li>
-        <li><strong>Snelheidsbadge:</strong> De grote snelheidsindicator rechtsonder toont je actuele snelheid over de grond in knopen of km/h.</li>
-        <li><strong>Stroompijlen:</strong> Worden automatisch bijgewerkt als je de kaart beweegt of inzoomt. Schakel ze uit als de kaart te druk wordt.</li>
-        <li><strong>Kaart roteren:</strong> Op mobiel: gebruik twee vingers om de kaart te draaien. Het kompas geeft dan de werkelijke noordrichting aan.</li>
-        <li><strong>WadPlanner + Wind:</strong> Combineer de WadPlanner-vertrektijden met de windverwachting voor een compleet beeld. Bij harde zuidwestenwind kan de waterstand 30–50 cm lager uitvallen dan de astronomische voorspelling.</li>
-        <li><strong>OpenSeaMap + eigen kaart:</strong> Laad je eigen RWS-zeekaart als overlay én zet OpenSeaMap aan voor de beste combinatie van boeienmarkering en detailkaart.</li>
-      </ul>
-    </div>
-  </div>
-
-  <!-- 14. DISCLAIMER -->
-  <div class="section" id="disclaimer">
-    <div class="section-header">
-      <div class="section-icon">⚠</div>
-      <div>
-        <div class="section-title">Disclaimer</div>
-        <div class="section-subtitle">Veilig gebruik</div>
-      </div>
-    </div>
-    <div class="card danger">
-      <div class="card-title">Geen vervanging voor officiële navigatiemiddelen</div>
-      <p>VaarKaart is een hulpmiddel voor de pleziervaart en is <strong>geen vervanging</strong> voor officiële zeekaarten, nautische publicaties of professionele navigatiesoftware. De app is ontwikkeld voor recreatief gebruik.</p>
-    </div>
-    <div class="card">
-      <ul class="steps">
-        <li>Gebruik altijd actuele <strong>RWS-zeekaarten</strong> (serie 1811) voor navigatie op de Waddenzee.</li>
-        <li>Controleer <strong>Berichten aan Zeevarenden (BaZ)</strong> voor actualiteiten over wijzigingen in de betonning.</li>
-        <li>Raadpleeg <strong><a href="https://nautin.nl" target="_blank" style="color:var(--teal)">nautin.nl</a></strong> voor actuele dieptetabellen van de Waddenzee-geulen.</li>
-        <li>Raadpleeg <strong><a href="https://waddendata.nl" target="_blank" style="color:var(--teal)">waddendata.nl</a></strong> voor actuele waterstanden en geulinformatie.</li>
-        <li>GPS-gegevens kunnen afwijken door slechte ontvangst, tunneleffecten of apparatuurproblemen.</li>
-        <li>Getijdata in de WadPlanner is <strong>astronomisch</strong> — windopzet en weersinvloeden zijn niet inbegrepen.</li>
-        <li>De vaargeulcoördinaten zijn indicatief — geulen op de Waddenzee veranderen voortdurend door sedimentatie en erosie.</li>
-        <li>De ontwikkelaar aanvaardt geen aansprakelijkheid voor schade als gevolg van het gebruik van deze app.</li>
-      </ul>
-    </div>
-    <div class="tip">
-      <strong>Noodhulp op zee:</strong> Kustwacht Nederland — <strong>+31 71 526 4600</strong> of marifoon <strong>kanaal 16</strong>.
-    </div>
-  </div>
-
-</div><!-- /page -->
+</div>
+</div>
 
 <footer>
-  <div style="margin-bottom:6px;">
-    <strong style="color:var(--teal); font-family:'Teko',sans-serif; font-size:18px; letter-spacing:2px;">VAARKAART</strong>
-    &nbsp;·&nbsp; Handleiding versie 2026
-  </div>
-  <div>
-    Getijdata: <a href="https://rijkswaterstaat.nl" target="_blank">Rijkswaterstaat</a> &nbsp;·&nbsp;
-    Kaarten: <a href="https://openstreetmap.org" target="_blank">OpenStreetMap</a> &amp; <a href="https://carto.com" target="_blank">CARTO</a> &nbsp;·&nbsp;
-    Weerdata: <a href="https://open-meteo.com" target="_blank">Open-Meteo</a> &nbsp;·&nbsp;
-    Nautische data: <a href="https://openseamap.org" target="_blank">OpenSeaMap</a>
-  </div>
-  <div style="margin-top:8px;">
-    <a href="index.html">← Terug naar de kaart</a>
-  </div>
+  <div style="font-family:'Teko',sans-serif;font-size:20px;color:var(--teal);margin-bottom:8px;">VAAR<span style="color:var(--white);">KAART</span></div>
+  Data: Rijkswaterstaat · OpenSeaMap · PDOK · Open-Meteo<br>
+  <span style="font-size:12px;">© 2026 VaarKaart — Geen abonnement, geen registratie</span>
 </footer>
-
 </body>
 </html>
