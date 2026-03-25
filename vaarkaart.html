@@ -507,6 +507,70 @@
     ::-webkit-scrollbar { width: 4px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    /* ── WADPLANNER ── */
+    .wp-field { margin-bottom: 9px; }
+    .wp-field label { display:block; font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin-bottom:4px; }
+    .wp-field select, .wp-field input {
+      width:100%; background:rgba(255,255,255,0.06); border:1px solid var(--border);
+      border-radius:5px; color:var(--white); font-family:'Source Sans 3',sans-serif;
+      font-size:12px; padding:6px 9px; outline:none;
+      transition:border-color .2s;
+    }
+    .wp-field select:focus, .wp-field input:focus { border-color:var(--teal); }
+    .wp-field select option { background:var(--deep); }
+    .wp-field input[type="date"]::-webkit-calendar-picker-indicator { filter:invert(.5); cursor:pointer; }
+    .wp-row2 { display:grid; grid-template-columns:1fr 1fr; gap:7px; }
+
+    .wp-result { margin-top:10px; display:none; }
+    .wp-banner { padding:8px 11px; border-radius:5px; font-size:11px; line-height:1.5; margin-bottom:8px; }
+    .wp-banner.ok     { background:rgba(0,200,200,.08); border:1px solid rgba(0,200,200,.25); color:var(--teal); }
+    .wp-banner.warn   { background:rgba(245,166,35,.08); border:1px solid rgba(245,166,35,.25); color:var(--amber); }
+    .wp-banner.danger { background:rgba(232,69,69,.08); border:1px solid rgba(232,69,69,.25); color:var(--danger); }
+
+    .wp-slots { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:8px; }
+    .wp-slot { padding:8px 10px; border-radius:5px; border:1px solid var(--border); background:rgba(255,255,255,.03); }
+    .wp-slot.best { border-color:rgba(0,200,200,.35); background:rgba(0,200,200,.06); }
+    .wp-slot.ok   { border-color:rgba(245,166,35,.3); background:rgba(245,166,35,.05); }
+    .wp-slot.bad  { opacity:.55; }
+    .wp-time { font-family:'Teko',sans-serif; font-size:22px; color:var(--white); line-height:1; }
+    .wp-slot.best .wp-time { color:var(--teal); }
+    .wp-slot.ok   .wp-time { color:var(--amber); }
+    .wp-slbl { font-size:10px; letter-spacing:.1em; text-transform:uppercase; margin:2px 0 4px; }
+    .wp-slot.best .wp-slbl { color:var(--teal); }
+    .wp-slot.ok   .wp-slbl { color:var(--amber); }
+    .wp-slot.bad  .wp-slbl { color:var(--danger); }
+    .wp-slot p { font-size:10px; color:var(--muted); line-height:1.4; }
+
+    .wp-card { background:rgba(255,255,255,.03); border:1px solid var(--border); border-left:2px solid var(--teal); border-radius:5px; padding:9px 11px; margin-bottom:6px; }
+    .wp-card.amber { border-left-color:var(--amber); }
+    .wp-card.danger { border-left-color:var(--danger); }
+    .wp-card-lbl { font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin-bottom:5px; }
+    .wp-card p { font-size:11px; color:var(--white); line-height:1.6; opacity:.85; }
+    .wp-steps { list-style:none; padding:0; }
+    .wp-steps li { font-size:11px; color:var(--white); opacity:.82; padding:2px 0 2px 12px; position:relative; line-height:1.4; }
+    .wp-steps li::before { content:'→'; position:absolute; left:0; color:var(--teal); opacity:.6; }
+
+    .wp-tide-table { width:100%; border-collapse:collapse; font-size:11px; margin-top:6px; }
+    .wp-tide-table th { text-align:left; font-size:9px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); padding:4px 6px; border-bottom:1px solid var(--border); }
+    .wp-tide-table td { padding:5px 6px; border-bottom:1px solid rgba(0,200,200,.06); color:var(--white); }
+    .wp-tide-table tr:last-child td { border-bottom:none; }
+    .wp-HW { color:var(--teal); font-weight:600; }
+    .wp-LW { color:var(--amber); }
+
+    .wp-spark { margin:8px 0 3px; }
+    .wp-spark canvas { width:100%; height:44px; display:block; }
+    .wp-spark-lbls { display:flex; justify-content:space-between; font-size:9px; color:var(--muted); opacity:.5; margin-top:1px; }
+
+    .wp-divider { font-size:9px; letter-spacing:.18em; text-transform:uppercase; color:var(--muted); margin:10px 0 7px; display:flex; align-items:center; gap:6px; }
+    .wp-divider::before, .wp-divider::after { content:''; flex:1; height:1px; background:var(--border); }
+
+    .wp-disc { font-size:9px; color:var(--muted); line-height:1.5; margin-top:10px; padding:7px 9px; background:rgba(0,0,0,.2); border-radius:4px; border:1px solid var(--border); }
+    .wp-disc strong { color:var(--amber); }
+
+    /* Route lijn op kaart */
+    .wp-route-clear { background:transparent; border:1px solid rgba(232,69,69,.4); color:var(--danger); border-radius:4px; padding:3px 8px; font-size:10px; cursor:pointer; }
+    .wp-route-clear:hover { background:rgba(232,69,69,.1); }
   </style>
 </head>
 <body>
@@ -605,15 +669,174 @@
   </div>
 </div>
 
+<!-- HANDLEIDING MODAL -->
+<div class="modal-overlay" id="handleiding-modal" onclick="sluitHandleiding(event)">
+  <div class="modal" style="width:420px;max-height:88vh;overflow-y:auto;">
+    <div class="modal-title">
+      📖 HANDLEIDING
+      <button class="modal-close" onclick="toggleHandleiding()">✕</button>
+    </div>
+
+    <div style="font-size:12px;color:var(--muted);margin-bottom:20px;line-height:1.5;">
+      VaarKaart is een GPS-navigatie-app voor de pleziervaart op de Nederlandse wateren, met ingebouwde WadPlanner voor getijgericht vaaradvies.
+    </div>
+
+    <!-- GPS -->
+    <div class="setting-group">
+      <div class="setting-group-title">⚡ GPS Positie</div>
+      <div style="font-size:13px;color:var(--white);line-height:1.7;">
+        Toont je huidige positie, breedte- en lengtegraad en nauwkeurigheid. Gebruik <strong style="color:var(--teal)">🎯 Centreer op mij</strong> om de kaart op je positie te centreren. GPS werkt alleen op https:// of localhost — geef locatiemachtiging als daarom gevraagd wordt.
+      </div>
+    </div>
+
+    <!-- Route opnemen -->
+    <div class="setting-group">
+      <div class="setting-group-title">📍 Route opnemen</div>
+      <div style="font-size:13px;color:var(--white);line-height:1.7;">
+        <strong style="color:var(--teal)">▶ Start opname</strong> — begint een nieuw GPS-spoor op de kaart.<br>
+        <strong style="color:var(--danger)">⏹ Stop &amp; sla op</strong> — stopt de opname en slaat de route op.<br>
+        <strong style="color:var(--muted)">✕ Wis huidig spoor</strong> — verwijdert het actieve spoor van de kaart.
+      </div>
+    </div>
+
+    <!-- Route Planner -->
+    <div class="setting-group">
+      <div class="setting-group-title">🧭 Route Planner</div>
+      <div style="font-size:13px;color:var(--white);line-height:1.7;">
+        Plan een route van A naar B. Klik <strong style="color:var(--teal)">🟢 Startpunt</strong> of <strong style="color:var(--danger)">🔴 Eindpunt</strong> en tik dan op de kaart. Je kunt ook een haven als eindpunt kiezen via ⚓, of je GPS-positie gebruiken via 📍.<br><br>
+        Voeg <strong style="color:var(--amber)">tussenpunten</strong> toe om de route langs de vaargeul te leiden. Exporteer als <strong style="color:var(--teal)">GPX</strong> of open in <strong style="color:var(--teal)">Navionics</strong>.
+      </div>
+    </div>
+
+    <!-- Kaartlagen -->
+    <div class="setting-group">
+      <div class="setting-group-title">🗺 Kaartlagen</div>
+      <div style="font-size:13px;color:var(--white);line-height:1.7;">
+        <strong style="color:var(--teal)">OpenSeaMap</strong> — vaarwegen, boeien en dieptes bovenop de basiskaart.<br>
+        <strong style="color:var(--teal)">Satelliet</strong> — luchtfoto-achtergrond.<br>
+        <strong style="color:var(--teal)">RWS boeien &amp; bakens</strong> — officiële markeringen van Rijkswaterstaat.<br>
+        <strong style="color:var(--teal)">Stroompijlen</strong> — actuele stroomrichting en snelheid op de kaart.<br>
+        <strong style="color:var(--teal)">Windpijlen</strong> — actuele windrichting per gridpunt.<br>
+        <strong style="color:var(--teal)">Dieptekaart</strong> — kleurcodering van waterdiepte t.o.v. NAP.<br>
+        <strong style="color:var(--teal)">Dieptecijfers</strong> — RWS-dieptemetingen als getal op de kaart.<br>
+        <strong style="color:var(--teal)">Havens</strong> — haven-iconen met informatie.<br>
+        <strong style="color:var(--teal)">AIS scheepvaart</strong> — opent MarineTraffic in nieuw tabblad.
+      </div>
+    </div>
+
+    <!-- Wind -->
+    <div class="setting-group">
+      <div class="setting-group-title">💨 Wind</div>
+      <div style="font-size:13px;color:var(--white);line-height:1.7;">
+        Toont actuele windsnelheid (knopen of km/h), windrichting en Beaufort-schaal op basis van Open-Meteo weerdata. Gebruik de <strong style="color:#a78bfa">◀ ▶ pijlen</strong> om per uur voor- of terug te bladeren. De <strong style="color:#a78bfa">24-uurs balk</strong> toont het windverloop op de dag.
+      </div>
+    </div>
+
+    <!-- Havens -->
+    <div class="setting-group">
+      <div class="setting-group-title">⚓ Havens</div>
+      <div style="font-size:13px;color:var(--white);line-height:1.7;">
+        Zoek havens op naam of gebruik 📍 om de dichtstbijzijnde haven te vinden. Klik op een haven om op de kaart te zoomen. Havens zijn ingedeeld per categorie (Waddenzee, IJsselmeer, Noordzee, etc.).
+      </div>
+    </div>
+
+    <!-- Eigen zeekaarten -->
+    <div class="setting-group">
+      <div class="setting-group-title">🗺 Eigen Zeekaarten</div>
+      <div style="font-size:13px;color:var(--white);line-height:1.7;">
+        Sleep een PNG, JPG of BMP van een zeekaart in het dropvlak, vul de hoekcoördinaten in (NW en ZO punt in decimale graden) en klik <strong style="color:var(--teal)">📂 Kaart toevoegen</strong>. De kaart wordt als overlay op de Leaflet-kaart geplaatst. Je kunt meerdere kaarten tegelijk laden, tonen/verbergen, zoomen en de transparantie aanpassen. Kaarten worden opgeslagen in de browser en zijn na herstart beschikbaar.
+      </div>
+    </div>
+
+    <!-- Stroom & Getijden -->
+    <div class="setting-group">
+      <div class="setting-group-title">🌊 Stroom &amp; Getijden</div>
+      <div style="font-size:13px;color:var(--white);line-height:1.7;">
+        Toont de actuele stroomsnelheid en richting bij het dichtstbijzijnde RWS-meetstation. Gebruik de <strong style="color:var(--teal)">◀ ▶ pijlen</strong> om per uur te bladeren. Getijden (hoog/laagwater) worden automatisch geladen voor je GPS-positie. De kleur van de stromingspijl geeft aan of het eb of vloed is.
+      </div>
+    </div>
+
+    <!-- Opgeslagen routes -->
+    <div class="setting-group">
+      <div class="setting-group-title">💾 Opgeslagen routes</div>
+      <div style="font-size:13px;color:var(--white);line-height:1.7;">
+        Eerder opgenomen GPS-routes worden hier bewaard (lokaal in de browser). Klik op een route om deze op de kaart te tonen. Routes kunnen worden hernoemd, geëxporteerd als GPX of verwijderd.
+      </div>
+    </div>
+
+    <!-- Waypoints -->
+    <div class="setting-group">
+      <div class="setting-group-title">📌 Waypoints</div>
+      <div style="font-size:13px;color:var(--white);line-height:1.7;">
+        Plaats losse waypoints door op <strong style="color:var(--amber)">📌 Tik op kaart</strong> te klikken, dan op de gewenste plek op de kaart. Laad ook een GPX-bestand via drag &amp; drop om waypoints te importeren. Waypoints verschijnen als oranje pinnen met coördinaten.
+      </div>
+    </div>
+
+    <!-- WadPlanner -->
+    <div class="setting-group" style="background:rgba(0,200,200,0.05);border:1px solid rgba(0,200,200,0.2);border-radius:8px;padding:14px;">
+      <div class="setting-group-title" style="color:var(--teal);">⚓ WadPlanner — Getij &amp; Vaaradvies</div>
+      <div style="font-size:13px;color:var(--white);line-height:1.7;">
+        De WadPlanner helpt je de optimale vertrektijd bepalen voor tochten op de Waddenzee, rekening houdend met getij, diepgang en vaarsnelheid.<br><br>
+        <strong style="color:var(--teal)">Hoe te gebruiken:</strong><br>
+        1. Kies je <strong>vertrekhaven</strong> en <strong>bestemming</strong> — de vaarroute verschijnt meteen op de kaart.<br>
+        2. Vul de <strong>datum</strong> in (beschikbaar t/m 30 juni 2026).<br>
+        3. Voer je <strong>diepgang</strong> en gemiddelde <strong>vaarsnelheid</strong> in.<br>
+        4. Klik <strong style="color:var(--teal)">⚓ Bereken vaaradvies</strong>.<br><br>
+        <strong style="color:var(--teal)">Wat je krijgt:</strong><br>
+        • <strong style="color:var(--teal)">Vertrektijden</strong> — optimaal (groen), laat (amber) of nacht (rood)<br>
+        • <strong style="color:var(--amber)">Diepgangwaarschuwing</strong> — automatische melding als je diepgang te groot is voor de wantijroute<br>
+        • <strong>Getijcurve</strong> met hoog/laagwaterpunten en vertrekmarkeringen<br>
+        • <strong>Vaarroute</strong> als stippellijn op de kaart met kritieke punten (rood)<br>
+        • <strong>Vaaradviezen</strong> per route met marifoon-kanalen<br><br>
+        <strong style="color:var(--amber)">Beschikbare routes (20+):</strong><br>
+        Harlingen, Den Helder, Kornwerderzand, Lauwersoog, Holwerd, Delfzijl → Terschelling, Vlieland, Ameland, Schiermonnikoog, Texel en meer.<br><br>
+        <strong style="color:var(--danger)">⚠ Let op:</strong> De WadPlanner gebruikt astronomische getijden van Rijkswaterstaat. Windopzet en actuele geuldieptes zijn niet meegenomen. Controleer altijd <a href="https://nautin.nl" target="_blank" style="color:var(--teal)">nautin.nl</a> en <a href="https://waddendata.nl" target="_blank" style="color:var(--teal)">waddendata.nl</a> voor actuele dieptes. Dit is geen vervanging voor officiële zeekaarten.
+      </div>
+    </div>
+
+    <!-- Instellingen -->
+    <div class="setting-group">
+      <div class="setting-group-title">⚙ Instellingen</div>
+      <div style="font-size:13px;color:var(--white);line-height:1.7;">
+        <strong style="color:var(--teal)">Snelheid</strong> — wissel tussen knopen (kn) en kilometer per uur.<br>
+        <strong style="color:var(--teal)">Coördinatenformaat</strong> — decimale graden, graden+minuten of graden+minuten+seconden.<br>
+        <strong style="color:var(--teal)">Afstand</strong> — zeemijl (NM) of kilometer.<br>
+        <strong style="color:var(--teal)">Scherm wakker houden</strong> — voorkomt dat het scherm uitvalt tijdens navigatie (vereist browserondersteuning).
+      </div>
+    </div>
+
+    <!-- Tips -->
+    <div class="setting-group">
+      <div class="setting-group-title">💡 Tips &amp; trucs</div>
+      <div style="font-size:13px;color:var(--white);line-height:1.7;">
+        • Installeer als <strong style="color:var(--teal)">PWA</strong> via "Toevoegen aan startscherm" voor offline gebruik.<br>
+        • De <strong style="color:var(--teal)">kompasroos</strong> rechtsonder draait mee met je GPS-koers.<br>
+        • Klik op <strong style="color:var(--teal)">◀ Menu</strong> om de sidebar te verbergen en meer kaartruimte te krijgen.<br>
+        • Stroompijlen vernieuwen automatisch als je de kaart beweegt.<br>
+        • Eigen zeekaarten worden opgeslagen in de browser en blijven beschikbaar na herstarten.
+      </div>
+    </div>
+
+    <button class="btn btn-primary" onclick="toggleHandleiding()" style="margin-top:8px;">
+      ✓ Sluiten
+    </button>
+  </div>
+</div>
+
 <div class="main">
   <!-- SIDEBAR -->
   <aside class="sidebar" id="sidebar">
 
     <!-- Instellingen knop -->
     <div class="sidebar-section" style="padding:10px 16px;">
-      <button onclick="toggleInstellingen()" class="btn btn-ghost" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;">
-        ⚙ Instellingen
-      </button>
+      <div style="display:flex;gap:8px;">
+        <button onclick="toggleInstellingen()" class="btn btn-ghost" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;">
+          ⚙ Instellingen
+        </button>
+        <a href="handleiding.html" class="btn btn-ghost" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;border-color:rgba(0,200,200,0.35);color:var(--teal);text-decoration:none;">
+          ? Handleiding
+        </a>
+      </div>
     </div>
 
     <!-- GPS -->
@@ -1024,6 +1247,85 @@
       <div id="gpx-status" style="font-size:11px;color:var(--muted);margin-bottom:6px;"></div>
       <div id="gpx-lijst" style="display:flex;flex-direction:column;gap:4px;max-height:200px;overflow-y:auto;"></div>
       <button class="btn btn-ghost" id="btn-gpx-wis" style="display:none;margin-top:6px;font-size:12px;" onclick="wisGpx()">✕ Wis alle waypoints</button>
+    </div>
+
+    <!-- ══ WADPLANNER ══ -->
+    <div class="sidebar-section">
+      <div class="sidebar-title" onclick="toggleSectie('wp-inhoud', this)"
+        style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;">
+        ⚓ WadPlanner <span id="wp-inhoud-pijl" style="font-size:12px;color:var(--muted);">▼</span>
+      </div>
+
+      <div id="wp-inhoud">
+
+        <div class="wp-field">
+          <label>Vertrekhaven</label>
+          <select id="wp-van" onchange="wpUpdateKaart()">
+            <optgroup label="Vasteland">
+              <option value="den_helder">Den Helder</option>
+              <option value="kornwerderzand">Kornwerderzand</option>
+              <option value="harlingen" selected>Harlingen</option>
+              <option value="holwerd">Holwerd</option>
+              <option value="lauwersoog">Lauwersoog</option>
+              <option value="delfzijl">Delfzijl</option>
+            </optgroup>
+            <optgroup label="Eilanden">
+              <option value="oudeschild">Oudeschild (Texel)</option>
+              <option value="vlieland_h">Vlieland Haven</option>
+              <option value="west_terschelling">West-Terschelling</option>
+              <option value="nes_ameland">Nes (Ameland)</option>
+              <option value="schiermonnikoog_h">Schiermonnikoog</option>
+            </optgroup>
+          </select>
+        </div>
+
+        <div class="wp-field">
+          <label>Bestemming</label>
+          <select id="wp-naar" onchange="wpUpdateKaart()">
+            <optgroup label="Eilanden">
+              <option value="texel">Texel (Oudeschild)</option>
+              <option value="vlieland">Vlieland</option>
+              <option value="terschelling">West-Terschelling</option>
+              <option value="ameland">Ameland (Nes)</option>
+              <option value="schiermonnikoog">Schiermonnikoog</option>
+            </optgroup>
+            <optgroup label="Vasteland">
+              <option value="harlingen">Harlingen</option>
+              <option value="lauwersoog">Lauwersoog</option>
+              <option value="den_helder">Den Helder</option>
+              <option value="delfzijl">Delfzijl</option>
+            </optgroup>
+            <option value="borkum">Borkum (D)</option>
+          </select>
+        </div>
+
+        <div class="wp-field">
+          <label>Datum</label>
+          <input type="date" id="wp-datum" min="2026-03-23" max="2026-06-30">
+        </div>
+
+        <div class="wp-row2">
+          <div class="wp-field">
+            <label>Diepgang (m)</label>
+            <input type="number" id="wp-diepgang" value="1.90" min="0.4" max="3.5" step="0.05">
+          </div>
+          <div class="wp-field">
+            <label>Snelheid (kn)</label>
+            <input type="number" id="wp-snelheid" value="5" min="2" max="14" step="0.5">
+          </div>
+        </div>
+
+        <button class="btn btn-primary" id="wp-btn" onclick="wpBereken()" style="margin-bottom:4px;">
+          ⚓ Bereken vaaradvies
+        </button>
+
+        <div id="wp-loading" style="display:none;text-align:center;font-size:11px;color:var(--muted);padding:8px;">
+          Berekenen…
+        </div>
+
+        <div class="wp-result" id="wp-result"></div>
+
+      </div>
     </div>
 
   </aside>
@@ -1488,13 +1790,15 @@ function maakWindPijlIcon(richtingGr, snelheidKn) {
       display:flex;align-items:center;justify-content:center;
       transform:rotate(${richtingGr}deg);
       filter:drop-shadow(0 0 4px ${kleur});
+      cursor:pointer;
     ">
       <svg viewBox="0 0 24 24" width="${grootte}" height="${grootte}">
         <polygon points="12,2 22,22 12,17 2,22" fill="${kleur}" stroke="rgba(255,255,255,0.6)" stroke-width="1"/>
       </svg>
     </div>`,
     iconSize: [grootte, grootte],
-    iconAnchor: [grootte/2, grootte/2]
+    iconAnchor: [grootte/2, grootte/2],
+    popupAnchor: [0, -grootte/2]
   });
 }
 
@@ -1542,30 +1846,41 @@ async function laadWindPijlen() {
   statusEl.style.display = 'block';
   statusEl.textContent = '⏳ Wind laden…';
 
-  const bounds = map.getBounds().pad(0.1);
-
-  // Haal data op voor centrum van kaart
+  const bounds = map.getBounds();
   const centrumLat = (bounds.getNorth() + bounds.getSouth()) / 2;
   const centrumLon = (bounds.getEast() + bounds.getWest()) / 2;
-  const data = await haalWindData(centrumLat, centrumLon);
 
-  if (!data?.hourly) {
-    statusEl.textContent = '⚠ Wind niet beschikbaar';
+  // Dynamisch grid op basis van zoomniveau
+  const zoom = map.getZoom();
+  const stap = zoom >= 12 ? 0.15 : zoom >= 10 ? 0.3 : zoom >= 8 ? 0.6 : 1.2;
+  const latSpan = bounds.getNorth() - bounds.getSouth();
+  const lonSpan = bounds.getEast() - bounds.getWest();
+
+  // Genereer grid punten in zichtbaar gebied
+  const gridPunten = [];
+  const latStart = bounds.getSouth() + stap * 0.5;
+  const lonStart = bounds.getWest() + stap * 0.5;
+  for (let lat = latStart; lat < bounds.getNorth(); lat += stap) {
+    for (let lon = lonStart; lon < bounds.getEast(); lon += stap) {
+      gridPunten.push({ lat: parseFloat(lat.toFixed(4)), lon: parseFloat(lon.toFixed(4)) });
+    }
+  }
+
+  // Begrens tot max 12 punten voor snelheid
+  const punten = gridPunten.length <= 12 ? gridPunten
+    : gridPunten.filter((_, i) => i % Math.ceil(gridPunten.length / 12) === 0).slice(0, 12);
+
+  if (!punten.length) {
+    statusEl.textContent = '⚠ Geen windpunten';
     return;
   }
 
+  const data = await haalWindData(centrumLat, centrumLon);
+  if (!data?.hourly) { statusEl.textContent = '⚠ Wind niet beschikbaar'; return; }
   const uurIdx = getWindUurIndex(data);
   const tijdLabel = data.hourly.time[uurIdx]?.replace('T', ' ').slice(0, 16) || '';
 
-  // Toon alleen punten in zichtbaar gebied
-  const zichtbaar = WIND_GRID.filter(p => bounds.contains([p.lat, p.lon]));
-  if (!zichtbaar.length) {
-    statusEl.textContent = '⚠ Zoom in voor windpijlen';
-    return;
-  }
-
-  // Voor elk gridpunt eigen data ophalen
-  for (const punt of zichtbaar) {
+  for (const punt of punten) {
     const pData = await haalWindData(punt.lat, punt.lon);
     if (!pData?.hourly) continue;
     const idx = getWindUurIndex(pData);
@@ -1575,14 +1890,25 @@ async function laadWindPijlen() {
     const bf = knaarBeaufort(snelheidKn);
 
     const icon = maakWindPijlIcon(richtingGr, snelheidKn);
-    L.marker([punt.lat, punt.lon], { icon, zIndexOffset: 450 })
+    const snelheidTxt = instellingen.snelheid === 'kmh'
+      ? `${(snelheidKn * 1.852).toFixed(1)} km/h`
+      : `${snelheidKn.toFixed(1)} kn`;
+    const gustsTxt = instellingen.snelheid === 'kmh'
+      ? `${(gustsKn * 1.852).toFixed(1)} km/h`
+      : `${gustsKn.toFixed(1)} kn`;
+    L.marker([punt.lat, punt.lon], { icon, zIndexOffset: 450, interactive: true })
       .bindPopup(`
         <b>💨 Wind</b><br>
-        Snelheid: <b>${snelheidKn.toFixed(1)} kn</b> (Bft ${bf.bf})<br>
-        Windstoten: <b>${gustsKn.toFixed(1)} kn</b><br>
+        Snelheid: <b>${snelheidTxt}</b> (Bft ${bf.bf} — ${bf.omschr})<br>
+        Windstoten: <b>${gustsTxt}</b><br>
         Richting: <b>${Math.round(richtingGr)}° (${richtingNaarTekst(richtingGr)})</b><br>
         <small style="color:#888">${tijdLabel} · Open-Meteo</small>
-      `)
+      `, { maxWidth: 200 })
+      .addTo(windLaag);
+  }
+        Richting: <b>${Math.round(richtingGr)}° (${richtingNaarTekst(richtingGr)})</b><br>
+        <small style="color:#888">${tijdLabel} · Open-Meteo</small>
+      `, { maxWidth: 200 })
       .addTo(windLaag);
   }
 
@@ -2443,13 +2769,15 @@ function maakStroomPijlIcon(richtingGr, snelheidKn, isLive) {
       transform: rotate(${richtingGr}deg);
       opacity:${opacity};
       filter: drop-shadow(0 0 4px ${kleur});
+      cursor:pointer;
     ">
       <svg viewBox="0 0 24 24" width="${grootte}" height="${grootte}" xmlns="http://www.w3.org/2000/svg">
         <polygon points="12,2 22,22 12,17 2,22" fill="${kleur}" stroke="white" stroke-width="1"/>
       </svg>
     </div>`,
     iconSize: [grootte, grootte],
-    iconAnchor: [grootte/2, grootte/2]
+    iconAnchor: [grootte/2, grootte/2],
+    popupAnchor: [0, -grootte/2]
   });
 }
 
@@ -2507,9 +2835,18 @@ async function laadStroomPijlen() {
   const isToekomst   = stroomUurOffset > 0;
 
   const bounds = map.getBounds().pad(0.2);
-  const zichtbaar = KAART_STROOM_STATIONS.filter(s =>
-    bounds.contains([s.lat, s.lon])
-  );
+  const zoom = map.getZoom();
+  const centrumLat = (bounds.getNorth() + bounds.getSouth()) / 2;
+  const centrumLon = (bounds.getEast() + bounds.getWest()) / 2;
+
+  // Altijd zichtbaar: stations in beeld, of dichtstbijzijnde als er geen in beeld zijn
+  let zichtbaar = KAART_STROOM_STATIONS.filter(s => bounds.contains([s.lat, s.lon]));
+  if (!zichtbaar.length) {
+    // Geen stations in beeld — toon de 3 dichtstbijzijnde
+    zichtbaar = [...KAART_STROOM_STATIONS]
+      .sort((a, b) => Math.hypot(a.lat-centrumLat, a.lon-centrumLon) - Math.hypot(b.lat-centrumLat, b.lon-centrumLon))
+      .slice(0, 3);
+  }
 
   for (const station of zichtbaar) {
     let snelheidKn = null, richtingGr = null, isLive = false;
@@ -2578,14 +2915,17 @@ async function laadStroomPijlen() {
       : `+${stroomUurOffset}u (berekend)`;
 
     const icon = maakStroomPijlIcon(richtingGr, snelheidKn, isLive);
-    L.marker([station.lat, station.lon], { icon, zIndexOffset: 500 })
+    const snelheidTxt = instellingen.snelheid === 'kmh'
+      ? `${(snelheidKn * 1.852).toFixed(1)} km/h`
+      : `${snelheidKn.toFixed(1)} kn`;
+    L.marker([station.lat, station.lon], { icon, zIndexOffset: 500, interactive: true })
       .bindPopup(`
         <b>🌊 ${station.naam}</b><br>
-        Snelheid: <b>${snelheidKn.toFixed(1)} kn</b><br>
+        Snelheid: <b>${snelheidTxt}</b><br>
         Richting: <b>${Math.round(richtingGr)}° (${richtingNaarTekst(richtingGr)})</b><br>
         Tijd: <b>${tijdLabel}</b><br>
-        <small style="color:#888">${isLive ? '✓ RWS live' : isToekomst ? '~ Berekend' : '~ Historisch/berekend'}</small>
-      `)
+        <small style="color:#888">${isLive ? '✓ RWS live meting' : isToekomst ? '~ Berekend (eb/vloed)' : '~ Historisch/berekend'}</small>
+      `, { maxWidth: 200 })
       .addTo(stroomlaag);
   }
 }
@@ -3399,6 +3739,17 @@ function sluitInstellingen(event) {
   }
 }
 
+function toggleHandleiding() {
+  const modal = document.getElementById('handleiding-modal');
+  modal.classList.toggle('open');
+}
+
+function sluitHandleiding(event) {
+  if (event.target === document.getElementById('handleiding-modal')) {
+    document.getElementById('handleiding-modal').classList.remove('open');
+  }
+}
+
 // Snelheid omrekenen op basis van instelling
 function formatSnelheid(ms) {
   if (!ms) return '0.0';
@@ -3552,14 +3903,316 @@ renderHavenLijst(HAVENS);
   map.on('moveend zoomend', herlaadStroomBijBeweging);
 })();
 
-// ── PWA SERVICE WORKER ────────────────────────────────────
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js')
-      .then(() => console.log('VaarKaart PWA actief'))
-      .catch(err => console.log('SW:', err));
-  });
+// ══════════════════════════════════════════════════════════════
+// WADPLANNER — Geïntegreerd in VaarKaart
+// ══════════════════════════════════════════════════════════════
+
+// ── Havens coördinaten ────────────────────────────────────────
+const WP_HAVENS = {
+  harlingen:[53.175,5.412], den_helder:[52.964,4.745], lauwersoog:[53.407,6.198],
+  holwerd:[53.400,5.893], kornwerderzand:[53.079,5.333], oudeschild:[53.043,4.856],
+  vlieland_h:[53.298,5.084], west_terschelling:[53.358,5.222],
+  nes_ameland:[53.431,5.782], schiermonnikoog_h:[53.481,6.165], delfzijl:[53.332,6.930],
+  texel:[53.043,4.856], vlieland:[53.298,5.084], terschelling:[53.358,5.222],
+  ameland:[53.431,5.782], schiermonnikoog:[53.481,6.165], borkum:[53.590,6.660],
+};
+
+// ── Echte geulpunten ──────────────────────────────────────────
+const WP_GEULEN = {
+  "harlingen-terschelling":[[53.175,5.412],[53.188,5.395],[53.200,5.375],[53.218,5.343],[53.240,5.310],[53.268,5.270],[53.285,5.255],[53.300,5.250],[53.318,5.228],[53.332,5.228],[53.342,5.220],[53.358,5.222]],
+  "harlingen-vlieland":[[53.175,5.412],[53.200,5.375],[53.218,5.343],[53.240,5.310],[53.268,5.270],[53.288,5.220],[53.300,5.155],[53.302,5.092],[53.298,5.084]],
+  "harlingen-ameland":[[53.175,5.412],[53.188,5.395],[53.210,5.355],[53.245,5.305],[53.268,5.270],[53.290,5.240],[53.320,5.200],[53.380,5.300],[53.440,5.450],[53.462,5.550],[53.458,5.630],[53.452,5.680],[53.448,5.720],[53.440,5.760],[53.435,5.778],[53.431,5.782]],
+  "harlingen-schiermonnikoog":[[53.175,5.412],[53.200,5.355],[53.240,5.310],[53.268,5.270],[53.320,5.200],[53.380,5.320],[53.440,5.520],[53.468,5.700],[53.478,5.900],[53.481,6.030],[53.481,6.165]],
+  "harlingen-texel":[[53.175,5.412],[53.200,5.355],[53.240,5.310],[53.268,5.270],[53.290,5.220],[53.300,5.150],[53.280,5.060],[53.230,4.980],[53.160,4.940],[53.090,4.900],[53.060,4.870],[53.043,4.856]],
+  "harlingen-borkum":[[53.175,5.412],[53.200,5.355],[53.245,5.305],[53.268,5.270],[53.310,5.200],[53.380,5.380],[53.450,5.600],[53.480,5.900],[53.490,6.100],[53.510,6.300],[53.540,6.500],[53.590,6.660]],
+  "den_helder-vlieland":[[52.964,4.745],[52.952,4.755],[52.940,4.762],[52.960,4.800],[53.000,4.900],[53.060,5.000],[53.110,5.020],[53.180,5.040],[53.250,5.040],[53.285,5.055],[53.302,5.084]],
+  "den_helder-terschelling":[[52.964,4.745],[52.952,4.755],[52.940,4.762],[52.960,4.800],[53.010,4.920],[53.070,5.020],[53.140,5.050],[53.200,5.080],[53.250,5.100],[53.290,5.140],[53.310,5.180],[53.340,5.210],[53.358,5.222]],
+  "den_helder-texel":[[52.964,4.745],[52.980,4.790],[53.010,4.820],[53.035,4.840],[53.043,4.856]],
+  "lauwersoog-ameland":[[53.407,6.198],[53.415,6.150],[53.425,6.090],[53.432,6.030],[53.438,5.975],[53.442,5.920],[53.445,5.875],[53.442,5.840],[53.438,5.810],[53.435,5.790],[53.431,5.782]],
+  "lauwersoog-schiermonnikoog":[[53.407,6.198],[53.420,6.175],[53.445,6.170],[53.465,6.160],[53.481,6.165]],
+  "holwerd-ameland":[[53.400,5.893],[53.408,5.876],[53.415,5.855],[53.420,5.840],[53.425,5.820],[53.428,5.800],[53.431,5.782]],
+  "kornwerderzand-terschelling":[[53.079,5.333],[53.098,5.345],[53.120,5.360],[53.142,5.372],[53.165,5.380],[53.210,5.355],[53.245,5.305],[53.268,5.270],[53.285,5.255],[53.300,5.250],[53.318,5.228],[53.342,5.220],[53.358,5.222]],
+  "kornwerderzand-vlieland":[[53.079,5.333],[53.098,5.345],[53.115,5.340],[53.135,5.330],[53.155,5.315],[53.175,5.295],[53.200,5.270],[53.240,5.250],[53.262,5.235],[53.280,5.190],[53.300,5.150],[53.302,5.084]],
+  "oudeschild-harlingen":[[53.043,4.856],[53.035,4.840],[53.010,4.820],[52.980,4.790],[52.964,4.745],[53.000,4.900],[53.070,5.020],[53.150,5.050],[53.210,5.090],[53.270,5.210],[53.245,5.305],[53.210,5.355],[53.175,5.412]],
+  "west_terschelling-ameland":[[53.358,5.222],[53.372,5.270],[53.388,5.330],[53.400,5.400],[53.412,5.470],[53.420,5.530],[53.428,5.620],[53.435,5.690],[53.435,5.735],[53.431,5.782]],
+  "vlieland_h-terschelling":[[53.297,5.086],[53.305,5.110],[53.310,5.140],[53.322,5.165],[53.336,5.192],[53.350,5.212],[53.358,5.222]],
+  "nes_ameland-lauwersoog":[[53.431,5.782],[53.435,5.790],[53.438,5.810],[53.442,5.840],[53.445,5.875],[53.442,5.920],[53.438,5.975],[53.432,6.030],[53.425,6.090],[53.415,6.150],[53.407,6.198]],
+  "schiermonnikoog_h-lauwersoog":[[53.481,6.165],[53.465,6.160],[53.445,6.170],[53.420,6.175],[53.407,6.198]],
+  "delfzijl-schiermonnikoog":[[53.332,6.930],[53.360,6.820],[53.395,6.670],[53.430,6.540],[53.460,6.380],[53.481,6.165]],
+};
+
+// ── Kritieke punten ───────────────────────────────────────────
+const WP_KRITIEK = {
+  "harlingen-terschelling":   [[53.310,5.250,"West Meep — ebstroom ongunstig, passeer rond LW-kentering"]],
+  "harlingen-vlieland":       [[53.300,5.150,"Zeegat drempel — 3m diep bij LW, deining mogelijk"]],
+  "harlingen-ameland":        [[53.462,5.540,"Westgat Ameland — alleen 2,5u vóór t/m 2u na HW"]],
+  "lauwersoog-ameland":       [[53.432,6.030,"Wierumerwad — wantij, max 1,35m"],[53.442,5.920,"Pinkewad — wantij, max 1,35m"]],
+  "west_terschelling-ameland":[[53.415,5.475,"Blauwe Balg — max 1,50m, 15 mei–1 sept, 3u vóór t/m 2u na HW"]],
+  "den_helder-vlieland":      [[53.010,4.820,"Molengat — niet betond, afraden bij aanlandige wind"]],
+  "kornwerderzand-terschelling":[[53.165,5.380,"Pollendam — niet over blind werk P22/P24"]],
+};
+
+// ── Offsets t.o.v. Harlingen (min) ────────────────────────────
+const WP_OFF = {
+  harlingen:0, den_helder:-120, lauwersoog:10, holwerd:5, kornwerderzand:-15,
+  oudeschild:-125, vlieland_h:-10, west_terschelling:0, nes_ameland:5,
+  schiermonnikoog_h:20, delfzijl:30,
+  texel:-125, vlieland:-10, terschelling:0, ameland:5, schiermonnikoog:20, borkum:45,
+};
+
+// ── Routes ────────────────────────────────────────────────────
+const WP_R = {
+  "harlingen-terschelling":{naam:"Harlingen → Terschelling",afstand:36,type:"wad",desc:["Blauwe Slenk","Vliestroom","West Meep","Slenk / Schuitengat","Terschelling"],kritiek:"West Meep: ebstroom ongunstig — passeer rond LW-kentering",voff:90,wmax:null,wdg:99,tips:["Vertrek ~1,5u na HW Harlingen","West Meep passeren rond LW-kentering","VHF 2 (Brandaris) verplicht"],marf:"VHF 2 Brandaris"},
+  "harlingen-vlieland":{naam:"Harlingen → Vlieland",afstand:42,type:"wad_buiten",desc:["Blauwe Slenk","Vliestroom","Zeegat","Vliesloot","Vlieland"],kritiek:"Zeegat drempel 3m bij LW, deining bij aanlandige wind",voff:90,wmax:null,wdg:99,tips:["Vertrek ~1,5u na HW Harlingen","Zeegat: stroom tot 4kn, voorzichtig","VHF 2 (Brandaris)"],marf:"VHF 2 Brandaris"},
+  "harlingen-ameland":{naam:"Harlingen → Ameland",afstand:65,type:"buiten",desc:["Blauwe Slenk","Vliestroom","Noordzee","Westgat Ameland","Molengat","Reegeul","Nes"],kritiek:"Wantijroute max 1,40m. Nes invaart: 2,5u vóór t/m 2u na HW",voff:90,wmax:1.40,wdg:99,tips:["Wantijroute NIET mogelijk >1,40m — buitenom","Nes: binnenkomst 2,5u vóór t/m 2u na HW","Vaartijd ~10–12u: vroeg vertrek vereist","VHF 2 + VHF 4 (CMW)"],marf:"VHF 2 + VHF 4"},
+  "harlingen-schiermonnikoog":{naam:"Harlingen → Schiermonnikoog",afstand:82,type:"buiten",desc:["Blauwe Slenk","Vliestroom","Noordzee","Langs Ameland","Schiermonnikoog"],kritiek:"Zeer lange route ~14–16u. Havendrempel 1,50m bij LW",voff:90,wmax:null,wdg:1.5,tips:["Overweeg tussenstop Terschelling","Haven: binnenvaren rond HW","VHF 2 + VHF 5"],marf:"VHF 2 + VHF 5"},
+  "harlingen-texel":{naam:"Harlingen → Texel",afstand:68,type:"buiten",desc:["Blauwe Slenk","Vliestroom","Noordzee","Molengat","Oudeschild"],kritiek:"Molengat verzandt, niet betond",voff:90,wmax:null,wdg:99,tips:["Vertrek ~1,5u na HW","Molengat: bij twijfel Schulpengat","VHF 62 (Den Helder)"],marf:"VHF 62 Den Helder"},
+  "harlingen-borkum":{naam:"Harlingen → Borkum",afstand:100,type:"buiten",desc:["Blauwe Slenk","Vliestroom","Noordzee","Westereems","Borkum"],kritiek:"Zeer lange route ~18–20u. Tussenstop vereist",voff:90,wmax:null,wdg:99,tips:["Plan tussenstop Schiermonnikoog","VHF 2 + VHF 20"],marf:"VHF 2 + VHF 20"},
+  "den_helder-vlieland":{naam:"Den Helder → Vlieland",afstand:35,type:"buiten",desc:["Marsdiep","Schulpengat","Noordzee","Vliesloot","Vlieland"],kritiek:"Marsdiep: druk scheepvaart, Molengat niet betond",voff:270,wmax:null,wdg:99,tips:["Optimaal: 4,5u na HW Den Helder","VHF 62 verplicht"],marf:"VHF 62 Den Helder"},
+  "den_helder-terschelling":{naam:"Den Helder → Terschelling",afstand:55,type:"buiten",desc:["Marsdiep","Schulpengat","Noordzee","Vliestroom","Terschelling"],kritiek:"Lange buitengaatse route ~9–11u",voff:270,wmax:null,wdg:99,tips:["Vertrek 4,5u na HW Den Helder","VHF 62 + VHF 2"],marf:"VHF 62 + VHF 2"},
+  "den_helder-texel":{naam:"Den Helder → Texel",afstand:12,type:"wad",desc:["Marsdiep","Texelstroom","Molengat","Oudeschild"],kritiek:"Marsdiep: druk scheepvaartverkeer",voff:0,wmax:null,wdg:99,tips:["Vertrek rond HW Den Helder","VHF 62 verplicht"],marf:"VHF 62 Den Helder"},
+  "lauwersoog-ameland":{naam:"Lauwersoog → Ameland",afstand:40,type:"wad",desc:["Zoutkamperlaag","Wierumerwad (wantij)","Pinkewad (wantij)","Zuiderspruit","Reegeul","Nes"],kritiek:"Wierumerwad + Pinkewad: wantij max 1,35m diepgang",voff:-180,wmax:1.35,wdg:1.35,tips:["Max wantijdiepgang 1,35m","Vertrek ~3u vóór HW Lauwersoog","Check nautin.nl","VHF 4 CMW"],marf:"VHF 4 CMW"},
+  "lauwersoog-schiermonnikoog":{naam:"Lauwersoog → Schiermonnikoog",afstand:18,type:"wad",desc:["Zoutkamperlaag","Geul van Brakzand","Siegewal","Schiermonnikoog"],kritiek:"Havendrempel 1,50m bij LW",voff:-90,wmax:null,wdg:1.5,tips:["Vertrek ~1,5u vóór HW","Drempel: binnenvaren rond HW","VHF 5"],marf:"VHF 5"},
+  "holwerd-ameland":{naam:"Holwerd → Ameland",afstand:22,type:"wad",desc:["Veerbootgeul Holwerd–Ameland","Zuiderspruit","Reegeul","Nes"],kritiek:"Intensief gebaggerde geul — check waddendata.nl",voff:-120,wmax:null,wdg:1.9,tips:["Vertrek ~2u vóór HW Holwerd","Check waddendata.nl","VHF 4 + VHF 5"],marf:"VHF 4 + VHF 5"},
+  "kornwerderzand-terschelling":{naam:"Kornwerderzand → Terschelling",afstand:38,type:"wad",desc:["Boontjes","Pollendam","Vliestroom","West Meep","Slenk","Terschelling"],kritiek:"Pollendam: niet over blind werk P22/P24",voff:0,wmax:null,wdg:99,tips:["Vertrek rond HW Kornwerderzand","Pollendam: vaar tussen tonnen","VHF 2"],marf:"VHF 2 Brandaris"},
+  "kornwerderzand-vlieland":{naam:"Kornwerderzand → Vlieland",afstand:42,type:"wad",desc:["Boontjes","Verversgat","Inschot","Vliestroom","Vlieland"],kritiek:"Inschot diepte variabel — check wadvaarders.nl",voff:0,wmax:null,wdg:99,tips:["Vertrek rond HW Kornwerderzand","Check Inschot diepte","VHF 2"],marf:"VHF 2 Brandaris"},
+  "oudeschild-harlingen":{naam:"Texel → Harlingen",afstand:68,type:"buiten",desc:["Molengat / Schulpengat","Noordzee / Vliestroom","Blauwe Slenk","Harlingen"],kritiek:"Molengat niet betond bij twijfel buitenom",voff:-60,wmax:null,wdg:99,tips:["Vertrek ~1u vóór HW Oudeschild","VHF 62"],marf:"VHF 62 Den Helder"},
+  "west_terschelling-ameland":{naam:"Terschelling → Ameland",afstand:55,type:"wad",desc:["Oosterom","Blauwe Balg*","Molengat","Reegeul","Nes"],kritiek:"Blauwe Balg max 1,50m, alleen 15 mei–1 sept, 3u vóór t/m 2u na HW",voff:-180,wmax:1.50,wdg:1.5,tips:["Blauwe Balg: 15 mei – 1 sept","Max diepgang 1,50m","Buiten seizoen buitenom","VHF 2"],marf:"VHF 2 Brandaris"},
+  "vlieland_h-terschelling":{naam:"Vlieland → Terschelling",afstand:20,type:"wad",desc:["Vliesloot","Schuitengat","Terschelling"],kritiek:"Schuitengat diepte variabel — check actuele data",voff:-60,wmax:null,wdg:99,tips:["Vertrek ~1u vóór HW Vlieland","Schuitengat korter dan buitenom","VHF 2"],marf:"VHF 2 Brandaris"},
+  "nes_ameland-lauwersoog":{naam:"Ameland → Lauwersoog",afstand:40,type:"wad",desc:["Reegeul","Zuiderspruit","Pinkewad (wantij)","Wierumerwad (wantij)","Lauwersoog"],kritiek:"Wantij max 1,35m diepgang",voff:-180,wmax:1.35,wdg:1.35,tips:["Max wantijdiepgang 1,35m","Vertrek ~3u vóór HW Nes","Check nautin.nl"],marf:"VHF 4 CMW"},
+  "schiermonnikoog_h-lauwersoog":{naam:"Schiermonnikoog → Lauwersoog",afstand:18,type:"wad",desc:["Siegewal","Geul van Brakzand","Zoutkamperlaag","Lauwersoog"],kritiek:"Vertrek mogelijk 2u na HW (daarna te ondiep)",voff:120,wmax:null,wdg:99,tips:["Vertrek ~2u na HW","VHF 5"],marf:"VHF 5"},
+  "delfzijl-schiermonnikoog":{naam:"Delfzijl → Schiermonnikoog",afstand:30,type:"wad",desc:["Eems","Westereems","Eilanderbalg","Schiermonnikoog"],kritiek:"Eems: druk beroepsverkeer. Havendrempel 1,50m bij LW",voff:-90,wmax:null,wdg:1.5,tips:["Vertrek ~1,5u vóór HW","Eems: VHF 20 verplicht"],marf:"VHF 20 Delfzijl"},
+};
+
+// ── Getijdata Harlingen 2026 (RWS) ────────────────────────────
+const WP_TD = {"2026-03-23":[{t:"07:34",h:87},{t:"13:45",h:-104},{t:"19:51",h:87}],"2026-03-24":[{t:"08:07",h:88},{t:"14:02",h:-98},{t:"20:30",h:88}],"2026-03-25":[{t:"08:40",h:88},{t:"14:35",h:-94},{t:"21:13",h:85}],"2026-03-26":[{t:"09:20",h:84},{t:"15:27",h:-88},{t:"22:08",h:70}],"2026-03-27":[{t:"10:16",h:79},{t:"15:59",h:-79},{t:"23:27",h:55}],"2026-03-28":[{t:"11:44",h:85},{t:"17:38",h:-74}],"2026-03-29":[{t:"07:47",h:98},{t:"14:27",h:-98},{t:"20:01",h:56}],"2026-03-30":[{t:"09:01",h:111},{t:"15:43",h:-115},{t:"21:07",h:68}],"2026-03-31":[{t:"09:58",h:117},{t:"16:41",h:-127},{t:"21:59",h:76}],"2026-04-01":[{t:"10:42",h:117},{t:"17:29",h:-127},{t:"22:43",h:79}],"2026-04-02":[{t:"11:16",h:113},{t:"18:10",h:-118},{t:"23:21",h:79}],"2026-04-03":[{t:"11:42",h:108},{t:"18:45",h:-108},{t:"23:56",h:82}],"2026-04-04":[{t:"12:08",h:104},{t:"19:16",h:-104}],"2026-04-05":[{t:"07:30",h:102},{t:"12:37",h:-105},{t:"19:46",h:93}],"2026-04-06":[{t:"07:56",h:94},{t:"13:05",h:-105},{t:"20:14",h:93}],"2026-04-07":[{t:"08:22",h:91},{t:"13:28",h:-103},{t:"20:42",h:91}],"2026-04-08":[{t:"08:47",h:89},{t:"13:43",h:-101},{t:"21:10",h:89}],"2026-04-09":[{t:"09:15",h:87},{t:"14:09",h:-100},{t:"21:44",h:87}],"2026-04-10":[{t:"09:52",h:82},{t:"14:57",h:-97},{t:"22:29",h:82}],"2026-04-11":[{t:"10:41",h:75},{t:"16:10",h:-91},{t:"23:31",h:48}],"2026-04-12":[{t:"11:44",h:74},{t:"17:37",h:-81}],"2026-04-13":[{t:"06:46",h:82},{t:"13:16",h:-81},{t:"19:10",h:45}],"2026-04-14":[{t:"08:13",h:94},{t:"14:57",h:-96},{t:"20:34",h:56}],"2026-04-15":[{t:"09:20",h:103},{t:"16:02",h:-111},{t:"21:32",h:67}],"2026-04-16":[{t:"10:12",h:107},{t:"16:56",h:-119},{t:"22:21",h:74}],"2026-04-17":[{t:"10:55",h:108},{t:"17:44",h:-121},{t:"23:04",h:78}],"2026-04-18":[{t:"11:32",h:107},{t:"18:30",h:-119},{t:"23:46",h:82}],"2026-04-19":[{t:"12:06",h:92},{t:"19:14",h:-116}],"2026-04-20":[{t:"07:34",h:103},{t:"12:40",h:-112},{t:"19:56",h:92}],"2026-04-21":[{t:"08:11",h:95},{t:"13:16",h:-108},{t:"20:38",h:95}],"2026-04-22":[{t:"08:47",h:98},{t:"13:55",h:-105},{t:"21:20",h:84}],"2026-04-23":[{t:"09:24",h:96},{t:"14:39",h:-101},{t:"22:08",h:70}],"2026-04-24":[{t:"10:08",h:92},{t:"15:40",h:-97},{t:"23:06",h:56}],"2026-04-25":[{t:"11:07",h:90},{t:"17:00",h:-91}],"2026-04-26":[{t:"06:08",h:93},{t:"12:28",h:-102},{t:"18:21",h:47}],"2026-04-27":[{t:"07:23",h:100},{t:"13:58",h:-109},{t:"19:34",h:53}],"2026-04-28":[{t:"08:32",h:106},{t:"15:12",h:-119},{t:"20:37",h:62}],"2026-04-29":[{t:"09:25",h:107},{t:"16:12",h:-125},{t:"21:29",h:70}],"2026-04-30":[{t:"10:06",h:103},{t:"17:01",h:-122},{t:"22:12",h:75}],"2026-05-01":[{t:"10:38",h:99},{t:"17:43",h:-113},{t:"22:50",h:80}],"2026-05-02":[{t:"11:07",h:94},{t:"18:18",h:-104},{t:"23:25",h:87}],"2026-05-03":[{t:"11:38",h:89},{t:"18:49",h:-102},{t:"23:57",h:94}],"2026-05-04":[{t:"12:12",h:99},{t:"19:19",h:-104}],"2026-05-05":[{t:"07:25",h:99},{t:"12:43",h:-107},{t:"19:50",h:83}],"2026-05-06":[{t:"07:53",h:96},{t:"13:10",h:-106},{t:"20:20",h:74}],"2026-05-07":[{t:"08:20",h:93},{t:"13:33",h:-105},{t:"20:50",h:64}],"2026-05-08":[{t:"08:51",h:90},{t:"14:00",h:-105},{t:"21:27",h:56}],"2026-05-09":[{t:"09:31",h:86},{t:"14:45",h:-104},{t:"22:13",h:50}],"2026-05-10":[{t:"10:21",h:50},{t:"15:50",h:-104},{t:"23:13",h:42}],"2026-05-11":[{t:"11:22",h:38},{t:"17:02",h:-93}],"2026-05-12":[{t:"06:05",h:87},{t:"12:36",h:-91},{t:"18:13",h:42}],"2026-05-13":[{t:"07:26",h:93},{t:"14:02",h:-99},{t:"19:29",h:51}],"2026-05-14":[{t:"08:34",h:99},{t:"15:16",h:-109},{t:"20:43",h:62}],"2026-05-15":[{t:"09:30",h:102},{t:"16:18",h:-115},{t:"21:43",h:71}],"2026-05-16":[{t:"10:20",h:101},{t:"17:14",h:-116},{t:"22:36",h:80}],"2026-05-17":[{t:"11:04",h:98},{t:"18:06",h:-114},{t:"23:26",h:88}],"2026-05-18":[{t:"11:45",h:95},{t:"18:54",h:-112}],"2026-05-19":[{t:"07:11",h:102},{t:"12:25",h:-111},{t:"19:42",h:92}],"2026-05-20":[{t:"07:52",h:101},{t:"13:02",h:-107},{t:"20:25",h:94}],"2026-05-21":[{t:"08:33",h:108},{t:"13:52",h:-109},{t:"21:15",h:73}],"2026-05-22":[{t:"09:16",h:107},{t:"14:42",h:-108},{t:"22:04",h:62}],"2026-05-23":[{t:"10:02",h:103},{t:"15:39",h:-107},{t:"22:58",h:53}],"2026-05-24":[{t:"10:56",h:100},{t:"16:43",h:-104},{t:"23:58",h:48}],"2026-05-25":[{t:"12:02",h:98},{t:"17:49",h:-101}],"2026-05-26":[{t:"06:41",h:97},{t:"13:16",h:-109},{t:"18:54",h:51}],"2026-05-27":[{t:"07:40",h:96},{t:"14:28",h:-110},{t:"19:54",h:58}],"2026-05-28":[{t:"08:33",h:94},{t:"15:33",h:-111},{t:"20:48",h:66}],"2026-05-29":[{t:"09:18",h:90},{t:"16:27",h:-109},{t:"21:36",h:75}],"2026-05-30":[{t:"09:55",h:90},{t:"17:07",h:-107},{t:"22:10",h:79}],"2026-05-31":[{t:"10:27",h:87},{t:"17:44",h:-104},{t:"22:43",h:83}],"2026-06-01":[{t:"10:58",h:84},{t:"18:17",h:-101},{t:"23:14",h:86}],"2026-06-02":[{t:"11:27",h:82},{t:"18:50",h:-97},{t:"23:45",h:88}],"2026-06-03":[{t:"11:56",h:79},{t:"19:22",h:-93}],"2026-06-04":[{t:"07:02",h:88},{t:"12:30",h:-93},{t:"19:55",h:79}],"2026-06-05":[{t:"07:35",h:87},{t:"13:05",h:-92},{t:"20:30",h:75}],"2026-06-06":[{t:"08:10",h:86},{t:"13:42",h:-93},{t:"21:07",h:70}],"2026-06-07":[{t:"08:48",h:84},{t:"14:22",h:-95},{t:"21:48",h:64}],"2026-06-08":[{t:"09:32",h:80},{t:"15:07",h:-96},{t:"22:35",h:58}],"2026-06-09":[{t:"10:24",h:74},{t:"15:58",h:-94},{t:"23:29",h:52}],"2026-06-10":[{t:"11:26",h:67},{t:"17:02",h:-89}],"2026-06-11":[{t:"06:28",h:57},{t:"12:38",h:-82},{t:"18:14",h:52}],"2026-06-12":[{t:"07:41",h:65},{t:"13:52",h:-87},{t:"19:22",h:60}],"2026-06-13":[{t:"08:45",h:76},{t:"15:00",h:-97},{t:"20:21",h:70}],"2026-06-14":[{t:"09:38",h:87},{t:"15:55",h:-106},{t:"21:11",h:80}],"2026-06-15":[{t:"10:24",h:96},{t:"16:43",h:-112},{t:"21:56",h:89}],"2026-06-16":[{t:"11:06",h:103},{t:"17:28",h:-115},{t:"22:38",h:96}],"2026-06-17":[{t:"11:45",h:108},{t:"18:09",h:-115},{t:"23:17",h:101}],"2026-06-18":[{t:"12:22",h:110},{t:"18:48",h:-113},{t:"23:55",h:104}],"2026-06-19":[{t:"07:30",h:109},{t:"13:00",h:-110},{t:"19:29",h:104}],"2026-06-20":[{t:"08:08",h:107},{t:"13:40",h:-107},{t:"20:10",h:102}],"2026-06-21":[{t:"08:48",h:105},{t:"14:23",h:-105},{t:"20:55",h:97}],"2026-06-22":[{t:"09:32",h:101},{t:"15:10",h:-104},{t:"21:43",h:90}],"2026-06-23":[{t:"10:21",h:96},{t:"16:02",h:-104},{t:"22:38",h:81}],"2026-06-24":[{t:"11:16",h:92},{t:"17:02",h:-104},{t:"23:40",h:72}],"2026-06-25":[{t:"12:19",h:89},{t:"18:11",h:-102}],"2026-06-26":[{t:"06:46",h:68},{t:"13:26",h:-105},{t:"19:22",h:57}],"2026-06-27":[{t:"07:53",h:76},{t:"14:36",h:-110},{t:"20:27",h:65}],"2026-06-28":[{t:"08:52",h:85},{t:"15:38",h:-113},{t:"21:23",h:74}],"2026-06-29":[{t:"09:43",h:92},{t:"16:30",h:-114},{t:"22:10",h:82}],"2026-06-30":[{t:"10:27",h:97},{t:"17:15",h:-112},{t:"22:52",h:89}]};
+
+// ── Kaartlagen voor WadPlanner ────────────────────────────────
+let wpLayers = [];
+function wpClearLayers() { wpLayers.forEach(l => { try { map.removeLayer(l); } catch(e){} }); wpLayers = []; }
+
+function wpUpdateKaart() {
+  const van  = document.getElementById('wp-van').value;
+  const naar = document.getElementById('wp-naar').value;
+  wpTekenRoute(van, naar);
 }
+
+function wpTekenRoute(van, naar) {
+  wpClearLayers();
+  const key = `${van}-${naar}`;
+  const pts = WP_GEULEN[key];
+  const vc  = WP_HAVENS[van];
+  const nc  = WP_HAVENS[naar];
+  if (!vc || !nc) return;
+
+  const lijn = pts || [vc, nc];
+
+  // Blauwe achtergrondlijn
+  const bg = L.polyline(lijn, { color:'rgba(0,200,200,0.25)', weight:5, lineCap:'round' }).addTo(map);
+  wpLayers.push(bg);
+
+  // Amber stippelroute
+  const rl = L.polyline(lijn, { color:'#f5a623', weight:2.5, opacity:.95, dashArray:'9,6', lineCap:'round' }).addTo(map);
+  wpLayers.push(rl);
+
+  // Kritieke punten
+  const kp = WP_KRITIEK[key];
+  if (kp) kp.forEach(([lat,lon,txt]) => {
+    const icon = L.divIcon({ html:`<div style="background:#e84545;border:2px solid #0a1628;border-radius:50%;width:10px;height:10px;box-shadow:0 0 8px rgba(232,69,69,.8)"></div>`, iconSize:[10,10], iconAnchor:[5,5], className:'' });
+    const m = L.marker([lat,lon], {icon}).addTo(map);
+    m.bindPopup(`<b style="color:#e84545">⚑ Let op</b><br>${txt}`);
+    wpLayers.push(m);
+  });
+
+  // Vertrek marker (groen)
+  const iV = L.divIcon({ html:`<div style="background:#00c8c8;border:2.5px solid #0a1628;border-radius:50%;width:13px;height:13px;box-shadow:0 0 10px rgba(0,200,200,.8)"></div>`, iconSize:[13,13], iconAnchor:[6,6], className:'' });
+  const mV = L.marker(vc, {icon:iV}).addTo(map);
+  mV.bindPopup(`<b style="color:#00c8c8">Vertrek</b><br>${van.replace(/_h$/,'').replace(/_/g,' ')}`);
+  wpLayers.push(mV);
+
+  // Bestemming marker (amber)
+  const iN = L.divIcon({ html:`<div style="background:#f5a623;border:2.5px solid #0a1628;border-radius:50%;width:15px;height:15px;box-shadow:0 0 12px rgba(245,166,35,.8)"></div>`, iconSize:[15,15], iconAnchor:[7,7], className:'' });
+  const mN = L.marker(nc, {icon:iN}).addTo(map);
+  mN.bindPopup(`<b style="color:#f5a623">Bestemming</b><br>${naar.replace(/_/g,' ')}`);
+  wpLayers.push(mN);
+
+  // Zoom naar route
+  const bounds = L.latLngBounds(lijn);
+  map.fitBounds(bounds, { padding:[60,60] });
+
+  notify(`Route: ${WP_R[key] ? WP_R[key].naam : `${van} → ${naar}`}`);
+}
+
+// ── Helpers ───────────────────────────────────────────────────
+const wpTm = m => { m=((m%1440)+1440)%1440; return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0'); };
+const wpT2m = s => { if(!s)return 0; const[h,mi]=s.split(':').map(Number); return h*60+(mi||0); };
+const wpFmtD = s => { const d=new Date(s),dg=['zo','ma','di','wo','do','vr','za'],mn=['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec']; return `${dg[d.getDay()]} ${d.getDate()} ${mn[d.getMonth()]} ${d.getFullYear()}`; };
+
+function wpGetTides(ds, lk) {
+  const raw = WP_TD[ds]; if(!raw) return null;
+  const off = WP_OFF[lk] || 0;
+  return raw.map(t => ({ type:t.h>0?'HW':'LW', time:t.t, min:wpT2m(t.t)+off, h:t.h })).sort((a,b)=>a.min-b.min);
+}
+
+function wpSpark(id, tides, slots) {
+  const c = document.getElementById(id); if(!c) return;
+  const dpr=window.devicePixelRatio||1, w=c.offsetWidth||220, h=44;
+  c.width=w*dpr; c.height=h*dpr;
+  const ctx=c.getContext('2d'); ctx.scale(dpr,dpr);
+  const pts=[];
+  for(let i=0;i<=200;i++){
+    const t=(i/200)*1440; let v=0;
+    tides.forEach((tide,idx)=>{ const nx=tides[idx+1]; if(!nx)return; if(t>=tide.min&&t<=nx.min){ const f=(t-tide.min)/(nx.min-tide.min); v=tide.h+(nx.h-tide.h)*(1-Math.cos(f*Math.PI))/2; }});
+    pts.push({x:t,y:v});
+  }
+  const mnH=Math.min(...pts.map(p=>p.y))-5, mxH=Math.max(...pts.map(p=>p.y))+5, rng=mxH-mnH;
+  const px=t=>(t/1440)*w, py=v=>h-((v-mnH)/rng)*h*.85-h*.06;
+  ctx.beginPath(); ctx.moveTo(px(pts[0].x),h);
+  pts.forEach(p=>ctx.lineTo(px(p.x),py(p.y)));
+  ctx.lineTo(px(pts[pts.length-1].x),h); ctx.closePath();
+  const g=ctx.createLinearGradient(0,0,0,h);
+  g.addColorStop(0,'rgba(0,200,200,.25)'); g.addColorStop(1,'rgba(0,200,200,.03)');
+  ctx.fillStyle=g; ctx.fill();
+  ctx.beginPath(); pts.forEach((p,i)=>i?ctx.lineTo(px(p.x),py(p.y)):ctx.moveTo(px(p.x),py(p.y)));
+  ctx.strokeStyle='rgba(0,200,200,.7)'; ctx.lineWidth=1.5; ctx.stroke();
+  const y0=py(0); ctx.beginPath(); ctx.moveTo(0,y0); ctx.lineTo(w,y0);
+  ctx.strokeStyle='rgba(255,255,255,.08)'; ctx.lineWidth=1; ctx.setLineDash([3,4]); ctx.stroke(); ctx.setLineDash([]);
+  tides.forEach(t=>{ ctx.beginPath(); ctx.arc(px(t.min),py(t.h),3,0,Math.PI*2); ctx.fillStyle=t.type==='HW'?'#f5a623':'rgba(0,200,200,.8)'; ctx.fill(); });
+  if(slots) slots.filter(s=>s.kw!=='bad').forEach(s=>{ ctx.beginPath(); ctx.moveTo(px(s.vmin),0); ctx.lineTo(px(s.vmin),h); ctx.strokeStyle=s.kw==='best'?'rgba(0,200,200,.6)':'rgba(245,166,35,.5)'; ctx.lineWidth=1.5; ctx.stroke(); });
+}
+
+// ── Bereken ───────────────────────────────────────────────────
+function wpBereken() {
+  const van    = document.getElementById('wp-van').value;
+  const naar   = document.getElementById('wp-naar').value;
+  const datum  = document.getElementById('wp-datum').value;
+  const dg     = parseFloat(document.getElementById('wp-diepgang').value);
+  const kn     = parseFloat(document.getElementById('wp-snelheid').value);
+  if (!datum) { notify('Kies een datum'); return; }
+
+  document.getElementById('wp-btn').disabled = true;
+  document.getElementById('wp-loading').style.display = 'block';
+  document.getElementById('wp-result').style.display = 'none';
+
+  setTimeout(() => {
+    document.getElementById('wp-loading').style.display = 'none';
+    document.getElementById('wp-btn').disabled = false;
+    wpRender(van, naar, datum, dg, kn);
+  }, 500);
+}
+
+function wpRender(van, naar, datum, dg, kn) {
+  const key   = `${van}-${naar}`;
+  const route = WP_R[key];
+  const tides = wpGetTides(datum, van);
+  const el    = document.getElementById('wp-result');
+  el.style.display = 'block';
+
+  wpTekenRoute(van, naar);
+
+  if (!route) {
+    el.innerHTML = `<div class="wp-card danger"><div class="wp-card-lbl">Niet beschikbaar</div><p>${van.replace(/_/g,' ')} → ${naar.replace(/_/g,' ')} is nog niet opgenomen.</p></div>`;
+    return;
+  }
+  if (!tides) {
+    el.innerHTML = `<div class="wp-card" style="border-left-color:var(--amber)"><div class="wp-card-lbl">Geen data</div><p>Getijdata beschikbaar 23 mrt – 30 jun 2026.</p></div>`;
+    return;
+  }
+
+  const vtMin = Math.round((route.afstand / kn) * 60);
+  const etaStr = `${Math.floor(vtMin/60)}u${vtMin%60 ? vtMin%60+'min' : ''}`;
+
+  // Diepgang
+  let dc='ok', dm=`✓ Diepgang ${dg}m — OK`;
+  if (route.wmax && dg > route.wmax)        { dc='danger'; dm=`✗ Diepgang ${dg}m overschrijdt wantijmax ${route.wmax}m — buitenom vereist`; }
+  else if (route.wdg < 99 && dg > route.wdg){ dc='warn';   dm=`⚠ Diepgang ${dg}m aan limiet (${route.wdg}m) — check nautin.nl`; }
+
+  // Slots
+  const hws = tides.filter(t => t.type==='HW');
+  const slots = [];
+  hws.forEach(hw => {
+    let vm = hw.min + route.voff;
+    if(vm<0) vm+=1440; if(vm>=1440) vm-=1440;
+    const am = vm + vtMin;
+    const night = vm<330||vm>1320, late = vm>1140&&!night;
+    const kw = night?'bad':late?'ok':'best';
+    const lbl = night?'✕ Nacht':late?'◈ Laat':'✦ Optimaal';
+    slots.push({ vmin:vm, amin:am, hwt:hw.time, kw, lbl });
+  });
+
+  const sH = slots.length
+    ? slots.map(s=>`<div class="wp-slot ${s.kw}"><div class="wp-time">${wpTm(s.vmin)}</div><div class="wp-slbl">${s.lbl}</div><p>Aankomst ~${wpTm(s.amin)}</p><p style="font-size:9px;opacity:.5;margin-top:2px">Na HW ${s.hwt} +${Math.abs(route.voff)}min</p></div>`).join('')
+    : `<div class="wp-slot bad"><div class="wp-slbl">Geen slots</div><p>Andere datum?</p></div>`;
+
+  const tH = tides.map(t=>`<tr><td class="wp-${t.type}">${t.type}</td><td>${wpTm(t.min)}</td><td>${Math.abs(t.h)}cm ${t.h>0?'↑':'↓'}</td></tr>`).join('');
+  const stH = route.desc.map(s=>`<li>${s}</li>`).join('');
+  const tipH = route.tips.map(t=>`<li>${t}</li>`).join('');
+
+  const rtClr = route.type==='buiten'?'var(--amber)':route.type==='wad'?'var(--teal)':'#a78bfa';
+  const rtLbl = route.type==='buiten'?'Buitenom · Noordzee':route.type==='wad'?'Waddenzee · Binnen':'Wad + Zeegat';
+
+  el.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;flex-wrap:wrap;gap:4px;">
+      <div>
+        <div style="font-size:10px;color:var(--muted);letter-spacing:.08em;">${wpFmtD(datum)}</div>
+        <div style="font-family:'Teko',sans-serif;font-size:17px;color:var(--white);line-height:1.1;">${route.naam}</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-family:'Teko',sans-serif;font-size:20px;color:${rtClr};line-height:1">${route.afstand} nm</div>
+        <div style="font-size:10px;color:var(--muted)">~${etaStr} @ ${kn}kn</div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px;">
+      <span style="font-size:10px;padding:2px 7px;border-radius:20px;border:1px solid;border-color:${rtClr};color:${rtClr};">${rtLbl}</span>
+      <span style="font-size:10px;padding:2px 7px;border-radius:20px;border:1px solid rgba(0,200,200,.3);color:var(--muted);">${route.marf}</span>
+      <button class="wp-route-clear" onclick="wpClearLayers();notify('Route gewist')">✕ Route</button>
+    </div>
+
+    <div class="wp-banner ${dc}">${dm}</div>
+
+    <div class="wp-divider">Vertrektijden</div>
+    <div class="wp-slots">${sH}</div>
+
+    <div class="wp-divider">Getijcurve · ${van.replace(/_/g,' ')}</div>
+    <div class="wp-card">
+      <div class="wp-card-lbl">Hoog- & laagwater</div>
+      <div class="wp-spark"><canvas id="wp-sc" style="height:44px"></canvas></div>
+      <div class="wp-spark-lbls"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00</span></div>
+      <table class="wp-tide-table" style="margin-top:8px">
+        <thead><tr><th>Type</th><th>Tijd</th><th>Stand</th></tr></thead>
+        <tbody>${tH}</tbody>
+      </table>
+    </div>
+
+    <div class="wp-divider">Route</div>
+    <div class="wp-card amber">
+      <div class="wp-card-lbl">Waypoints</div>
+      <ul class="wp-steps">${stH}</ul>
+      <p style="margin-top:8px;color:var(--danger);font-size:10px">⚑ ${route.kritiek}</p>
+    </div>
+
+    <div class="wp-divider">Tips</div>
+    <div class="wp-card">
+      <div class="wp-card-lbl">Vaaradviezen</div>
+      <ul class="wp-steps">${tipH}</ul>
+    </div>
+
+    <div class="wp-disc"><strong>⚠</strong> Astronomische getijden RWS 2026. Vaargeullijnen zijn indicatief — gebruik altijd actuele zeekaarten. Check <strong>nautin.nl</strong> en <strong>waddendata.nl</strong>.</div>
+  `;
+
+  requestAnimationFrame(() => wpSpark('wp-sc', tides, slots));
+}
+
+// ── Init WadPlanner ───────────────────────────────────────────
+(function wpInit() {
+  const today = new Date().toISOString().split('T')[0];
+  const d = today < '2026-03-23' ? '2026-03-23' : today > '2026-06-30' ? '2026-06-30' : today;
+  document.getElementById('wp-datum').value = d;
+  // Toon initiële route op kaart na laden
+  setTimeout(() => wpUpdateKaart(), 800);
+})();
+
 </script>
 </body>
 </html>
