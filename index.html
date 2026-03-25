@@ -1610,11 +1610,6 @@ async function laadWindPijlen() {
       `, { maxWidth: 200 })
       .addTo(windLaag);
   }
-        Richting: <b>${Math.round(richtingGr)}° (${richtingNaarTekst(richtingGr)})</b><br>
-        <small style="color:#888">${tijdLabel} · Open-Meteo</small>
-      `, { maxWidth: 200 })
-      .addTo(windLaag);
-  }
 
   statusEl.textContent = `✓ Wind ${tijdLabel.slice(11,16)} · Open-Meteo`;
   statusEl.style.color = 'var(--teal)';
