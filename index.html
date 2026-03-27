@@ -947,6 +947,17 @@
       <button class="btn btn-primary" id="btn-kaart-laden" disabled onclick="laadEigenKaart()" style="margin-bottom:8px;">📂 Kaart toevoegen</button>
       <div id="kaart-status" style="font-size:11px;color:var(--muted);margin-bottom:8px;"></div>
 
+      <!-- Export / Import knoppen -->
+      <div style="display:flex;gap:6px;margin-bottom:8px;">
+        <button class="btn btn-ghost" onclick="exporteerKaarten()" style="flex:1;font-size:12px;">
+          💾 Exporteer coördinaten
+        </button>
+        <button class="btn btn-ghost" onclick="document.getElementById('kaart-import-bestand').click()" style="flex:1;font-size:12px;">
+          📂 Importeer
+        </button>
+        <input type="file" id="kaart-import-bestand" accept=".json" style="display:none" onchange="importeerKaarten(this.files[0])">
+      </div>
+
       <!-- Lijst van geladen kaarten -->
       <div id="kaarten-lijst" style="display:flex;flex-direction:column;gap:5px;"></div>
     </div>
@@ -3213,6 +3224,64 @@ function klaarMetBestand(naam, statusEl) {
   nm.textContent = '📄 ' + naam;
   nm.style.display = 'block';
   document.getElementById('btn-kaart-laden').disabled = false;
+}
+
+function exporteerKaarten() {
+  const opgeslagen = JSON.parse(localStorage.getItem('vaarkaart_kaarten') || '[]');
+  if (!opgeslagen.length) {
+    notify('Geen kaarten om te exporteren');
+    return;
+  }
+  const exportData = {
+    versie: 1,
+    datum: new Date().toISOString().slice(0,10),
+    kaarten: opgeslagen.map(k => ({
+      id:   k.id,
+      naam: k.naam,
+      bounds: k.bounds,
+      opacity: k.opacity ?? 0.85,
+      zichtbaar: k.zichtbaar ?? true
+    }))
+  };
+  const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `vaarkaart-kaarten-${exportData.datum}.json`;
+  a.click();
+  notify(`✓ ${opgeslagen.length} kaart(en) geëxporteerd`);
+}
+
+function importeerKaarten(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = JSON.parse(e.target.result);
+      const kaarten = data.kaarten || data; // ondersteun beide formaten
+      if (!Array.isArray(kaarten)) throw new Error('Ongeldig formaat');
+
+      // Voeg toe aan bestaande opgeslagen kaarten
+      const bestaand = JSON.parse(localStorage.getItem('vaarkaart_kaarten') || '[]');
+      const bestaandeIds = new Set(bestaand.map(k => k.id));
+
+      let toegevoegd = 0;
+      for (const k of kaarten) {
+        if (!k.naam || !k.bounds) continue;
+        if (!bestaandeIds.has(k.id)) {
+          bestaand.push(k);
+          toegevoegd++;
+        }
+      }
+
+      localStorage.setItem('vaarkaart_kaarten', JSON.stringify(bestaand));
+      laadOpgeslagenKaarten();
+      notify(`✓ ${toegevoegd} kaart(en) geïmporteerd — sleep de afbeeldingen om te herladen`);
+      document.getElementById('kaart-import-bestand').value = '';
+    } catch(err) {
+      notify('⚠ Ongeldig JSON bestand');
+    }
+  };
+  reader.readAsText(file);
 }
 
 function slaKaartenOp() {
