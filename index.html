@@ -3531,25 +3531,37 @@ function autoTrimKaart() {
 
     const DREMPEL = 0.7; // doorlopende zwarte rand = >70% zwart
 
-    // Boven: laatste rij in bovenste 35% met >70% zwart
-    let boven = 0;
-    for (let y = 0; y < h*0.35; y++)
-      if (zwartFractieRij(y) >= DREMPEL) boven = y;
+    function vindGroepen(pieken) {
+      const groepen = [];
+      if (!pieken.length) return groepen;
+      let start = pieken[0], prev = pieken[0];
+      for (let i = 1; i < pieken.length; i++) {
+        if (pieken[i] - prev > 50) { groepen.push([start, prev]); start = pieken[i]; }
+        prev = pieken[i];
+      }
+      groepen.push([start, prev]);
+      return groepen;
+    }
 
-    // Onder: laatste rij in onderste 35% met >70% zwart (scan van midden naar onder)
-    let onder = h-1;
-    for (let y = Math.floor(h*0.65); y < h; y++)
-      if (zwartFractieRij(y) >= DREMPEL) onder = y;
+    // Boven: laatste groep van buiten = blokjesrand, pak einde
+    const bovenP = []; for (let y=0; y<h*0.4; y++) if(zwartFractieRij(y)>=DREMPEL) bovenP.push(y);
+    const bovenG = vindGroepen(bovenP);
+    const boven = bovenG.length ? bovenG[bovenG.length-1][1] : 0;
 
-    // Links: laatste kolom in linker 35% met >70% zwart
-    let links = 0;
-    for (let x = 0; x < w*0.35; x++)
-      if (zwartFractieKol(x) >= DREMPEL) links = x;
+    // Onder: eerste groep van buiten (= van midden naar buiten) = blokjesrand, pak begin
+    const onderP = []; for (let y=Math.floor(h*0.6); y<h; y++) if(zwartFractieRij(y)>=DREMPEL) onderP.push(y);
+    const onderG = vindGroepen(onderP);
+    const onder = onderG.length ? onderG[0][0] : h-1;
 
-    // Rechts: laatste kolom in rechter 35% met >70% zwart (scan van midden naar rechts)
-    let rechts = w-1;
-    for (let x = Math.floor(w*0.65); x < w; x++)
-      if (zwartFractieKol(x) >= DREMPEL) rechts = x;
+    // Links: laatste groep van buiten = blokjesrand, pak einde
+    const linksP = []; for (let x=0; x<w*0.4; x++) if(zwartFractieKol(x)>=DREMPEL) linksP.push(x);
+    const linksG = vindGroepen(linksP);
+    const links = linksG.length ? linksG[linksG.length-1][1] : 0;
+
+    // Rechts: eerste groep van buiten (= van midden naar buiten) = blokjesrand, pak begin
+    const rechtsP = []; for (let x=Math.floor(w*0.6); x<w; x++) if(zwartFractieKol(x)>=DREMPEL) rechtsP.push(x);
+    const rechtsG = vindGroepen(rechtsP);
+    const rechts = rechtsG.length ? rechtsG[0][0] : w-1;
 
     document.getElementById('trim-boven').value  = boven + 1;
     document.getElementById('trim-onder').value  = h - onder;
