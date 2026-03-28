@@ -3543,12 +3543,17 @@ function startCropModus() {
     const ctx = canvas.getContext('2d');
     ctx.drawImage(img, 0, 0);
 
+    // Events op canvas voor start en move
     canvas.onmousedown  = (e) => cropStart(e, canvas);
     canvas.onmousemove  = (e) => cropMove(e, canvas);
-    canvas.onmouseup    = (e) => cropDraw(e, canvas);
     canvas.ontouchstart = (e) => { e.preventDefault(); cropStart(e.touches[0], canvas); };
     canvas.ontouchmove  = (e) => { e.preventDefault(); cropMove(e.touches[0], canvas); };
-    canvas.ontouchend   = (e) => { e.preventDefault(); cropDraw(e.changedTouches[0], canvas); };
+
+    // mouseup op DOCUMENT zodat loslaten buiten canvas ook werkt
+    document._cropMouseUp = (e) => cropDraw(e, canvas);
+    document._cropTouchEnd = (e) => { e.preventDefault(); cropDraw(e.changedTouches[0], canvas); };
+    document.addEventListener('mouseup',  document._cropMouseUp);
+    document.addEventListener('touchend', document._cropTouchEnd);
   };
   img.src = _origKaartDataUrl;
 }
@@ -3556,6 +3561,9 @@ function startCropModus() {
 function sluitCropOverlay() {
   document.getElementById('crop-overlay').style.display = 'none';
   document.getElementById('btn-crop').style.background = '';
+  // Verwijder document-level events
+  if (document._cropMouseUp)  document.removeEventListener('mouseup',  document._cropMouseUp);
+  if (document._cropTouchEnd) document.removeEventListener('touchend', document._cropTouchEnd);
   _cropStart = null;
   _cropRect  = null;
 }
