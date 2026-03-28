@@ -955,7 +955,10 @@
 
       <!-- Randen bijsnijden (handmatig) -->
       <div id="kaart-trim-sectie" style="display:none;margin-bottom:8px;">
-        <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Randen bijsnijden (pixels)</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+          <div style="font-size:11px;color:var(--muted);">Randen bijsnijden</div>
+          <button onclick="autoTrimKaart()" class="btn-sm" style="color:var(--teal);border-color:rgba(0,200,200,0.3);">✂ Auto</button>
+        </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">
           <div style="font-size:10px;color:var(--muted);">Boven</div>
           <div style="font-size:10px;color:var(--muted);">Onder</div>
@@ -974,9 +977,7 @@
             style="padding:3px 6px;background:rgba(255,255,255,0.07);border:1px solid var(--border);border-radius:4px;color:var(--white);font-size:12px;"
             onchange="pasTrimToe()">
         </div>
-        <div style="font-size:10px;color:var(--amber);margin-top:4px;">
-          Voor 1812_10.tif: B=1194, O=1041, L=1242, R=947
-        </div>
+        <div id="trim-hint" style="font-size:10px;color:var(--muted);margin-top:4px;display:none;"></div>
       </div>
 
       <button class="btn btn-primary" id="btn-kaart-laden" disabled onclick="laadEigenKaart()" style="margin-bottom:8px;">📂 Kaart toevoegen</button>
@@ -3519,22 +3520,23 @@ function klaarMetBestand(naam, statusEl) {
 function autoTrimKaart() {
   if (!_origKaartDataUrl) return;
   const statusEl = document.getElementById('kaart-status');
-  statusEl.textContent = '⏳ Geblokte coördinatenrand detecteren…';
+  statusEl.textContent = '⏳ Zwarte rand detecteren…';
 
   const img = new window.Image();
   img.onload = () => {
-    const w = img.width;
-    const h = img.height;
+    const w = img.width;   // verkleinde breedte
+    const h = img.height;  // verkleinde hoogte
     const canvas = document.createElement('canvas');
     canvas.width = w; canvas.height = h;
     const ctx = canvas.getContext('2d');
     ctx.drawImage(img, 0, 0);
     const px = ctx.getImageData(0, 0, w, h).data;
-    const stap = 10;
+    const stap = 8;
+    const D = 0.70; // >70% zwart = doorlopende zwarte rand
 
-    function frac(y, x0, x1) {
+    function fracRij(y) {
       let n = 0, tot = 0;
-      for (let x = x0; x < x1; x += stap) {
+      for (let x = 0; x < w; x += stap) {
         const i = (y*w+x)*4;
         if (px[i]<40 && px[i+1]<40 && px[i+2]<40) n++;
         tot++;
@@ -3542,9 +3544,9 @@ function autoTrimKaart() {
       return tot ? n/tot : 0;
     }
 
-    function fracKol(x, y0, y1) {
+    function fracKol(x) {
       let n = 0, tot = 0;
-      for (let y = y0; y < y1; y += stap) {
+      for (let y = 0; y < h; y += stap) {
         const i = (y*w+x)*4;
         if (px[i]<40 && px[i+1]<40 && px[i+2]<40) n++;
         tot++;
@@ -3552,99 +3554,105 @@ function autoTrimKaart() {
       return tot ? n/tot : 0;
     }
 
-    const D = 0.65;
-
-    // Boven: scan rechterhelft (vermijdt legenda links)
+    // Boven: laatste rij in bovenste 35% met >70% zwart
     let boven = 0;
-    for (let y = 0; y < h*0.25; y++)
-      if (frac(y, Math.floor(w*0.60), Math.floor(w*0.90)) >= D) boven = y;
+    for (let y = 0; y < h*0.35; y++)
+      if (fracRij(y) >= D) boven = y;
 
-    // Onder: scan rechterhelft
+    // Onder: laatste rij in onderste 35% met >70% zwart (scan van midden naar onder)
     let onder = h-1;
-    for (let y = Math.floor(h*0.75); y < h; y++)
-      if (frac(y, Math.floor(w*0.60), Math.floor(w*0.90)) >= D) onder = y;
+    for (let y = Math.floor(h*0.65); y < h; y++)
+      if (fracRij(y) >= D) onder = y;
 
-    // Links: scan onderste deel (vermijdt legenda boven)
+    // Links: laatste kolom in linker 35% met >70% zwart
     let links = 0;
-    for (let x = 0; x < w*0.20; x++)
-      if (fracKol(x, Math.floor(h*0.60), Math.floor(h*0.90)) >= D) links = x;
+    for (let x = 0; x < w*0.35; x++)
+      if (fracKol(x) >= D) links = x;
 
-    // Rechts: scan bovenste deel
+    // Rechts: laatste kolom in rechter 35% met >70% zwart (scan van midden naar rechts)
     let rechts = w-1;
-    for (let x = Math.floor(w*0.80); x < w; x++)
-      if (fracKol(x, Math.floor(h*0.10), Math.floor(h*0.40)) >= D) rechts = x;
+    for (let x = Math.floor(w*0.65); x < w; x++)
+      if (fracKol(x) >= D) rechts = x;
 
-    document.getElementById('trim-boven').value  = boven + 1;
-    document.getElementById('trim-onder').value  = h - onder;
-    document.getElementById('trim-links').value  = links + 1;
-    document.getElementById('trim-rechts').value = w - rechts;
+    // Schaalfactor: verhouding verkleinde/originele pixels
+    const schaalX = window._geoTiffOrigW ? w / window._geoTiffOrigW : 1;
+    const schaalY = window._geoTiffOrigH ? h / window._geoTiffOrigH : 1;
+
+    // Sla trimwaarden op in ORIGINELE pixels
+    const origBoven  = Math.round((boven  + 1) / schaalY);
+    const origOnder  = Math.round((h - onder)  / schaalY);
+    const origLinks  = Math.round((links  + 1) / schaalX);
+    const origRechts = Math.round((w - rechts)  / schaalX);
+
+    document.getElementById('trim-boven').value  = origBoven;
+    document.getElementById('trim-onder').value  = origOnder;
+    document.getElementById('trim-links').value  = origLinks;
+    document.getElementById('trim-rechts').value = origRechts;
+
+    const hint = document.getElementById('trim-hint');
+    hint.style.display = 'block';
+    hint.textContent = `B=${origBoven} O=${origOnder} L=${origLinks} R=${origRechts} px (origineel)`;
+
     pasTrimToe();
     statusEl.style.color = 'var(--teal)';
-    statusEl.textContent = `✂ Rand gevonden — kaartinhoud bijgesneden`;
+    statusEl.textContent = `✂ Zwarte rand gevonden`;
   };
   img.src = _origKaartDataUrl;
 }
 
 function pasTrimToe() {
   if (!_origKaartDataUrl || !_origKaartBreedte) return;
-  const boven  = parseInt(document.getElementById('trim-boven').value)  || 0;
-  const onder  = parseInt(document.getElementById('trim-onder').value)  || 0;
-  const links  = parseInt(document.getElementById('trim-links').value)  || 0;
-  const rechts = parseInt(document.getElementById('trim-rechts').value) || 0;
+  // Trimwaarden zijn in ORIGINELE GeoTIFF pixels
+  const origBoven  = parseInt(document.getElementById('trim-boven').value)  || 0;
+  const origOnder  = parseInt(document.getElementById('trim-onder').value)  || 0;
+  const origLinks  = parseInt(document.getElementById('trim-links').value)  || 0;
+  const origRechts = parseInt(document.getElementById('trim-rechts').value) || 0;
 
-  if (boven === 0 && onder === 0 && links === 0 && rechts === 0) {
+  if (origBoven === 0 && origOnder === 0 && origLinks === 0 && origRechts === 0) {
     eigenKaartDataUrl = _origKaartDataUrl;
     return;
   }
 
   const img = new window.Image();
   img.onload = () => {
-    const srcW = img.width;
-    const srcH = img.height;
+    const srcW = img.width;   // verkleinde breedte
+    const srcH = img.height;  // verkleinde hoogte
+
+    // Schaalfactor verkleind vs origineel
+    const origW = window._geoTiffOrigW || srcW;
+    const origH = window._geoTiffOrigH || srcH;
+    const schaalX = srcW / origW;
+    const schaalY = srcH / origH;
+
+    // Trim in verkleinde pixels voor bijsnijden
+    const boven  = Math.round(origBoven  * schaalY);
+    const onder  = Math.round(origOnder  * schaalY);
+    const links  = Math.round(origLinks  * schaalX);
+    const rechts = Math.round(origRechts * schaalX);
+
     const newW = srcW - links - rechts;
     const newH = srcH - boven - onder;
     if (newW <= 0 || newH <= 0) return;
 
-    // Snij de afbeelding bij
     const canvas = document.createElement('canvas');
     canvas.width = newW; canvas.height = newH;
     const ctx = canvas.getContext('2d');
     ctx.drawImage(img, links, boven, newW, newH, 0, 0, newW, newH);
     eigenKaartDataUrl = canvas.toDataURL('image/png');
 
-    // Pas coördinaten aan op basis van bijgesneden pixels
-    // NW-lat/lon verschuift door boven en links bij te snijden
-    // ZO-lat/lon verschuift door onder en rechts bij te snijden
+    // Coördinaten corrigeren op basis van ORIGINELE pixels
     const nwLat = parseFloat(document.getElementById('coord-nw-lat').value);
     const nwLon = parseFloat(document.getElementById('coord-nw-lon').value);
     const zoLat = parseFloat(document.getElementById('coord-zo-lat').value);
     const zoLon = parseFloat(document.getElementById('coord-zo-lon').value);
 
     if (!isNaN(nwLat) && !isNaN(nwLon) && !isNaN(zoLat) && !isNaN(zoLon)) {
-      // Gebruik originele GeoTIFF afmetingen voor coördinaat berekening
-      const origW = window._geoTiffOrigW || srcW;
-      const origH = window._geoTiffOrigH || srcH;
-      const schaalX = window._geoTiffSchaalX || 1;
-      const schaalY = window._geoTiffSchaalY || 1;
-
-      // Trim in originele pixels
-      const origBoven  = Math.round(boven  / schaalY);
-      const origOnder  = Math.round(onder  / schaalY);
-      const origLinks  = Math.round(links  / schaalX);
-      const origRechts = Math.round(rechts / schaalX);
-
       const grPerPixelLat = (nwLat - zoLat) / origH;
       const grPerPixelLon = (zoLon - nwLon) / origW;
-
-      const nieuwNwLat = nwLat - origBoven  * grPerPixelLat;
-      const nieuwNwLon = nwLon + origLinks  * grPerPixelLon;
-      const nieuwZoLat = zoLat + origOnder  * grPerPixelLat;
-      const nieuwZoLon = zoLon - origRechts * grPerPixelLon;
-
-      document.getElementById('coord-nw-lat').value = nieuwNwLat.toFixed(6);
-      document.getElementById('coord-nw-lon').value = nieuwNwLon.toFixed(6);
-      document.getElementById('coord-zo-lat').value = nieuwZoLat.toFixed(6);
-      document.getElementById('coord-zo-lon').value = nieuwZoLon.toFixed(6);
+      document.getElementById('coord-nw-lat').value = (nwLat - origBoven  * grPerPixelLat).toFixed(6);
+      document.getElementById('coord-nw-lon').value = (nwLon + origLinks  * grPerPixelLon).toFixed(6);
+      document.getElementById('coord-zo-lat').value = (zoLat + origOnder  * grPerPixelLat).toFixed(6);
+      document.getElementById('coord-zo-lon').value = (zoLon - origRechts * grPerPixelLon).toFixed(6);
     }
   };
   img.src = _origKaartDataUrl;
