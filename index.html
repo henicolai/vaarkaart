@@ -620,6 +620,13 @@
       <a href="handleiding.html" target="_blank" class="btn btn-ghost" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:6px;text-decoration:none;">
         📖 Handleiding
       </a>
+      <a href="https://bunq.me/HendrikEeuwe" target="_blank" style="
+        width:100%;display:flex;align-items:center;justify-content:center;gap:8px;
+        margin-top:6px;padding:8px;border-radius:6px;text-decoration:none;
+        background:rgba(0,200,200,0.1);border:1px solid rgba(0,200,200,0.3);
+        color:var(--teal);font-size:13px;font-family:'Teko',sans-serif;letter-spacing:1px;">
+        ☕ Doneer via Bunq
+      </a>
     </div>
 
     <!-- GPS -->
@@ -1002,7 +1009,62 @@
       <div id="stroom-status" style="display:none;"></div>
     </div>
 
-    <!-- Opgeslagen routes -->
+    <!-- WadPlanner -->
+    <div class="sidebar-section">
+      <div class="sidebar-title" onclick="toggleSectie('wadplanner-inhoud', this)"
+        style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;">
+        🌊 WadPlanner <span id="wadplanner-pijl" style="font-size:12px;color:var(--muted);">▼</span>
+      </div>
+      <div id="wadplanner-inhoud">
+
+        <!-- Diepgang -->
+        <div style="margin-bottom:10px;">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Diepgang boot (meter)</div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="number" id="wp-diepgang" value="1.90" step="0.05" min="0.5" max="3.0"
+              style="width:80px;padding:5px 8px;background:rgba(255,255,255,0.07);
+              border:1px solid var(--border);border-radius:5px;color:var(--white);font-size:14px;">
+            <span style="font-size:12px;color:var(--muted);">+ veiligheidsmarge:</span>
+            <input type="number" id="wp-marge" value="0.30" step="0.05" min="0" max="1.0"
+              style="width:60px;padding:5px 8px;background:rgba(255,255,255,0.07);
+              border:1px solid var(--border);border-radius:5px;color:var(--white);font-size:14px;">
+          </div>
+        </div>
+
+        <!-- Wantij kiezen -->
+        <div style="margin-bottom:10px;">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Wantij / drempel</div>
+          <select id="wp-wantij" style="width:100%;padding:6px 8px;background:rgba(255,255,255,0.07);
+            border:1px solid var(--border);border-radius:5px;color:var(--white);font-size:13px;">
+            <option value="HARVT:1.40">Wantij Harlingen (1.40m bij LW)</option>
+            <option value="HARVT:1.60">Blauwe Slenk / Texelstroom (1.60m)</option>
+            <option value="HARVT:1.80">Vliestroom (1.80m)</option>
+            <option value="WESTTSLG:1.20">Stortemelk (1.20m)</option>
+            <option value="WESTTSLG:1.40">Zeegat Terschelling (1.40m)</option>
+            <option value="LAUWOG:1.50">Zeegat Ameland (1.50m)</option>
+            <option value="LAUWOG:1.80">Westgat Schiermonnikoog (1.80m)</option>
+            <option value="DELFZL:2.00">Zeegat Rottumeroog (2.00m)</option>
+            <option value="KORNWDZBTN:1.50">Kornwerderzand sluis (1.50m)</option>
+            <option value="DENHDR:2.00">Marsdiep / Den Helder (2.00m)</option>
+          </select>
+        </div>
+
+        <!-- Datum/tijd -->
+        <div style="margin-bottom:10px;">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Datum</div>
+          <input type="date" id="wp-datum" style="width:100%;padding:6px 8px;
+            background:rgba(255,255,255,0.07);border:1px solid var(--border);
+            border-radius:5px;color:var(--white);font-size:13px;">
+        </div>
+
+        <button class="btn btn-primary" onclick="berekenWadPlanner()" style="width:100%;margin-bottom:8px;">
+          🌊 Bereken getijvenster
+        </button>
+
+        <!-- Resultaat -->
+        <div id="wp-resultaat" style="display:none;"></div>
+      </div>
+    </div>
     <div class="sidebar-section">
       <div class="sidebar-title">💾 Opgeslagen routes</div>
       <div class="routes-list" id="routes-list">
@@ -3624,6 +3686,134 @@ document.addEventListener('visibilitychange', async () => {
     await activeerWakeLock();
   }
 });
+
+// ── WADPLANNER ────────────────────────────────────────────
+// Initialiseer datum op vandaag
+document.addEventListener('DOMContentLoaded', () => {
+  const datumEl = document.getElementById('wp-datum');
+  if (datumEl) datumEl.value = new Date().toISOString().slice(0, 10);
+});
+
+async function berekenWadPlanner() {
+  const diepgang = parseFloat(document.getElementById('wp-diepgang').value) || 1.90;
+  const marge    = parseFloat(document.getElementById('wp-marge').value) || 0.30;
+  const benodigdDiepte = diepgang + marge;
+  const wantijVal = document.getElementById('wp-wantij').value;
+  const [stationCode, drempelStr] = wantijVal.split(':');
+  const drempelDiepte = parseFloat(drempelStr);
+  const datum = document.getElementById('wp-datum').value;
+
+  const resultEl = document.getElementById('wp-resultaat');
+  resultEl.style.display = 'block';
+  resultEl.innerHTML = '<div style="color:var(--muted);font-size:12px;">⏳ Getijdata ophalen…</div>';
+
+  // Haal getijdata op via RWS Waterinfo
+  const datumObj = new Date(datum);
+  const eindDatum = new Date(datumObj);
+  eindDatum.setDate(eindDatum.getDate() + 1);
+
+  const url = `https://waterinfo.rws.nl/api/point/extremesByCode?` +
+    `locationCodes=${stationCode}&` +
+    `startdate=${datumObj.toISOString().slice(0,10)}T00:00:00&` +
+    `enddate=${eindDatum.toISOString().slice(0,10)}T00:00:00`;
+
+  let getijData = null;
+  try {
+    const res = await fetch(url);
+    if (res.ok) getijData = await res.json();
+  } catch(e) {}
+
+  // Bereken getijvenster op basis van astronomische cyclus als fallback
+  const station = GETIJ_STATIONS.find(s => s.code === stationCode);
+  const getijHoogte = station ? 1.0 : 0.9; // gemiddeld getijverschil in meters
+
+  // Bouw tijdlijn van waterstand over de dag
+  const tijdlijn = [];
+  const corrMs = (CORR_STATIONS[stationCode] || 0) * 60000;
+  const cyclusMs = 6 * 3600000 + 12.5 * 60000;
+  const refHW = new Date('2026-01-01T00:30:00Z').getTime() + corrMs;
+  const gemWater = 0.0; // NAP
+
+  for (let min = 0; min < 1440; min += 10) {
+    const t = new Date(datumObj);
+    t.setHours(0, min, 0, 0);
+    const elapsed = (t.getTime() - refHW) % (cyclusMs * 2);
+    const fase = ((elapsed % (cyclusMs * 2)) + cyclusMs * 2) % (cyclusMs * 2);
+    const waterstand = gemWater + getijHoogte * Math.cos(fase / cyclusMs * Math.PI);
+    tijdlijn.push({ tijd: t, waterstand, minuut: min });
+  }
+
+  // Bepaal waterstand op drempel = drempelDiepte + waterstand
+  // Boot kan door als: drempelDiepte + waterstand >= benodigdDiepte
+  // dus waterstand >= benodigdDiepte - drempelDiepte
+  const minimaalWater = benodigdDiepte - drempelDiepte;
+
+  const vensters = [];
+  let inVenster = false;
+  let vensterStart = null;
+
+  for (const punt of tijdlijn) {
+    if (punt.waterstand >= minimaalWater) {
+      if (!inVenster) { inVenster = true; vensterStart = punt; }
+    } else {
+      if (inVenster) {
+        vensters.push({ start: vensterStart, eind: punt });
+        inVenster = false;
+      }
+    }
+  }
+  if (inVenster) vensters.push({ start: vensterStart, eind: tijdlijn[tijdlijn.length-1] });
+
+  // Render resultaat
+  const wantijNaam = document.getElementById('wp-wantij').selectedOptions[0].text;
+  let html = `
+    <div style="background:rgba(0,200,200,0.08);border:1px solid rgba(0,200,200,0.3);
+      border-radius:8px;padding:10px;margin-bottom:8px;">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">${wantijNaam}</div>
+      <div style="font-size:12px;color:var(--muted);">
+        Diepgang: <b style="color:var(--white);">${diepgang}m</b> + marge ${marge}m = 
+        <b style="color:var(--amber);">${benodigdDiepte.toFixed(2)}m</b> benodigd
+      </div>
+      <div style="font-size:12px;color:var(--muted);">
+        Drempeldiepte: <b style="color:var(--white);">${drempelDiepte}m</b> bij LW
+      </div>
+    </div>`;
+
+  if (!vensters.length) {
+    html += `<div style="background:rgba(232,69,69,0.1);border:1px solid rgba(232,69,69,0.3);
+      border-radius:8px;padding:10px;text-align:center;color:#e84545;font-size:13px;">
+      ⚠ Geen doorvaart mogelijk op ${datum}<br>
+      <small style="color:var(--muted);">Boot te diep voor dit wantij vandaag</small>
+    </div>`;
+  } else {
+    html += `<div style="font-size:11px;color:var(--teal);margin-bottom:6px;letter-spacing:1px;">GETIJVENSTER${vensters.length > 1 ? 'S' : ''} OP ${datum}</div>`;
+    for (const v of vensters) {
+      const startStr = v.start.tijd.toLocaleTimeString('nl-NL', { hour:'2-digit', minute:'2-digit' });
+      const eindStr  = v.eind.tijd.toLocaleTimeString('nl-NL', { hour:'2-digit', minute:'2-digit' });
+      const duurMin  = Math.round((v.eind.tijd - v.start.tijd) / 60000);
+      const duurStr  = duurMin >= 60 ? `${Math.floor(duurMin/60)}u ${duurMin%60}min` : `${duurMin}min`;
+      const kleur = duurMin >= 120 ? 'var(--teal)' : duurMin >= 60 ? 'var(--amber)' : '#e84545';
+      html += `
+        <div style="background:rgba(255,255,255,0.04);border:1px solid var(--border);
+          border-left:3px solid ${kleur};border-radius:6px;padding:8px 10px;margin-bottom:6px;">
+          <div style="font-family:'Teko',sans-serif;font-size:18px;color:${kleur};">
+            ${startStr} — ${eindStr}
+          </div>
+          <div style="font-size:11px;color:var(--muted);">Duur: ${duurStr}</div>
+        </div>`;
+    }
+    html += `<div style="font-size:10px;color:var(--muted);margin-top:4px;">
+      ⚠ Berekend op astronomisch getij — geen weerseffecten</div>`;
+  }
+
+  resultEl.innerHTML = html;
+}
+
+const CORR_STATIONS = {
+  'VLISSGN': -65, 'HOEKVHLD': 0, 'SCHEVNGN': 30, 'IJMDBTHVN': 95,
+  'DENHDR': 155, 'WESTTSLG': 185, 'HUIBGT': 210, 'DELFZL': 225,
+  'HARVT': 175, 'KORNWDZBTN': 165, 'OUDSD': 150, 'LAUWOG': 200,
+};
 
 // ── INKLAPBARE SECTIES ────────────────────────────────────
 function toggleSectie(id, titleEl) {

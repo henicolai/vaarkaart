@@ -58,6 +58,7 @@
     <div class="feature-card"><span class="feature-icon">🌊</span><div class="feature-title">Stroom & Getijden</div><p class="feature-desc">RWS stroompijlen op de kaart. Hoog- en laagwater tijden. Bladeren per uur, 12 uur terug en vooruit.</p></div>
     <div class="feature-card"><span class="feature-icon">💨</span><div class="feature-title">Wind</div><p class="feature-desc">Windpijlen via Open-Meteo weermodel. Beaufort schaal. 72 uur voorspelling met tijdlijn.</p></div>
     <div class="feature-card"><span class="feature-icon">⚓</span><div class="feature-title">Havens</div><p class="feature-desc">50+ havens langs Waddenzee, Zeeland en IJsselmeer. Diepgang, VHF kanaal en contactgegevens.</p></div>
+    <div class="feature-card"><span class="feature-icon">🌊</span><div class="feature-title">WadPlanner</div><p class="feature-desc">Bereken wanneer je een wantij of drempel kunt passeren op basis van je diepgang en het getij. 10 bekende Waddenzee passages inclusief tijdvenster en duur.</p></div>
     <div class="feature-card"><span class="feature-icon">🧭</span><div class="feature-title">Route Planner</div><p class="feature-desc">Start- en eindpunt instellen via GPS, kaart of haven. Tussenpunten voor route over water. Export als GPX.</p></div>
     <div class="feature-card"><span class="feature-icon">🗺</span><div class="feature-title">Eigen Zeekaarten</div><p class="feature-desc">PNG, JPG of BMP uploaden met hoekcoördinaten. Meerdere kaarten tegelijk. Coördinaten onthouden.</p></div>
     <div class="feature-card"><span class="feature-icon">📌</span><div class="feature-title">Waypoints</div><p class="feature-desc">GPX bestanden laden of handmatig op kaart tikken. Coördinaten in gekozen formaat.</p></div>
@@ -70,7 +71,7 @@
 <div style="background:var(--deep);border-top:1px solid var(--border);border-bottom:1px solid var(--border);">
 <div class="section">
   <div class="section-title">Aan de slag</div>
-  <div class="section-sub">In zes stappen op het water met VaarKaart.</div>
+  <div class="section-sub">In zeven stappen op het water met VaarKaart.</div>
   <div class="steps">
     <div class="step">
       <div class="step-num">01</div>
@@ -98,13 +99,22 @@
     <div class="step">
       <div class="step-num">04</div>
       <div>
+        <div class="step-title">WadPlanner — wantij passeren</div>
+        <p class="step-desc">Open de WadPlanner sectie in de zijbalk. Vul je diepgang en veiligheidsmarge in. Kies het wantij of de drempel die je wilt passeren en selecteer de datum. Klik "Bereken getijvenster" voor een overzicht van wanneer je door kunt.</p>
+        <span class="step-tip">🌊 Groen = ruim venster · Oranje = krap · Rood = heel kort</span>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">05</div>
+      <div>
         <div class="step-title">Route plannen</div>
         <p class="step-desc">Open de Route Planner sectie. Stel een startpunt in via GPS of door op de kaart te tikken. Kies een haven als eindpunt of tik op de kaart. Voeg tussenpunten toe om land te omzeilen — de route blijft actief zodat je meerdere punten achter elkaar kunt zetten.</p>
         <span class="step-tip">🧭 Export als GPX voor gebruik in OpenCPN of Navionics</span>
       </div>
     </div>
     <div class="step">
-      <div class="step-num">05</div>
+      <div class="step-num">06</div>
       <div>
         <div class="step-title">Eigen zeekaart laden</div>
         <p class="step-desc">Sleep een PNG, JPG of BMP zeekaart op het uploadkader. Vul NW en ZO coördinaten in en klik Laden. Coördinaten worden onthouden — na herladen staan ze klaar in de lijst.</p>
@@ -112,7 +122,7 @@
       </div>
     </div>
     <div class="step">
-      <div class="step-num">06</div>
+      <div class="step-num">07</div>
       <div>
         <div class="step-title">Route opnemen & waypoints</div>
         <p class="step-desc">Druk op "Start opname" om je vaarroute vast te leggen. Sleep een GPX bestand voor waypoints, of tik op de kaart via de waypoint modus. Klik op een waypoint in de lijst om er naartoe te zoomen.</p>
@@ -126,6 +136,16 @@
   <div style="font-family:'Teko',sans-serif;font-size:20px;color:var(--teal);margin-bottom:8px;">VAAR<span style="color:var(--white);">KAART</span></div>
   Data: Rijkswaterstaat · OpenSeaMap · PDOK · Open-Meteo<br>
   <span style="font-size:12px;">© 2026 VaarKaart — Geen abonnement, geen registratie</span>
+  <div style="margin-top:20px;">
+    <a href="https://bunq.me/HendrikEeuwe" target="_blank" style="
+      display:inline-flex;align-items:center;gap:8px;
+      padding:12px 28px;border-radius:8px;text-decoration:none;
+      background:rgba(0,200,200,0.1);border:1px solid rgba(0,200,200,0.4);
+      color:#00c8c8;font-family:'Teko',sans-serif;font-size:18px;letter-spacing:1px;">
+      ☕ Doneer via Bunq
+    </a>
+    <p style="margin-top:10px;font-size:13px;color:var(--muted);">VaarKaart is gratis — een kleine donatie wordt zeer gewaardeerd!</p>
+  </div>
 </footer>
 </body>
 </html>
