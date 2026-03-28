@@ -20,6 +20,8 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
   <!-- Leaflet-rotate voor Koers omhoog -->
   <script src="https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate-src.js"></script>
+  <!-- GeoTIFF parser -->
+  <script src="https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.js"></script>
 
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Teko:wght@300;400;500;600&family=Source+Sans+3:wght@300;400;600&display=swap');
@@ -908,9 +910,9 @@
         ondragleave="this.style.background='rgba(0,200,200,0.04)'"
         ondrop="handleKaartDrop(event)">
         <div style="font-size:20px;margin-bottom:2px;">🗺</div>
-        <div style="font-size:12px;color:var(--teal);">Sleep PNG/JPG/BMP hier</div>
-        <div style="font-size:10px;color:var(--muted);margin-top:1px;">of klik om te kiezen</div>
-        <input type="file" id="kaart-bestand" accept=".bmp,.png,.jpg,.jpeg"
+        <div style="font-size:12px;color:var(--teal);">Sleep PNG/JPG/BMP/GeoTIFF hier</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:1px;">GeoTIFF = automatisch georeferentie</div>
+        <input type="file" id="kaart-bestand" accept=".bmp,.png,.jpg,.jpeg,.tif,.tiff"
           style="display:none" onchange="verwerkKaartBestand(this.files[0])">
       </div>
 
@@ -3201,6 +3203,150 @@ function wisGpx() {
   notify('Waypoints gewist');
 }
 
+// ── GEOTIFF VERWERKING ────────────────────────────────────
+async function verwerkGeoTIFF(file, statusEl) {
+  statusEl.textContent = '⏳ GeoTIFF lezen…';
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const tiff = await GeoTIFF.fromArrayBuffer(arrayBuffer);
+    const image = await tiff.getImage();
+
+    const width  = image.getWidth();
+    const height = image.getHeight();
+    statusEl.textContent = `⏳ GeoTIFF ${width}×${height}px — georeferentie uitlezen…`;
+
+    // Lees georeferentie
+    const bbox = geoTIFFBerekenBounds(image);
+    if (!bbox) {
+      statusEl.style.color = 'var(--amber)';
+      statusEl.textContent = '⚠ Geen georeferentie in GeoTIFF — vul coördinaten handmatig in';
+      document.getElementById('coord-sectie').style.display = 'block';
+    } else {
+      document.getElementById('coord-nw-lat').value = bbox.nwLat.toFixed(6);
+      document.getElementById('coord-nw-lon').value = bbox.nwLon.toFixed(6);
+      document.getElementById('coord-zo-lat').value = bbox.zoLat.toFixed(6);
+      document.getElementById('coord-zo-lon').value = bbox.zoLon.toFixed(6);
+      document.getElementById('coord-sectie').style.display = 'block';
+      statusEl.style.color = 'var(--teal)';
+      statusEl.textContent = `✓ Georeferentie gelezen — afbeelding renderen…`;
+    }
+
+    // Render raster naar canvas
+    statusEl.textContent = `⏳ ${width}×${height}px renderen (kan even duren)…`;
+    const rasters = await image.readRGB({ interleave: true });
+
+    const canvas = document.createElement('canvas');
+    canvas.width  = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    const imgData = ctx.createImageData(width, height);
+
+    for (let i = 0; i < width * height; i++) {
+      imgData.data[i*4]   = rasters[i*3];
+      imgData.data[i*4+1] = rasters[i*3+1];
+      imgData.data[i*4+2] = rasters[i*3+2];
+      imgData.data[i*4+3] = 255;
+    }
+    ctx.putImageData(imgData, 0, 0);
+    eigenKaartDataUrl = canvas.toDataURL('image/png');
+    klaarMetBestand(file.name, statusEl);
+    if (bbox) statusEl.textContent = `✓ GeoTIFF geladen — georeferentie automatisch ingesteld`;
+
+  } catch(err) {
+    statusEl.style.color = 'var(--danger)';
+    statusEl.textContent = '⚠ GeoTIFF fout: ' + err.message;
+    console.error('GeoTIFF fout:', err);
+  }
+}
+
+function geoTIFFBerekenBounds(image) {
+  try {
+    const fd = image.fileDirectory;
+    const tiepoints   = fd.ModelTiepoint;
+    const pixelScale  = fd.ModelPixelScale;
+    const geoKeys     = fd.GeoKeyDirectory;
+    const geoDoubles  = fd.GeoDoubleParams || [];
+
+    if (!tiepoints || !pixelScale) return null;
+
+    const tieX = tiepoints[3];
+    const tieY = tiepoints[4];
+    const pixX = pixelScale[0];
+    const pixY = pixelScale[1];
+    const width  = image.getWidth();
+    const height = image.getHeight();
+
+    // Lees false northing/easting uit GeoKeys
+    let falseNorthing = 0, falseEasting = 0;
+    let projCode = 0, natOriginLat = 0;
+
+    if (geoKeys) {
+      const nKeys = geoKeys[3];
+      for (let k = 0; k < nKeys; k++) {
+        const base = 4 + k*4;
+        const keyId    = geoKeys[base];
+        const tiffTag  = geoKeys[base+1];
+        const valCount = geoKeys[base+2];
+        const valOff   = geoKeys[base+3];
+        if (tiffTag === 34736) { // GeoDoubleParams
+          if (keyId === 3082) falseEasting  = geoDoubles[valOff];
+          if (keyId === 3083) falseNorthing = geoDoubles[valOff];
+          if (keyId === 3078) natOriginLat  = geoDoubles[valOff];
+          if (keyId === 3080) {} // central meridian
+        }
+        if (tiffTag === 0) {
+          if (keyId === 3072) projCode = valOff; // ProjectedCSTypeGeoKey
+        }
+      }
+    }
+
+    // Bereken hoeken in geprojecteerde coördinaten
+    const westE  = tieX - falseEasting;
+    const noordN = tieY - falseNorthing;
+    const oostE  = westE + width * pixX;
+    const zuidN  = noordN - height * pixY;
+
+    // Bepaal projectie en converteer
+    // Als bounds redelijk zijn voor WGS84 direct:
+    if (Math.abs(westE) <= 180 && Math.abs(tieY) <= 90 && Math.abs(falseNorthing) < 1) {
+      // Direct WGS84 decimale graden
+      return { nwLat: tieY, nwLon: tieX, zoLat: tieY - height*pixY, zoLon: tieX + width*pixX };
+    }
+
+    // Mercator met standaard parallel
+    const a  = 6378137.0;
+    const f  = 1/298.2572235629972;
+    const e2 = 2*f - f**2;
+    const e  = Math.sqrt(e2);
+    const phi0 = natOriginLat * Math.PI / 180;
+    const k0 = phi0 !== 0
+      ? Math.cos(phi0) / Math.sqrt(1 - e2 * Math.sin(phi0)**2)
+      : 1.0;
+
+    function mercatorToGeo(x, y, lon0 = 0) {
+      const lon = x / (k0 * a) + lon0;
+      let t = Math.exp(-y / (k0 * a));
+      let lat = Math.PI/2 - 2*Math.atan(t);
+      for (let i = 0; i < 10; i++) {
+        lat = Math.PI/2 - 2*Math.atan(t * Math.pow((1-e*Math.sin(lat))/(1+e*Math.sin(lat)), e/2));
+      }
+      return { lat: lat * 180/Math.PI, lon: lon * 180/Math.PI };
+    }
+
+    const nw = mercatorToGeo(westE, noordN);
+    const zo = mercatorToGeo(oostE, zuidN);
+
+    // Sanity check — Nederland verwacht
+    if (nw.lat < -90 || nw.lat > 90 || nw.lon < -180 || nw.lon > 180) return null;
+
+    return { nwLat: nw.lat, nwLon: nw.lon, zoLat: zo.lat, zoLon: zo.lon };
+
+  } catch(e) {
+    console.warn('GeoTIFF bounds fout:', e);
+    return null;
+  }
+}
+
 // ── EIGEN ZEEKAARTEN (meerdere) ───────────────────────────
 const eigenKaarten = [];
 let eigenKaartDataUrl = null;
@@ -3220,6 +3366,13 @@ function verwerkKaartBestand(file) {
   eigenKaartDataUrl = null;
   document.getElementById('btn-kaart-laden').disabled = true;
   document.getElementById('kaart-bestandsnaam').style.display = 'none';
+
+  // GeoTIFF?
+  const naam = file.name.toLowerCase();
+  if (naam.endsWith('.tif') || naam.endsWith('.tiff')) {
+    verwerkGeoTIFF(file, statusEl);
+    return;
+  }
 
   const reader = new FileReader();
   reader.onload = function(e) {
