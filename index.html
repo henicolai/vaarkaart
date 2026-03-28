@@ -3505,73 +3505,59 @@ function autoTrimKaart() {
     canvas.width = w; canvas.height = h;
     const ctx = canvas.getContext('2d');
     ctx.drawImage(img, 0, 0);
-    const pixels = ctx.getImageData(0, 0, w, h).data;
+    const px = ctx.getImageData(0, 0, w, h).data;
 
-    function isZwart(x, y) {
-      const i = (y * w + x) * 4;
-      return pixels[i] < 40 && pixels[i+1] < 40 && pixels[i+2] < 40;
-    }
-    function isWit(x, y) {
-      const i = (y * w + x) * 4;
-      return pixels[i] > 200 && pixels[i+1] > 200 && pixels[i+2] > 200;
-    }
+    const stap = 10;
 
-    function telWisselingenRij(y, stap = 6) {
-      let prev = null, wis = 0;
+    function zwartFractieRij(y) {
+      let n = 0, tot = 0;
       for (let x = 0; x < w; x += stap) {
-        const k = isZwart(x,y) ? 'Z' : isWit(x,y) ? 'W' : null;
-        if (k && prev && k !== prev) wis++;
-        if (k) prev = k;
+        const i = (y*w+x)*4;
+        if (px[i]<40 && px[i+1]<40 && px[i+2]<40) n++;
+        tot++;
       }
-      return wis;
+      return n / tot;
     }
 
-    function telWisselingenKol(x, stap = 6) {
-      let prev = null, wis = 0;
+    function zwartFractieKol(x) {
+      let n = 0, tot = 0;
       for (let y = 0; y < h; y += stap) {
-        const k = isZwart(x,y) ? 'Z' : isWit(x,y) ? 'W' : null;
-        if (k && prev && k !== prev) wis++;
-        if (k) prev = k;
+        const i = (y*w+x)*4;
+        if (px[i]<40 && px[i+1]<40 && px[i+2]<40) n++;
+        tot++;
       }
-      return wis;
+      return n / tot;
     }
 
-    // Drempel: geblokte rand heeft veel meer wisselingen dan kaartinhoud
-    const DREMPEL_RIJ = Math.max(30, Math.floor(w / 200));
-    const DREMPEL_KOL = Math.max(20, Math.floor(h / 200));
+    const DREMPEL = 0.7; // doorlopende zwarte rand = >70% zwart
 
-    // Boven: scan van boven naar midden, pak LAATSTE rij met piek
+    // Boven: laatste rij in bovenste 35% met >70% zwart
     let boven = 0;
-    for (let y = 0; y < h * 0.35; y++) {
-      if (telWisselingenRij(y) >= DREMPEL_RIJ) boven = y;
-    }
+    for (let y = 0; y < h*0.35; y++)
+      if (zwartFractieRij(y) >= DREMPEL) boven = y;
 
-    // Onder: scan van onder naar midden, pak EERSTE rij met piek
-    let onder = h - 1;
-    for (let y = h - 1; y > h * 0.65; y--) {
-      if (telWisselingenRij(y) >= DREMPEL_RIJ) { onder = y; break; }
-    }
+    // Onder: eerste rij in onderste 35% met >70% zwart (van onder)
+    let onder = h-1;
+    for (let y = h-1; y > h*0.65; y--)
+      if (zwartFractieRij(y) >= DREMPEL) { onder = y; break; }
 
-    // Links: scan van links naar midden, pak LAATSTE kolom met piek
+    // Links: laatste kolom in linker 35% met >70% zwart
     let links = 0;
-    for (let x = 0; x < w * 0.35; x++) {
-      if (telWisselingenKol(x) >= DREMPEL_KOL) links = x;
-    }
+    for (let x = 0; x < w*0.35; x++)
+      if (zwartFractieKol(x) >= DREMPEL) links = x;
 
-    // Rechts: scan van rechts naar midden, pak EERSTE kolom met piek
-    let rechts = w - 1;
-    for (let x = w - 1; x > w * 0.65; x--) {
-      if (telWisselingenKol(x) >= DREMPEL_KOL) { rechts = x; break; }
-    }
+    // Rechts: eerste kolom in rechter 35% met >70% zwart (van rechts)
+    let rechts = w-1;
+    for (let x = w-1; x > w*0.65; x--)
+      if (zwartFractieKol(x) >= DREMPEL) { rechts = x; break; }
 
-    const marge = 2;
-    document.getElementById('trim-boven').value  = Math.max(0, boven + marge);
-    document.getElementById('trim-onder').value  = Math.max(0, h - onder + marge);
-    document.getElementById('trim-links').value  = Math.max(0, links + marge);
-    document.getElementById('trim-rechts').value = Math.max(0, w - rechts + marge);
+    document.getElementById('trim-boven').value  = boven + 1;
+    document.getElementById('trim-onder').value  = h - onder;
+    document.getElementById('trim-links').value  = links + 1;
+    document.getElementById('trim-rechts').value = w - rechts;
     pasTrimToe();
     statusEl.style.color = 'var(--teal)';
-    statusEl.textContent = `✂ Geblokte rand gevonden — kaartinhoud bijgesneden`;
+    statusEl.textContent = `✂ Rand gevonden — kaartinhoud bijgesneden`;
   };
   img.src = _origKaartDataUrl;
 }
