@@ -3272,6 +3272,12 @@ async function verwerkGeoTIFF(file, statusEl) {
       statusEl.textContent = `⏳ ${width}×${height}px renderen…`;
     }
 
+    // Bewaar schaalfactor voor trim correctie
+    window._geoTiffSchaalX = renderW / width;
+    window._geoTiffSchaalY = renderH / height;
+    window._geoTiffOrigW   = width;
+    window._geoTiffOrigH   = height;
+
     const rasters = await image.readRGB({
       interleave: true,
       width:  renderW,
@@ -3617,13 +3623,25 @@ function pasTrimToe() {
     const zoLon = parseFloat(document.getElementById('coord-zo-lon').value);
 
     if (!isNaN(nwLat) && !isNaN(nwLon) && !isNaN(zoLat) && !isNaN(zoLon)) {
-      const grPerPixelLat = (nwLat - zoLat) / srcH;
-      const grPerPixelLon = (zoLon - nwLon) / srcW;
+      // Gebruik originele GeoTIFF afmetingen voor coördinaat berekening
+      const origW = window._geoTiffOrigW || srcW;
+      const origH = window._geoTiffOrigH || srcH;
+      const schaalX = window._geoTiffSchaalX || 1;
+      const schaalY = window._geoTiffSchaalY || 1;
 
-      const nieuwNwLat = nwLat - boven  * grPerPixelLat;
-      const nieuwNwLon = nwLon + links  * grPerPixelLon;
-      const nieuwZoLat = zoLat + onder  * grPerPixelLat;
-      const nieuwZoLon = zoLon - rechts * grPerPixelLon;
+      // Trim in originele pixels
+      const origBoven  = Math.round(boven  / schaalY);
+      const origOnder  = Math.round(onder  / schaalY);
+      const origLinks  = Math.round(links  / schaalX);
+      const origRechts = Math.round(rechts / schaalX);
+
+      const grPerPixelLat = (nwLat - zoLat) / origH;
+      const grPerPixelLon = (zoLon - nwLon) / origW;
+
+      const nieuwNwLat = nwLat - origBoven  * grPerPixelLat;
+      const nieuwNwLon = nwLon + origLinks  * grPerPixelLon;
+      const nieuwZoLat = zoLat + origOnder  * grPerPixelLat;
+      const nieuwZoLon = zoLon - origRechts * grPerPixelLon;
 
       document.getElementById('coord-nw-lat').value = nieuwNwLat.toFixed(6);
       document.getElementById('coord-nw-lon').value = nieuwNwLon.toFixed(6);
