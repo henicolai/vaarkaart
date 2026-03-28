@@ -964,13 +964,30 @@
           </div>
         </div>
 
-        <!-- Crop preview canvas -->
-        <div id="crop-preview-wrap" style="display:none;position:relative;margin-bottom:8px;border:1px solid var(--border);border-radius:6px;overflow:hidden;cursor:crosshair;">
-          <canvas id="crop-canvas" style="display:block;width:100%;"></canvas>
-          <div id="crop-hint" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
-            font-size:12px;color:rgba(255,255,255,0.7);text-align:center;pointer-events:none;
-            background:rgba(0,0,0,0.5);padding:6px 10px;border-radius:6px;">
-            Sleep een rechthoek om het kaartgebied te selecteren
+        <!-- Crop fullscreen overlay -->
+        <div id="crop-overlay" style="display:none;position:fixed;inset:0;z-index:200000;
+          background:rgba(0,0,0,0.92);flex-direction:column;">
+          <div style="display:flex;align-items:center;justify-content:space-between;
+            padding:12px 16px;background:rgba(0,0,0,0.8);border-bottom:1px solid var(--border);">
+            <div style="font-family:'Teko',sans-serif;font-size:18px;color:var(--teal);">✏ CROP — Sleep een rechthoek</div>
+            <div style="display:flex;gap:8px;">
+              <button onclick="bevestigCrop()" style="padding:6px 16px;background:var(--teal);
+                color:#000;border:none;border-radius:6px;font-size:14px;cursor:pointer;font-family:'Teko',sans-serif;">
+                ✓ Toepassen
+              </button>
+              <button onclick="sluitCropOverlay()" style="padding:6px 16px;background:rgba(255,255,255,0.1);
+                color:var(--white);border:1px solid var(--border);border-radius:6px;font-size:14px;cursor:pointer;">
+                ✕ Annuleren
+              </button>
+            </div>
+          </div>
+          <div style="flex:1;overflow:auto;display:flex;align-items:center;justify-content:center;padding:16px;">
+            <canvas id="crop-canvas" style="max-width:100%;max-height:100%;cursor:crosshair;
+              display:block;border:1px solid var(--border);border-radius:4px;touch-action:none;"></canvas>
+          </div>
+          <div id="crop-info" style="padding:8px 16px;text-align:center;font-size:12px;color:var(--muted);
+            background:rgba(0,0,0,0.8);border-top:1px solid var(--border);">
+            Sleep een rechthoek op de kaart om het gewenste gebied te selecteren
           </div>
         </div>
 
@@ -3505,42 +3522,42 @@ function readU16(b,o){ return b[o]|(b[o+1]<<8); }
 let _cropModus = false;
 let _cropStart = null;
 let _cropRect  = null;
+let _cropImg   = null;
 
 function startCropModus() {
   if (!_origKaartDataUrl) return;
-  _cropModus = true;
   _cropStart = null;
   _cropRect  = null;
 
-  const wrap = document.getElementById('crop-preview-wrap');
-  const canvas = document.getElementById('crop-canvas');
-  wrap.style.display = 'block';
-  document.getElementById('crop-hint').style.display = 'block';
+  const overlay = document.getElementById('crop-overlay');
+  overlay.style.display = 'flex';
+  document.getElementById('crop-info').textContent = 'Sleep een rechthoek op de kaart';
   document.getElementById('btn-crop').style.background = 'rgba(245,166,35,0.2)';
 
-  // Teken de huidige afbeelding op de canvas
+  const canvas = document.getElementById('crop-canvas');
   const img = new window.Image();
   img.onload = () => {
-    // Pas canvas hoogte aan op aspect ratio, breedte = container breedte
-    const containerW = wrap.offsetWidth || 220;
-    const aspect = img.height / img.width;
+    _cropImg = img;
     canvas.width  = img.width;
     canvas.height = img.height;
-    canvas.style.width  = '100%';
-    canvas.style.height = Math.round(containerW * aspect) + 'px';
-
     const ctx = canvas.getContext('2d');
     ctx.drawImage(img, 0, 0);
 
-    // Touch / mouse events
     canvas.onmousedown  = (e) => cropStart(e, canvas);
-    canvas.onmousemove  = (e) => cropMove(e, canvas, img);
-    canvas.onmouseup    = (e) => cropEnd(e, canvas, img);
+    canvas.onmousemove  = (e) => cropMove(e, canvas);
+    canvas.onmouseup    = (e) => cropDraw(e, canvas);
     canvas.ontouchstart = (e) => { e.preventDefault(); cropStart(e.touches[0], canvas); };
-    canvas.ontouchmove  = (e) => { e.preventDefault(); cropMove(e.touches[0], canvas, img); };
-    canvas.ontouchend   = (e) => { e.preventDefault(); cropEnd(e.changedTouches[0], canvas, img); };
+    canvas.ontouchmove  = (e) => { e.preventDefault(); cropMove(e.touches[0], canvas); };
+    canvas.ontouchend   = (e) => { e.preventDefault(); cropDraw(e.changedTouches[0], canvas); };
   };
   img.src = _origKaartDataUrl;
+}
+
+function sluitCropOverlay() {
+  document.getElementById('crop-overlay').style.display = 'none';
+  document.getElementById('btn-crop').style.background = '';
+  _cropStart = null;
+  _cropRect  = null;
 }
 
 function getCanvasPos(e, canvas) {
@@ -3556,70 +3573,68 @@ function getCanvasPos(e, canvas) {
 function cropStart(e, canvas) {
   _cropStart = getCanvasPos(e, canvas);
   _cropRect  = null;
-  document.getElementById('crop-hint').style.display = 'none';
 }
 
-function cropMove(e, canvas, img) {
-  if (!_cropStart) return;
+function cropMove(e, canvas) {
+  if (!_cropStart || !_cropImg) return;
   const pos = getCanvasPos(e, canvas);
   const ctx = canvas.getContext('2d');
 
-  // Herteken originele afbeelding
-  ctx.drawImage(img, 0, 0);
-
-  // Teken selectierechthoek
   const x = Math.min(_cropStart.x, pos.x);
   const y = Math.min(_cropStart.y, pos.y);
   const w = Math.abs(pos.x - _cropStart.x);
   const h = Math.abs(pos.y - _cropStart.y);
 
-  // Donker masker buiten selectie
-  ctx.fillStyle = 'rgba(0,0,0,0.45)';
+  ctx.drawImage(_cropImg, 0, 0);
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  // Helder gebied
-  ctx.drawImage(img, x, y, w, h, x, y, w, h);
-
-  // Rand
+  ctx.drawImage(_cropImg, x, y, w, h, x, y, w, h);
   ctx.strokeStyle = '#f5a623';
-  ctx.lineWidth   = 3;
-  ctx.setLineDash([8, 4]);
+  ctx.lineWidth = Math.max(2, canvas.width / 500);
+  ctx.setLineDash([10, 5]);
   ctx.strokeRect(x, y, w, h);
 
   _cropRect = { x, y, w, h };
+
+  const origW = window._geoTiffOrigW || canvas.width;
+  const origH = window._geoTiffOrigH || canvas.height;
+  const schaalX = origW / canvas.width;
+  const schaalY = origH / canvas.height;
+  document.getElementById('crop-info').textContent =
+    `Selectie: ${Math.round(w*schaalX)}×${Math.round(h*schaalY)}px origineel`;
 }
 
-function cropEnd(e, canvas, img) {
-  if (!_cropStart || !_cropRect || _cropRect.w < 10 || _cropRect.h < 10) {
-    _cropStart = null;
+function cropDraw(e, canvas) {
+  if (!_cropStart) return;
+  const pos = getCanvasPos(e, canvas);
+  const x = Math.min(_cropStart.x, pos.x);
+  const y = Math.min(_cropStart.y, pos.y);
+  const w = Math.abs(pos.x - _cropStart.x);
+  const h = Math.abs(pos.y - _cropStart.y);
+  if (w > 10 && h > 10) _cropRect = { x, y, w, h };
+}
+
+function bevestigCrop() {
+  if (!_cropRect || _cropRect.w < 10 || _cropRect.h < 10) {
+    notify('Teken eerst een selectie');
     return;
   }
-
   const { x, y, w, h } = _cropRect;
+  const canvas = document.getElementById('crop-canvas');
   const imgW = canvas.width;
   const imgH = canvas.height;
 
-  // Zet canvas pixels om naar originele pixels
   const origW = window._geoTiffOrigW || imgW;
   const origH = window._geoTiffOrigH || imgH;
   const schaalX = origW / imgW;
   const schaalY = origH / imgH;
 
-  const origBoven  = Math.round(y       * schaalY);
-  const origLinks  = Math.round(x       * schaalX);
-  const origOnder  = Math.round((imgH - y - h) * schaalY);
-  const origRechts = Math.round((imgW - x - w) * schaalX);
+  document.getElementById('trim-boven').value  = Math.round(y           * schaalY);
+  document.getElementById('trim-onder').value  = Math.round((imgH-y-h) * schaalY);
+  document.getElementById('trim-links').value  = Math.round(x           * schaalX);
+  document.getElementById('trim-rechts').value = Math.round((imgW-x-w) * schaalX);
 
-  document.getElementById('trim-boven').value  = origBoven;
-  document.getElementById('trim-onder').value  = origOnder;
-  document.getElementById('trim-links').value  = origLinks;
-  document.getElementById('trim-rechts').value = origRechts;
-
-  _cropStart = null;
-  _cropModus = false;
-  document.getElementById('btn-crop').style.background = '';
-  document.getElementById('crop-preview-wrap').style.display = 'none';
-
+  sluitCropOverlay();
   pasTrimToe();
   notify('✂ Crop toegepast');
 }
@@ -3629,9 +3644,7 @@ function resetTrim() {
   document.getElementById('trim-onder').value  = 0;
   document.getElementById('trim-links').value  = 0;
   document.getElementById('trim-rechts').value = 0;
-  document.getElementById('crop-preview-wrap').style.display = 'none';
   document.getElementById('btn-crop').style.background = '';
-  _cropModus = false;
   eigenKaartDataUrl = _origKaartDataUrl;
   notify('Bijsnijden gereset');
 }
