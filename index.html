@@ -953,6 +953,34 @@
         </div>
       </div>
 
+      <!-- Randen bijsnijden -->
+      <div id="kaart-trim-sectie" style="display:none;margin-bottom:8px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+          <div style="font-size:11px;color:var(--muted);">Randen bijsnijden</div>
+          <button onclick="autoTrimKaart()" class="btn-sm" style="color:var(--teal);border-color:rgba(0,200,200,0.3);">
+            ✂ Auto
+          </button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">
+          <div style="font-size:10px;color:var(--muted);">Boven (px)</div>
+          <div style="font-size:10px;color:var(--muted);">Onder (px)</div>
+          <input type="number" id="trim-boven" value="0" min="0"
+            style="padding:3px 6px;background:rgba(255,255,255,0.07);border:1px solid var(--border);border-radius:4px;color:var(--white);font-size:12px;"
+            onchange="pasTrimToe()">
+          <input type="number" id="trim-onder" value="0" min="0"
+            style="padding:3px 6px;background:rgba(255,255,255,0.07);border:1px solid var(--border);border-radius:4px;color:var(--white);font-size:12px;"
+            onchange="pasTrimToe()">
+          <div style="font-size:10px;color:var(--muted);">Links (px)</div>
+          <div style="font-size:10px;color:var(--muted);">Rechts (px)</div>
+          <input type="number" id="trim-links" value="0" min="0"
+            style="padding:3px 6px;background:rgba(255,255,255,0.07);border:1px solid var(--border);border-radius:4px;color:var(--white);font-size:12px;"
+            onchange="pasTrimToe()">
+          <input type="number" id="trim-rechts" value="0" min="0"
+            style="padding:3px 6px;background:rgba(255,255,255,0.07);border:1px solid var(--border);border-radius:4px;color:var(--white);font-size:12px;"
+            onchange="pasTrimToe()">
+        </div>
+      </div>
+
       <button class="btn btn-primary" id="btn-kaart-laden" disabled onclick="laadEigenKaart()" style="margin-bottom:8px;">📂 Kaart toevoegen</button>
       <div id="kaart-status" style="font-size:11px;color:var(--muted);margin-bottom:8px;"></div>
 
@@ -3432,6 +3460,11 @@ function readU32(b,o){ return (b[o]|(b[o+1]<<8)|(b[o+2]<<16)|(b[o+3]<<24))>>>0; 
 function readI32(b,o){ return readU32(b,o)|0; }
 function readU16(b,o){ return b[o]|(b[o+1]<<8); }
 
+// ── KAART BIJSNIJDEN ──────────────────────────────────────
+let _origKaartDataUrl = null; // originele niet-bijgesneden versie
+let _origKaartBreedte = 0;
+let _origKaartHoogte  = 0;
+
 function klaarMetBestand(naam, statusEl) {
   statusEl.style.color = 'var(--teal)';
   statusEl.textContent = `✓ ${naam} gereed — vul coördinaten in`;
@@ -3439,6 +3472,113 @@ function klaarMetBestand(naam, statusEl) {
   nm.textContent = '📄 ' + naam;
   nm.style.display = 'block';
   document.getElementById('btn-kaart-laden').disabled = false;
+
+  // Bewaar origineel voor trim
+  _origKaartDataUrl = eigenKaartDataUrl;
+
+  // Meet afmetingen
+  const img = new window.Image();
+  img.onload = () => {
+    _origKaartBreedte = img.width;
+    _origKaartHoogte  = img.height;
+    // Reset trim velden
+    document.getElementById('trim-boven').value  = 0;
+    document.getElementById('trim-onder').value  = 0;
+    document.getElementById('trim-links').value  = 0;
+    document.getElementById('trim-rechts').value = 0;
+    // Toon trim sectie
+    document.getElementById('kaart-trim-sectie').style.display = 'block';
+  };
+  img.src = eigenKaartDataUrl;
+}
+
+function autoTrimKaart() {
+  if (!_origKaartDataUrl) return;
+  const statusEl = document.getElementById('kaart-status');
+  statusEl.textContent = '⏳ Randen detecteren…';
+
+  const img = new window.Image();
+  img.onload = () => {
+    const w = img.width;
+    const h = img.height;
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    const data = ctx.getImageData(0, 0, w, h).data;
+
+    function isWit(x, y) {
+      const i = (y * w + x) * 4;
+      return data[i] > 230 && data[i+1] > 230 && data[i+2] > 230;
+    }
+
+    // Scan van boven
+    let boven = 0;
+    outer: for (let y = 0; y < h; y++) {
+      for (let x = Math.floor(w*0.2); x < Math.floor(w*0.8); x += 20) {
+        if (!isWit(x, y)) { boven = y; break outer; }
+      }
+    }
+    // Scan van onder
+    let onder = 0;
+    outer2: for (let y = h-1; y >= 0; y--) {
+      for (let x = Math.floor(w*0.2); x < Math.floor(w*0.8); x += 20) {
+        if (!isWit(x, y)) { onder = h - y - 1; break outer2; }
+      }
+    }
+    // Scan van links
+    let links = 0;
+    outer3: for (let x = 0; x < w; x++) {
+      for (let y = Math.floor(h*0.2); y < Math.floor(h*0.8); y += 20) {
+        if (!isWit(x, y)) { links = x; break outer3; }
+      }
+    }
+    // Scan van rechts
+    let rechts = 0;
+    outer4: for (let x = w-1; x >= 0; x--) {
+      for (let y = Math.floor(h*0.2); y < Math.floor(h*0.8); y += 20) {
+        if (!isWit(x, y)) { rechts = w - x - 1; break outer4; }
+      }
+    }
+
+    document.getElementById('trim-boven').value  = Math.max(0, boven - 5);
+    document.getElementById('trim-onder').value  = Math.max(0, onder - 5);
+    document.getElementById('trim-links').value  = Math.max(0, links - 5);
+    document.getElementById('trim-rechts').value = Math.max(0, rechts - 5);
+    pasTrimToe();
+    statusEl.style.color = 'var(--teal)';
+    statusEl.textContent = `✂ Automatisch bijgesneden (B:${boven} O:${onder} L:${links} R:${rechts}px)`;
+  };
+  img.src = _origKaartDataUrl;
+}
+
+function pasTrimToe() {
+  if (!_origKaartDataUrl || !_origKaartBreedte) return;
+  const boven  = parseInt(document.getElementById('trim-boven').value)  || 0;
+  const onder  = parseInt(document.getElementById('trim-onder').value)  || 0;
+  const links  = parseInt(document.getElementById('trim-links').value)  || 0;
+  const rechts = parseInt(document.getElementById('trim-rechts').value) || 0;
+
+  if (boven === 0 && onder === 0 && links === 0 && rechts === 0) {
+    eigenKaartDataUrl = _origKaartDataUrl;
+    return;
+  }
+
+  const img = new window.Image();
+  img.onload = () => {
+    const srcW = img.width;
+    const srcH = img.height;
+    const newW = srcW - links - rechts;
+    const newH = srcH - boven - onder;
+    if (newW <= 0 || newH <= 0) return;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = newW; canvas.height = newH;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, links, boven, newW, newH, 0, 0, newW, newH);
+    eigenKaartDataUrl = canvas.toDataURL('image/png');
+  };
+  img.src = _origKaartDataUrl;
 }
 
 function exporteerKaarten() {
