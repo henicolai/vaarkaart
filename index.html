@@ -953,31 +953,29 @@
         </div>
       </div>
 
-      <!-- Randen bijsnijden -->
+      <!-- Randen bijsnijden (handmatig) -->
       <div id="kaart-trim-sectie" style="display:none;margin-bottom:8px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-          <div style="font-size:11px;color:var(--muted);">Randen bijsnijden</div>
-          <button onclick="autoTrimKaart()" class="btn-sm" style="color:var(--teal);border-color:rgba(0,200,200,0.3);">
-            ✂ Auto
-          </button>
-        </div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Randen bijsnijden (pixels)</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">
-          <div style="font-size:10px;color:var(--muted);">Boven (px)</div>
-          <div style="font-size:10px;color:var(--muted);">Onder (px)</div>
+          <div style="font-size:10px;color:var(--muted);">Boven</div>
+          <div style="font-size:10px;color:var(--muted);">Onder</div>
           <input type="number" id="trim-boven" value="0" min="0"
             style="padding:3px 6px;background:rgba(255,255,255,0.07);border:1px solid var(--border);border-radius:4px;color:var(--white);font-size:12px;"
             onchange="pasTrimToe()">
           <input type="number" id="trim-onder" value="0" min="0"
             style="padding:3px 6px;background:rgba(255,255,255,0.07);border:1px solid var(--border);border-radius:4px;color:var(--white);font-size:12px;"
             onchange="pasTrimToe()">
-          <div style="font-size:10px;color:var(--muted);">Links (px)</div>
-          <div style="font-size:10px;color:var(--muted);">Rechts (px)</div>
+          <div style="font-size:10px;color:var(--muted);">Links</div>
+          <div style="font-size:10px;color:var(--muted);">Rechts</div>
           <input type="number" id="trim-links" value="0" min="0"
             style="padding:3px 6px;background:rgba(255,255,255,0.07);border:1px solid var(--border);border-radius:4px;color:var(--white);font-size:12px;"
             onchange="pasTrimToe()">
           <input type="number" id="trim-rechts" value="0" min="0"
             style="padding:3px 6px;background:rgba(255,255,255,0.07);border:1px solid var(--border);border-radius:4px;color:var(--white);font-size:12px;"
             onchange="pasTrimToe()">
+        </div>
+        <div style="font-size:10px;color:var(--amber);margin-top:4px;">
+          Voor 1812_10.tif: B=1194, O=1041, L=1242, R=947
         </div>
       </div>
 
