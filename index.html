@@ -3582,11 +3582,35 @@ function pasTrimToe() {
     const newH = srcH - boven - onder;
     if (newW <= 0 || newH <= 0) return;
 
+    // Snij de afbeelding bij
     const canvas = document.createElement('canvas');
     canvas.width = newW; canvas.height = newH;
     const ctx = canvas.getContext('2d');
     ctx.drawImage(img, links, boven, newW, newH, 0, 0, newW, newH);
     eigenKaartDataUrl = canvas.toDataURL('image/png');
+
+    // Pas coördinaten aan op basis van bijgesneden pixels
+    // NW-lat/lon verschuift door boven en links bij te snijden
+    // ZO-lat/lon verschuift door onder en rechts bij te snijden
+    const nwLat = parseFloat(document.getElementById('coord-nw-lat').value);
+    const nwLon = parseFloat(document.getElementById('coord-nw-lon').value);
+    const zoLat = parseFloat(document.getElementById('coord-zo-lat').value);
+    const zoLon = parseFloat(document.getElementById('coord-zo-lon').value);
+
+    if (!isNaN(nwLat) && !isNaN(nwLon) && !isNaN(zoLat) && !isNaN(zoLon)) {
+      const grPerPixelLat = (nwLat - zoLat) / srcH;
+      const grPerPixelLon = (zoLon - nwLon) / srcW;
+
+      const nieuwNwLat = nwLat - boven  * grPerPixelLat;
+      const nieuwNwLon = nwLon + links  * grPerPixelLon;
+      const nieuwZoLat = zoLat + onder  * grPerPixelLat;
+      const nieuwZoLon = zoLon - rechts * grPerPixelLon;
+
+      document.getElementById('coord-nw-lat').value = nieuwNwLat.toFixed(6);
+      document.getElementById('coord-nw-lon').value = nieuwNwLon.toFixed(6);
+      document.getElementById('coord-zo-lat').value = nieuwZoLat.toFixed(6);
+      document.getElementById('coord-zo-lon').value = nieuwZoLon.toFixed(6);
+    }
   };
   img.src = _origKaartDataUrl;
 }
