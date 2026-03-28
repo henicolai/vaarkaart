@@ -3259,17 +3259,32 @@ async function verwerkGeoTIFF(file, statusEl) {
       statusEl.textContent = `✓ Georeferentie gelezen — afbeelding renderen…`;
     }
 
-    // Render raster naar canvas
-    statusEl.textContent = `⏳ ${width}×${height}px renderen (kan even duren)…`;
-    const rasters = await image.readRGB({ interleave: true });
+    // Render raster naar canvas — verkleinen als te groot
+    const MAX_PIXELS = 60000000; // 60 megapixel max voor browser
+    let renderW = width;
+    let renderH = height;
+    if (width * height > MAX_PIXELS) {
+      const schaal = Math.sqrt(MAX_PIXELS / (width * height));
+      renderW = Math.floor(width  * schaal);
+      renderH = Math.floor(height * schaal);
+      statusEl.textContent = `⏳ ${width}×${height}px → verkleind naar ${renderW}×${renderH}px…`;
+    } else {
+      statusEl.textContent = `⏳ ${width}×${height}px renderen…`;
+    }
+
+    const rasters = await image.readRGB({
+      interleave: true,
+      width:  renderW,
+      height: renderH
+    });
 
     const canvas = document.createElement('canvas');
-    canvas.width  = width;
-    canvas.height = height;
+    canvas.width  = renderW;
+    canvas.height = renderH;
     const ctx = canvas.getContext('2d');
-    const imgData = ctx.createImageData(width, height);
+    const imgData = ctx.createImageData(renderW, renderH);
 
-    for (let i = 0; i < width * height; i++) {
+    for (let i = 0; i < renderW * renderH; i++) {
       imgData.data[i*4]   = rasters[i*3];
       imgData.data[i*4+1] = rasters[i*3+1];
       imgData.data[i*4+2] = rasters[i*3+2];
@@ -3277,6 +3292,11 @@ async function verwerkGeoTIFF(file, statusEl) {
     }
     ctx.putImageData(imgData, 0, 0);
     eigenKaartDataUrl = canvas.toDataURL('image/png');
+
+    // Sla originele afmetingen op voor trim berekening
+    _origKaartBreedte = renderW;
+    _origKaartHoogte  = renderH;
+
     klaarMetBestand(file.name, statusEl);
     if (bbox) statusEl.textContent = `✓ GeoTIFF geladen — georeferentie automatisch ingesteld`;
 
@@ -3506,62 +3526,49 @@ function autoTrimKaart() {
     const ctx = canvas.getContext('2d');
     ctx.drawImage(img, 0, 0);
     const px = ctx.getImageData(0, 0, w, h).data;
-
     const stap = 10;
 
-    function zwartFractieRij(y) {
+    function frac(y, x0, x1) {
       let n = 0, tot = 0;
-      for (let x = 0; x < w; x += stap) {
+      for (let x = x0; x < x1; x += stap) {
         const i = (y*w+x)*4;
         if (px[i]<40 && px[i+1]<40 && px[i+2]<40) n++;
         tot++;
       }
-      return n / tot;
+      return tot ? n/tot : 0;
     }
 
-    function zwartFractieKol(x) {
+    function fracKol(x, y0, y1) {
       let n = 0, tot = 0;
-      for (let y = 0; y < h; y += stap) {
+      for (let y = y0; y < y1; y += stap) {
         const i = (y*w+x)*4;
         if (px[i]<40 && px[i+1]<40 && px[i+2]<40) n++;
         tot++;
       }
-      return n / tot;
+      return tot ? n/tot : 0;
     }
 
-    const DREMPEL = 0.7; // doorlopende zwarte rand = >70% zwart
+    const D = 0.65;
 
-    function vindGroepen(pieken) {
-      const groepen = [];
-      if (!pieken.length) return groepen;
-      let start = pieken[0], prev = pieken[0];
-      for (let i = 1; i < pieken.length; i++) {
-        if (pieken[i] - prev > 50) { groepen.push([start, prev]); start = pieken[i]; }
-        prev = pieken[i];
-      }
-      groepen.push([start, prev]);
-      return groepen;
-    }
+    // Boven: scan rechterhelft (vermijdt legenda links)
+    let boven = 0;
+    for (let y = 0; y < h*0.25; y++)
+      if (frac(y, Math.floor(w*0.60), Math.floor(w*0.90)) >= D) boven = y;
 
-    // Boven: laatste groep van buiten = blokjesrand, pak einde
-    const bovenP = []; for (let y=0; y<h*0.4; y++) if(zwartFractieRij(y)>=DREMPEL) bovenP.push(y);
-    const bovenG = vindGroepen(bovenP);
-    const boven = bovenG.length ? bovenG[bovenG.length-1][1] : 0;
+    // Onder: scan rechterhelft
+    let onder = h-1;
+    for (let y = Math.floor(h*0.75); y < h; y++)
+      if (frac(y, Math.floor(w*0.60), Math.floor(w*0.90)) >= D) onder = y;
 
-    // Onder: eerste groep van buiten (= van midden naar buiten) = blokjesrand, pak begin
-    const onderP = []; for (let y=Math.floor(h*0.6); y<h; y++) if(zwartFractieRij(y)>=DREMPEL) onderP.push(y);
-    const onderG = vindGroepen(onderP);
-    const onder = onderG.length ? onderG[0][0] : h-1;
+    // Links: scan onderste deel (vermijdt legenda boven)
+    let links = 0;
+    for (let x = 0; x < w*0.20; x++)
+      if (fracKol(x, Math.floor(h*0.60), Math.floor(h*0.90)) >= D) links = x;
 
-    // Links: laatste groep van buiten = blokjesrand, pak einde
-    const linksP = []; for (let x=0; x<w*0.4; x++) if(zwartFractieKol(x)>=DREMPEL) linksP.push(x);
-    const linksG = vindGroepen(linksP);
-    const links = linksG.length ? linksG[linksG.length-1][1] : 0;
-
-    // Rechts: eerste groep van buiten (= van midden naar buiten) = blokjesrand, pak begin
-    const rechtsP = []; for (let x=Math.floor(w*0.6); x<w; x++) if(zwartFractieKol(x)>=DREMPEL) rechtsP.push(x);
-    const rechtsG = vindGroepen(rechtsP);
-    const rechts = rechtsG.length ? rechtsG[0][0] : w-1;
+    // Rechts: scan bovenste deel
+    let rechts = w-1;
+    for (let x = Math.floor(w*0.80); x < w; x++)
+      if (fracKol(x, Math.floor(h*0.10), Math.floor(h*0.40)) >= D) rechts = x;
 
     document.getElementById('trim-boven').value  = boven + 1;
     document.getElementById('trim-onder').value  = h - onder;
