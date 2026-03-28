@@ -3495,7 +3495,7 @@ function klaarMetBestand(naam, statusEl) {
 function autoTrimKaart() {
   if (!_origKaartDataUrl) return;
   const statusEl = document.getElementById('kaart-status');
-  statusEl.textContent = '⏳ Zwarte neatline detecteren…';
+  statusEl.textContent = '⏳ Geblokte coördinatenrand detecteren…';
 
   const img = new window.Image();
   img.onload = () => {
@@ -3505,58 +3505,73 @@ function autoTrimKaart() {
     canvas.width = w; canvas.height = h;
     const ctx = canvas.getContext('2d');
     ctx.drawImage(img, 0, 0);
-    const data = ctx.getImageData(0, 0, w, h).data;
+    const pixels = ctx.getImageData(0, 0, w, h).data;
 
     function isZwart(x, y) {
       const i = (y * w + x) * 4;
-      return data[i] < 40 && data[i+1] < 40 && data[i+2] < 40;
+      return pixels[i] < 40 && pixels[i+1] < 40 && pixels[i+2] < 40;
+    }
+    function isWit(x, y) {
+      const i = (y * w + x) * 4;
+      return pixels[i] > 200 && pixels[i+1] > 200 && pixels[i+2] > 200;
     }
 
-    function telZwartInKolom(x, stap) {
-      let n = 0;
-      for (let y = 0; y < h; y += stap) if (isZwart(x, y)) n++;
-      return n;
+    function telWisselingenRij(y, stap = 6) {
+      let prev = null, wis = 0;
+      for (let x = 0; x < w; x += stap) {
+        const k = isZwart(x,y) ? 'Z' : isWit(x,y) ? 'W' : null;
+        if (k && prev && k !== prev) wis++;
+        if (k) prev = k;
+      }
+      return wis;
     }
 
-    function telZwartInRij(y, stap) {
-      let n = 0;
-      for (let x = 0; x < w; x += stap) if (isZwart(x, y)) n++;
-      return n;
+    function telWisselingenKol(x, stap = 6) {
+      let prev = null, wis = 0;
+      for (let y = 0; y < h; y += stap) {
+        const k = isZwart(x,y) ? 'Z' : isWit(x,y) ? 'W' : null;
+        if (k && prev && k !== prev) wis++;
+        if (k) prev = k;
+      }
+      return wis;
     }
 
-    const drempel = 5; // minstens 5 zwarte pixels per scan
-    const stap = 20;
+    // Drempel: geblokte rand heeft veel meer wisselingen dan kaartinhoud
+    const DREMPEL_RIJ = Math.max(30, Math.floor(w / 200));
+    const DREMPEL_KOL = Math.max(20, Math.floor(h / 200));
 
-    // Zoek zwarte lijn van links
-    let links = 0;
-    for (let x = 0; x < w/3; x++) {
-      if (telZwartInKolom(x, stap) >= drempel) { links = x; break; }
-    }
-    // Zoek zwarte lijn van rechts
-    let rechts = w - 1;
-    for (let x = w-1; x > 2*w/3; x--) {
-      if (telZwartInKolom(x, stap) >= drempel) { rechts = x; break; }
-    }
-    // Zoek zwarte lijn van boven
+    // Boven: scan van boven naar midden, pak LAATSTE rij met piek
     let boven = 0;
-    for (let y = 0; y < h/3; y++) {
-      if (telZwartInRij(y, stap) >= drempel) { boven = y; break; }
-    }
-    // Zoek zwarte lijn van onder
-    let onder = h - 1;
-    for (let y = h-1; y > 2*h/3; y--) {
-      if (telZwartInRij(y, stap) >= drempel) { onder = y; break; }
+    for (let y = 0; y < h * 0.35; y++) {
+      if (telWisselingenRij(y) >= DREMPEL_RIJ) boven = y;
     }
 
-    // Stel in net binnen de zwarte lijn (+3px marge)
-    const marge = 3;
+    // Onder: scan van onder naar midden, pak EERSTE rij met piek
+    let onder = h - 1;
+    for (let y = h - 1; y > h * 0.65; y--) {
+      if (telWisselingenRij(y) >= DREMPEL_RIJ) { onder = y; break; }
+    }
+
+    // Links: scan van links naar midden, pak LAATSTE kolom met piek
+    let links = 0;
+    for (let x = 0; x < w * 0.35; x++) {
+      if (telWisselingenKol(x) >= DREMPEL_KOL) links = x;
+    }
+
+    // Rechts: scan van rechts naar midden, pak EERSTE kolom met piek
+    let rechts = w - 1;
+    for (let x = w - 1; x > w * 0.65; x--) {
+      if (telWisselingenKol(x) >= DREMPEL_KOL) { rechts = x; break; }
+    }
+
+    const marge = 2;
     document.getElementById('trim-boven').value  = Math.max(0, boven + marge);
     document.getElementById('trim-onder').value  = Math.max(0, h - onder + marge);
     document.getElementById('trim-links').value  = Math.max(0, links + marge);
     document.getElementById('trim-rechts').value = Math.max(0, w - rechts + marge);
     pasTrimToe();
     statusEl.style.color = 'var(--teal)';
-    statusEl.textContent = `✂ Neatline gevonden — bijgesneden binnen zwarte rand`;
+    statusEl.textContent = `✂ Geblokte rand gevonden — kaartinhoud bijgesneden`;
   };
   img.src = _origKaartDataUrl;
 }
