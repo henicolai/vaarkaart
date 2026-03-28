@@ -3602,29 +3602,37 @@ function cropMove(e, canvas) {
   ctx.setLineDash([10, 5]);
   ctx.strokeRect(x, y, w, h);
 
-  _cropRect = { x, y, w, h };
+  // Sla continu op — ook vóór mouseup
+  if (w > 5 && h > 5) _cropRect = { x, y, w, h };
 
   const origW = window._geoTiffOrigW || canvas.width;
   const origH = window._geoTiffOrigH || canvas.height;
   const schaalX = origW / canvas.width;
   const schaalY = origH / canvas.height;
   document.getElementById('crop-info').textContent =
-    `Selectie: ${Math.round(w*schaalX)}×${Math.round(h*schaalY)}px origineel`;
+    `Selectie: ${Math.round(w*schaalX)}×${Math.round(h*schaalY)}px — laat los en klik Toepassen`;
 }
 
 function cropDraw(e, canvas) {
   if (!_cropStart) return;
-  const pos = getCanvasPos(e, canvas);
+  // Gebruik laatste bekende positie of huidige positie
+  let pos;
+  try { pos = getCanvasPos(e, canvas); } catch(err) { return; }
   const x = Math.min(_cropStart.x, pos.x);
   const y = Math.min(_cropStart.y, pos.y);
   const w = Math.abs(pos.x - _cropStart.x);
   const h = Math.abs(pos.y - _cropStart.y);
-  if (w > 10 && h > 10) _cropRect = { x, y, w, h };
+  if (w > 5 && h > 5) {
+    _cropRect = { x, y, w, h };
+    document.getElementById('crop-info').textContent =
+      `✓ Selectie klaar — klik Toepassen`;
+  }
+  _cropStart = null;
 }
 
 function bevestigCrop() {
-  if (!_cropRect || _cropRect.w < 10 || _cropRect.h < 10) {
-    notify('Teken eerst een selectie');
+  if (!_cropRect || _cropRect.w < 5 || _cropRect.h < 5) {
+    notify('Teken eerst een selectie op de kaart');
     return;
   }
   const { x, y, w, h } = _cropRect;
@@ -3637,9 +3645,9 @@ function bevestigCrop() {
   const schaalX = origW / imgW;
   const schaalY = origH / imgH;
 
-  document.getElementById('trim-boven').value  = Math.round(y           * schaalY);
+  document.getElementById('trim-boven').value  = Math.round(y          * schaalY);
   document.getElementById('trim-onder').value  = Math.round((imgH-y-h) * schaalY);
-  document.getElementById('trim-links').value  = Math.round(x           * schaalX);
+  document.getElementById('trim-links').value  = Math.round(x          * schaalX);
   document.getElementById('trim-rechts').value = Math.round((imgW-x-w) * schaalX);
 
   sluitCropOverlay();
