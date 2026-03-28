@@ -3536,20 +3536,20 @@ function autoTrimKaart() {
     for (let y = 0; y < h*0.35; y++)
       if (zwartFractieRij(y) >= DREMPEL) boven = y;
 
-    // Onder: eerste rij in onderste 35% met >70% zwart (van onder)
+    // Onder: laatste rij in onderste 35% met >70% zwart (scan van midden naar onder)
     let onder = h-1;
-    for (let y = h-1; y > h*0.65; y--)
-      if (zwartFractieRij(y) >= DREMPEL) { onder = y; break; }
+    for (let y = Math.floor(h*0.65); y < h; y++)
+      if (zwartFractieRij(y) >= DREMPEL) onder = y;
 
     // Links: laatste kolom in linker 35% met >70% zwart
     let links = 0;
     for (let x = 0; x < w*0.35; x++)
       if (zwartFractieKol(x) >= DREMPEL) links = x;
 
-    // Rechts: eerste kolom in rechter 35% met >70% zwart (van rechts)
+    // Rechts: laatste kolom in rechter 35% met >70% zwart (scan van midden naar rechts)
     let rechts = w-1;
-    for (let x = w-1; x > w*0.65; x--)
-      if (zwartFractieKol(x) >= DREMPEL) { rechts = x; break; }
+    for (let x = Math.floor(w*0.65); x < w; x++)
+      if (zwartFractieKol(x) >= DREMPEL) rechts = x;
 
     document.getElementById('trim-boven').value  = boven + 1;
     document.getElementById('trim-onder').value  = h - onder;
