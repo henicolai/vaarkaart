@@ -955,10 +955,26 @@
 
       <!-- Randen bijsnijden (handmatig) -->
       <div id="kaart-trim-sectie" style="display:none;margin-bottom:8px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-          <div style="font-size:11px;color:var(--muted);">Randen bijsnijden</div>
-          <button onclick="autoTrimKaart()" class="btn-sm" style="color:var(--teal);border-color:rgba(0,200,200,0.3);">✂ Auto</button>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+          <div style="font-size:11px;color:var(--muted);">Bijsnijden</div>
+          <div style="display:flex;gap:4px;">
+            <button onclick="autoTrimKaart()" class="btn-sm" style="color:var(--teal);border-color:rgba(0,200,200,0.3);">✂ Auto</button>
+            <button onclick="startCropModus()" id="btn-crop" class="btn-sm" style="color:var(--amber);border-color:rgba(245,166,35,0.3);">✏ Teken</button>
+            <button onclick="resetTrim()" class="btn-sm" style="color:var(--muted);">↺</button>
+          </div>
         </div>
+
+        <!-- Crop preview canvas -->
+        <div id="crop-preview-wrap" style="display:none;position:relative;margin-bottom:8px;border:1px solid var(--border);border-radius:6px;overflow:hidden;cursor:crosshair;">
+          <canvas id="crop-canvas" style="display:block;width:100%;"></canvas>
+          <div id="crop-hint" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+            font-size:12px;color:rgba(255,255,255,0.7);text-align:center;pointer-events:none;
+            background:rgba(0,0,0,0.5);padding:6px 10px;border-radius:6px;">
+            Sleep een rechthoek om het kaartgebied te selecteren
+          </div>
+        </div>
+
+        <!-- Handmatige pixels -->
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">
           <div style="font-size:10px;color:var(--muted);">Boven</div>
           <div style="font-size:10px;color:var(--muted);">Onder</div>
@@ -3232,11 +3248,91 @@ function wisGpx() {
 
 // ── GEOTIFF VERWERKING ────────────────────────────────────
 async function verwerkGeoTIFF(file, statusEl) {
-  statusEl.textContent = '⏳ GeoTIFF lezen…';
+  statusEl.textContent = '⏳ GeoTIFF openen…';
   try {
-    const arrayBuffer = await file.arrayBuffer();
-    const tiff = await GeoTIFF.fromArrayBuffer(arrayBuffer);
+    // Gebruik fromBlob voor lazy loading — laadt het bestand NIET volledig in geheugen
+    const tiff = await GeoTIFF.fromBlob(file);
     const image = await tiff.getImage();
+
+    const width  = image.getWidth();
+    const height = image.getHeight();
+    statusEl.textContent = `⏳ GeoTIFF ${width}×${height}px — georeferentie uitlezen…`;
+
+    // Lees georeferentie
+    const bbox = geoTIFFBerekenBounds(image);
+    if (!bbox) {
+      statusEl.style.color = 'var(--amber)';
+      statusEl.textContent = '⚠ Geen georeferentie — vul coördinaten handmatig in';
+      document.getElementById('coord-sectie').style.display = 'block';
+    } else {
+      document.getElementById('coord-nw-lat').value = bbox.nwLat.toFixed(6);
+      document.getElementById('coord-nw-lon').value = bbox.nwLon.toFixed(6);
+      document.getElementById('coord-zo-lat').value = bbox.zoLat.toFixed(6);
+      document.getElementById('coord-zo-lon').value = bbox.zoLon.toFixed(6);
+      document.getElementById('coord-sectie').style.display = 'block';
+      statusEl.style.color = 'var(--teal)';
+      statusEl.textContent = `✓ Georeferentie gelezen — renderen…`;
+    }
+
+    // Bewaar originele afmetingen
+    window._geoTiffOrigW = width;
+    window._geoTiffOrigH = height;
+
+    // Doelgrootte: max 3000px aan langste zijde
+    const MAX_DIM = 3000;
+    const schaal  = Math.min(1, MAX_DIM / Math.max(width, height));
+    const renderW = Math.floor(width  * schaal);
+    const renderH = Math.floor(height * schaal);
+    window._geoTiffSchaalX = renderW / width;
+    window._geoTiffSchaalY = renderH / height;
+
+    statusEl.textContent = `⏳ ${width}×${height} → ${renderW}×${renderH}px in stroken…`;
+
+    const canvas = document.createElement('canvas');
+    canvas.width  = renderW;
+    canvas.height = renderH;
+    const ctx = canvas.getContext('2d');
+
+    // Render in stroken van 200px hoog in de doelafbeelding
+    const STROOK = 200;
+    for (let dy = 0; dy < renderH; dy += STROOK) {
+      const dh  = Math.min(STROOK, renderH - dy);
+      const sy0 = Math.round(dy      / renderH * height);
+      const sy1 = Math.round((dy+dh) / renderH * height);
+      if (sy1 <= sy0) continue;
+
+      statusEl.textContent = `⏳ ${Math.round(dy/renderH*100)}%…`;
+
+      const strook = await image.readRGB({
+        interleave: true,
+        width:  renderW,
+        height: dh,
+        window: [0, sy0, width, sy1]
+      });
+
+      const imgData = ctx.createImageData(renderW, dh);
+      for (let i = 0; i < renderW * dh; i++) {
+        imgData.data[i*4]   = strook[i*3];
+        imgData.data[i*4+1] = strook[i*3+1];
+        imgData.data[i*4+2] = strook[i*3+2];
+        imgData.data[i*4+3] = 255;
+      }
+      ctx.putImageData(imgData, 0, dy);
+    }
+
+    eigenKaartDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+    _origKaartBreedte = renderW;
+    _origKaartHoogte  = renderH;
+
+    klaarMetBestand(file.name, statusEl);
+    if (bbox) statusEl.textContent = `✓ GeoTIFF geladen — georeferentie automatisch ingesteld`;
+
+  } catch(err) {
+    statusEl.style.color = 'var(--danger)';
+    statusEl.textContent = '⚠ GeoTIFF fout: ' + err.message;
+    console.error('GeoTIFF fout:', err.name, err.message);
+  }
+}
 
     const width  = image.getWidth();
     const height = image.getHeight();
@@ -3258,101 +3354,6 @@ async function verwerkGeoTIFF(file, statusEl) {
       statusEl.textContent = `✓ Georeferentie gelezen — afbeelding renderen…`;
     }
 
-    // Render via blob URL — vermijdt invalid array length
-    statusEl.textContent = `⏳ ${width}×${height}px laden…`;
-
-    // Bewaar originele afmetingen voor trim/coördinaten
-    window._geoTiffSchaalX = 1;
-    window._geoTiffSchaalY = 1;
-    window._geoTiffOrigW   = width;
-    window._geoTiffOrigH   = height;
-
-    // Methode: lees ruwe data in kleine blokken via canvas
-    // Max doelformaat 4000px breed of hoog
-    const MAX_DIM = 4000;
-    const schaal = Math.min(1, MAX_DIM / Math.max(width, height));
-    const renderW = Math.floor(width  * schaal);
-    const renderH = Math.floor(height * schaal);
-
-    window._geoTiffSchaalX = renderW / width;
-    window._geoTiffSchaalY = renderH / height;
-
-    statusEl.textContent = `⏳ ${width}×${height}px → ${renderW}×${renderH}px in stroken…`;
-
-    const canvas = document.createElement('canvas');
-    canvas.width  = renderW;
-    canvas.height = renderH;
-    const ctx = canvas.getContext('2d');
-
-    // Stroken van max 256px hoog in de DOELAFBEELDING
-    const STROOK = 256;
-    for (let dy = 0; dy < renderH; dy += STROOK) {
-      const dh = Math.min(STROOK, renderH - dy);
-      // Bronvenster in originele pixels
-      const sy0 = Math.round(dy      / renderH * height);
-      const sy1 = Math.round((dy+dh) / renderH * height);
-      const sh  = sy1 - sy0;
-      if (sh <= 0) continue;
-
-      statusEl.textContent = `⏳ ${Math.round(dy/renderH*100)}%…`;
-
-      try {
-        // Lees alleen deze strook — klein genoeg voor geheugen
-        const strook = await image.readRGB({
-          interleave: true,
-          width:  renderW,
-          height: dh,
-          window: [0, sy0, width, sy1]
-        });
-
-        const imgData = ctx.createImageData(renderW, dh);
-        for (let i = 0; i < renderW * dh; i++) {
-          imgData.data[i*4]   = strook[i*3];
-          imgData.data[i*4+1] = strook[i*3+1];
-          imgData.data[i*4+2] = strook[i*3+2];
-          imgData.data[i*4+3] = 255;
-        }
-        ctx.putImageData(imgData, 0, dy);
-      } catch(strookErr) {
-        // Strook mislukt — probeer als fallback de hele afbeelding kleiner
-        statusEl.textContent = `⏳ Strook mislukt, fallback…`;
-        const klein = Math.floor(Math.sqrt(8000000 / (width * height) ) * renderW);
-        const kleinH = Math.floor(klein * renderH / renderW);
-        const rasters = await image.readRGB({ interleave: true, width: klein, height: kleinH });
-        const c2 = document.createElement('canvas');
-        c2.width = klein; c2.height = kleinH;
-        const c2ctx = c2.getContext('2d');
-        const id2 = c2ctx.createImageData(klein, kleinH);
-        for (let i = 0; i < klein * kleinH; i++) {
-          id2.data[i*4]   = rasters[i*3];
-          id2.data[i*4+1] = rasters[i*3+1];
-          id2.data[i*4+2] = rasters[i*3+2];
-          id2.data[i*4+3] = 255;
-        }
-        c2ctx.putImageData(id2, 0, 0);
-        ctx.drawImage(c2, 0, 0, canvas.width, canvas.height);
-        window._geoTiffSchaalX = klein  / width;
-        window._geoTiffSchaalY = kleinH / height;
-        break;
-      }
-    }
-
-    eigenKaartDataUrl = canvas.toDataURL('image/jpeg', 0.85);
-    _origKaartBreedte = renderW;
-    _origKaartHoogte  = renderH;
-
-    klaarMetBestand(file.name, statusEl);
-    if (bbox) statusEl.textContent = `✓ GeoTIFF geladen — georeferentie automatisch ingesteld`;
-
-  } catch(err) {
-    statusEl.style.color = 'var(--danger)';
-    statusEl.textContent = '⚠ GeoTIFF fout: ' + err.message;
-    console.error('GeoTIFF fout details:', err.name, err.message, err.stack);
-    // Toon meer info in de hint
-    const hint = document.getElementById('trim-hint');
-    if (hint) { hint.style.display='block'; hint.style.color='var(--danger)'; hint.textContent = err.name + ': ' + err.message; }
-  }
-}
 
 function geoTIFFBerekenBounds(image) {
   try {
@@ -3526,6 +3527,141 @@ function verwerkKaartBestand(file) {
 function readU32(b,o){ return (b[o]|(b[o+1]<<8)|(b[o+2]<<16)|(b[o+3]<<24))>>>0; }
 function readI32(b,o){ return readU32(b,o)|0; }
 function readU16(b,o){ return b[o]|(b[o+1]<<8); }
+
+// ── INTERACTIEVE CROP ─────────────────────────────────────
+let _cropModus = false;
+let _cropStart = null;
+let _cropRect  = null;
+
+function startCropModus() {
+  if (!_origKaartDataUrl) return;
+  _cropModus = true;
+  _cropStart = null;
+  _cropRect  = null;
+
+  const wrap = document.getElementById('crop-preview-wrap');
+  const canvas = document.getElementById('crop-canvas');
+  wrap.style.display = 'block';
+  document.getElementById('crop-hint').style.display = 'block';
+  document.getElementById('btn-crop').style.background = 'rgba(245,166,35,0.2)';
+
+  // Teken de huidige afbeelding op de canvas
+  const img = new window.Image();
+  img.onload = () => {
+    // Pas canvas hoogte aan op aspect ratio, breedte = container breedte
+    const containerW = wrap.offsetWidth || 220;
+    const aspect = img.height / img.width;
+    canvas.width  = img.width;
+    canvas.height = img.height;
+    canvas.style.width  = '100%';
+    canvas.style.height = Math.round(containerW * aspect) + 'px';
+
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+
+    // Touch / mouse events
+    canvas.onmousedown  = (e) => cropStart(e, canvas);
+    canvas.onmousemove  = (e) => cropMove(e, canvas, img);
+    canvas.onmouseup    = (e) => cropEnd(e, canvas, img);
+    canvas.ontouchstart = (e) => { e.preventDefault(); cropStart(e.touches[0], canvas); };
+    canvas.ontouchmove  = (e) => { e.preventDefault(); cropMove(e.touches[0], canvas, img); };
+    canvas.ontouchend   = (e) => { e.preventDefault(); cropEnd(e.changedTouches[0], canvas, img); };
+  };
+  img.src = _origKaartDataUrl;
+}
+
+function getCanvasPos(e, canvas) {
+  const r = canvas.getBoundingClientRect();
+  const scaleX = canvas.width  / r.width;
+  const scaleY = canvas.height / r.height;
+  return {
+    x: Math.round((e.clientX - r.left) * scaleX),
+    y: Math.round((e.clientY - r.top)  * scaleY)
+  };
+}
+
+function cropStart(e, canvas) {
+  _cropStart = getCanvasPos(e, canvas);
+  _cropRect  = null;
+  document.getElementById('crop-hint').style.display = 'none';
+}
+
+function cropMove(e, canvas, img) {
+  if (!_cropStart) return;
+  const pos = getCanvasPos(e, canvas);
+  const ctx = canvas.getContext('2d');
+
+  // Herteken originele afbeelding
+  ctx.drawImage(img, 0, 0);
+
+  // Teken selectierechthoek
+  const x = Math.min(_cropStart.x, pos.x);
+  const y = Math.min(_cropStart.y, pos.y);
+  const w = Math.abs(pos.x - _cropStart.x);
+  const h = Math.abs(pos.y - _cropStart.y);
+
+  // Donker masker buiten selectie
+  ctx.fillStyle = 'rgba(0,0,0,0.45)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Helder gebied
+  ctx.drawImage(img, x, y, w, h, x, y, w, h);
+
+  // Rand
+  ctx.strokeStyle = '#f5a623';
+  ctx.lineWidth   = 3;
+  ctx.setLineDash([8, 4]);
+  ctx.strokeRect(x, y, w, h);
+
+  _cropRect = { x, y, w, h };
+}
+
+function cropEnd(e, canvas, img) {
+  if (!_cropStart || !_cropRect || _cropRect.w < 10 || _cropRect.h < 10) {
+    _cropStart = null;
+    return;
+  }
+
+  const { x, y, w, h } = _cropRect;
+  const imgW = canvas.width;
+  const imgH = canvas.height;
+
+  // Zet canvas pixels om naar originele pixels
+  const origW = window._geoTiffOrigW || imgW;
+  const origH = window._geoTiffOrigH || imgH;
+  const schaalX = origW / imgW;
+  const schaalY = origH / imgH;
+
+  const origBoven  = Math.round(y       * schaalY);
+  const origLinks  = Math.round(x       * schaalX);
+  const origOnder  = Math.round((imgH - y - h) * schaalY);
+  const origRechts = Math.round((imgW - x - w) * schaalX);
+
+  document.getElementById('trim-boven').value  = origBoven;
+  document.getElementById('trim-onder').value  = origOnder;
+  document.getElementById('trim-links').value  = origLinks;
+  document.getElementById('trim-rechts').value = origRechts;
+
+  _cropStart = null;
+  _cropModus = false;
+  document.getElementById('btn-crop').style.background = '';
+  document.getElementById('crop-preview-wrap').style.display = 'none';
+
+  pasTrimToe();
+  notify('✂ Crop toegepast');
+}
+
+function resetTrim() {
+  document.getElementById('trim-boven').value  = 0;
+  document.getElementById('trim-onder').value  = 0;
+  document.getElementById('trim-links').value  = 0;
+  document.getElementById('trim-rechts').value = 0;
+  document.getElementById('crop-preview-wrap').style.display = 'none';
+  document.getElementById('btn-crop').style.background = '';
+  _cropModus = false;
+  eigenKaartDataUrl = _origKaartDataUrl;
+  notify('Bijsnijden gereset');
+}
 
 // ── KAART BIJSNIJDEN ──────────────────────────────────────
 let _origKaartDataUrl = null; // originele niet-bijgesneden versie
