@@ -3248,113 +3248,86 @@ function wisGpx() {
 
 // ── GEOTIFF VERWERKING ────────────────────────────────────
 async function verwerkGeoTIFF(file, statusEl) {
-  statusEl.textContent = '⏳ GeoTIFF openen…';
+  statusEl.textContent = '⏳ GeoTIFF lezen…';
+
+  // Geef UI tijd om bij te werken
+  await new Promise(r => setTimeout(r, 50));
+
   try {
-    // Gebruik fromBlob voor lazy loading — laadt het bestand NIET volledig in geheugen
-    const tiff = await GeoTIFF.fromBlob(file);
+    statusEl.textContent = `⏳ Bestand laden (${(file.size/1024/1024).toFixed(0)}MB)…`;
+    await new Promise(r => setTimeout(r, 50));
+
+    const arrayBuffer = await file.arrayBuffer();
+
+    statusEl.textContent = '⏳ GeoTIFF parsen…';
+    await new Promise(r => setTimeout(r, 50));
+
+    const tiff  = await GeoTIFF.fromArrayBuffer(arrayBuffer);
     const image = await tiff.getImage();
 
     const width  = image.getWidth();
     const height = image.getHeight();
-    statusEl.textContent = `⏳ GeoTIFF ${width}×${height}px — georeferentie uitlezen…`;
+    statusEl.textContent = `⏳ ${width}×${height}px — georeferentie…`;
+    await new Promise(r => setTimeout(r, 50));
 
-    // Lees georeferentie
+    // Georeferentie uitlezen
     const bbox = geoTIFFBerekenBounds(image);
     if (!bbox) {
       statusEl.style.color = 'var(--amber)';
       statusEl.textContent = '⚠ Geen georeferentie — vul coördinaten handmatig in';
-      document.getElementById('coord-sectie').style.display = 'block';
     } else {
       document.getElementById('coord-nw-lat').value = bbox.nwLat.toFixed(6);
       document.getElementById('coord-nw-lon').value = bbox.nwLon.toFixed(6);
       document.getElementById('coord-zo-lat').value = bbox.zoLat.toFixed(6);
       document.getElementById('coord-zo-lon').value = bbox.zoLon.toFixed(6);
-      document.getElementById('coord-sectie').style.display = 'block';
-      statusEl.style.color = 'var(--teal)';
-      statusEl.textContent = `✓ Georeferentie gelezen — renderen…`;
     }
+    document.getElementById('coord-sectie').style.display = 'block';
 
     // Bewaar originele afmetingen
     window._geoTiffOrigW = width;
     window._geoTiffOrigH = height;
 
-    // Doelgrootte: max 3000px aan langste zijde
-    const MAX_DIM = 3000;
+    // Schaal naar max 2500px (klein genoeg voor alle browsers)
+    const MAX_DIM = 2500;
     const schaal  = Math.min(1, MAX_DIM / Math.max(width, height));
     const renderW = Math.floor(width  * schaal);
     const renderH = Math.floor(height * schaal);
     window._geoTiffSchaalX = renderW / width;
     window._geoTiffSchaalY = renderH / height;
 
-    statusEl.textContent = `⏳ ${width}×${height} → ${renderW}×${renderH}px in stroken…`;
+    statusEl.textContent = `⏳ Renderen ${renderW}×${renderH}px…`;
+
+    // Lees alles in één keer op de verkleinde maat
+    const rasters = await image.readRGB({
+      interleave: true,
+      width:  renderW,
+      height: renderH
+    });
 
     const canvas = document.createElement('canvas');
     canvas.width  = renderW;
     canvas.height = renderH;
-    const ctx = canvas.getContext('2d');
+    const ctx     = canvas.getContext('2d');
+    const imgData = ctx.createImageData(renderW, renderH);
 
-    // Render in stroken van 200px hoog in de doelafbeelding
-    const STROOK = 200;
-    for (let dy = 0; dy < renderH; dy += STROOK) {
-      const dh  = Math.min(STROOK, renderH - dy);
-      const sy0 = Math.round(dy      / renderH * height);
-      const sy1 = Math.round((dy+dh) / renderH * height);
-      if (sy1 <= sy0) continue;
-
-      statusEl.textContent = `⏳ ${Math.round(dy/renderH*100)}%…`;
-
-      const strook = await image.readRGB({
-        interleave: true,
-        width:  renderW,
-        height: dh,
-        window: [0, sy0, width, sy1]
-      });
-
-      const imgData = ctx.createImageData(renderW, dh);
-      for (let i = 0; i < renderW * dh; i++) {
-        imgData.data[i*4]   = strook[i*3];
-        imgData.data[i*4+1] = strook[i*3+1];
-        imgData.data[i*4+2] = strook[i*3+2];
-        imgData.data[i*4+3] = 255;
-      }
-      ctx.putImageData(imgData, 0, dy);
+    const n = renderW * renderH;
+    for (let i = 0; i < n; i++) {
+      const j = i * 4, k = i * 3;
+      imgData.data[j]   = rasters[k];
+      imgData.data[j+1] = rasters[k+1];
+      imgData.data[j+2] = rasters[k+2];
+      imgData.data[j+3] = 255;
     }
-
+    ctx.putImageData(imgData, 0, 0);
     eigenKaartDataUrl = canvas.toDataURL('image/jpeg', 0.85);
     _origKaartBreedte = renderW;
     _origKaartHoogte  = renderH;
 
     klaarMetBestand(file.name, statusEl);
-    if (bbox) statusEl.textContent = `✓ GeoTIFF geladen — georeferentie automatisch ingesteld`;
+    if (bbox) statusEl.textContent = `✓ GeoTIFF geladen — georeferentie ingesteld`;
 
-  } catch(err) {
-    statusEl.style.color = 'var(--danger)';
-    statusEl.textContent = '⚠ GeoTIFF fout: ' + err.message;
-    console.error('GeoTIFF fout:', err.name, err.message);
-  }
+  } catch(err) { statusEl.style.color="var(--danger)"; statusEl.textContent="⚠ "+err.message; console.error(err); }
 }
-
-    const width  = image.getWidth();
-    const height = image.getHeight();
-    statusEl.textContent = `⏳ GeoTIFF ${width}×${height}px — georeferentie uitlezen…`;
-
-    // Lees georeferentie
-    const bbox = geoTIFFBerekenBounds(image);
-    if (!bbox) {
-      statusEl.style.color = 'var(--amber)';
-      statusEl.textContent = '⚠ Geen georeferentie in GeoTIFF — vul coördinaten handmatig in';
-      document.getElementById('coord-sectie').style.display = 'block';
-    } else {
-      document.getElementById('coord-nw-lat').value = bbox.nwLat.toFixed(6);
-      document.getElementById('coord-nw-lon').value = bbox.nwLon.toFixed(6);
-      document.getElementById('coord-zo-lat').value = bbox.zoLat.toFixed(6);
-      document.getElementById('coord-zo-lon').value = bbox.zoLon.toFixed(6);
-      document.getElementById('coord-sectie').style.display = 'block';
-      statusEl.style.color = 'var(--teal)';
-      statusEl.textContent = `✓ Georeferentie gelezen — afbeelding renderen…`;
-    }
-
-
 function geoTIFFBerekenBounds(image) {
   try {
     const fd = image.fileDirectory;
