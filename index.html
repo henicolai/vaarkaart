@@ -3700,6 +3700,7 @@ function resetTrim() {
 
 // ── KAART BIJSNIJDEN ──────────────────────────────────────
 let _origKaartDataUrl = null; // originele niet-bijgesneden versie
+let _origCoords = null;       // originele coördinaten vóór trim
 let _origKaartBreedte = 0;
 let _origKaartHoogte  = 0;
 
@@ -3713,6 +3714,8 @@ function klaarMetBestand(naam, statusEl) {
 
   // Bewaar origineel voor trim
   _origKaartDataUrl = eigenKaartDataUrl;
+  _origCoords = null; // reset zodat pasTrimToe verse coördinaten pakt
+  _origCoords = null; // reset — gebruiker vult nieuwe coördinaten in
 
   // Meet afmetingen
   const img = new window.Image();
@@ -3815,7 +3818,6 @@ function autoTrimKaart() {
 
 function pasTrimToe() {
   if (!_origKaartDataUrl || !_origKaartBreedte) return;
-  // Trimwaarden zijn in ORIGINELE GeoTIFF pixels
   const origBoven  = parseInt(document.getElementById('trim-boven').value)  || 0;
   const origOnder  = parseInt(document.getElementById('trim-onder').value)  || 0;
   const origLinks  = parseInt(document.getElementById('trim-links').value)  || 0;
@@ -3826,23 +3828,28 @@ function pasTrimToe() {
     return;
   }
 
+  // Sla huidige coördinaten op als origineel VOOR trim (alleen eerste keer)
+  if (!_origCoords) {
+    _origCoords = {
+      nwLat: parseFloat(document.getElementById('coord-nw-lat').value),
+      nwLon: parseFloat(document.getElementById('coord-nw-lon').value),
+      zoLat: parseFloat(document.getElementById('coord-zo-lat').value),
+      zoLon: parseFloat(document.getElementById('coord-zo-lon').value),
+    };
+  }
+
   const img = new window.Image();
   img.onload = () => {
-    const srcW = img.width;   // verkleinde breedte
-    const srcH = img.height;  // verkleinde hoogte
-
-    // Schaalfactor verkleind vs origineel
+    const srcW = img.width;
+    const srcH = img.height;
     const origW = window._geoTiffOrigW || srcW;
     const origH = window._geoTiffOrigH || srcH;
     const schaalX = srcW / origW;
     const schaalY = srcH / origH;
-
-    // Trim in verkleinde pixels voor bijsnijden
     const boven  = Math.round(origBoven  * schaalY);
     const onder  = Math.round(origOnder  * schaalY);
     const links  = Math.round(origLinks  * schaalX);
     const rechts = Math.round(origRechts * schaalX);
-
     const newW = srcW - links - rechts;
     const newH = srcH - boven - onder;
     if (newW <= 0 || newH <= 0) return;
@@ -3851,21 +3858,16 @@ function pasTrimToe() {
     canvas.width = newW; canvas.height = newH;
     const ctx = canvas.getContext('2d');
     ctx.drawImage(img, links, boven, newW, newH, 0, 0, newW, newH);
-    eigenKaartDataUrl = canvas.toDataURL('image/png');
+    eigenKaartDataUrl = canvas.toDataURL('image/jpeg', 0.88);
 
-    // Coördinaten corrigeren op basis van ORIGINELE pixels
-    const nwLat = parseFloat(document.getElementById('coord-nw-lat').value);
-    const nwLon = parseFloat(document.getElementById('coord-nw-lon').value);
-    const zoLat = parseFloat(document.getElementById('coord-zo-lat').value);
-    const zoLon = parseFloat(document.getElementById('coord-zo-lon').value);
-
-    if (!isNaN(nwLat) && !isNaN(nwLon) && !isNaN(zoLat) && !isNaN(zoLon)) {
-      const grPerPixelLat = (nwLat - zoLat) / origH;
-      const grPerPixelLon = (zoLon - nwLon) / origW;
-      document.getElementById('coord-nw-lat').value = (nwLat - origBoven  * grPerPixelLat).toFixed(6);
-      document.getElementById('coord-nw-lon').value = (nwLon + origLinks  * grPerPixelLon).toFixed(6);
-      document.getElementById('coord-zo-lat').value = (zoLat + origOnder  * grPerPixelLat).toFixed(6);
-      document.getElementById('coord-zo-lon').value = (zoLon - origRechts * grPerPixelLon).toFixed(6);
+    const coords = _origCoords;
+    if (coords && !isNaN(coords.nwLat) && !isNaN(coords.nwLon) && !isNaN(coords.zoLat) && !isNaN(coords.zoLon)) {
+      const grLat = (coords.nwLat - coords.zoLat) / origH;
+      const grLon = (coords.zoLon - coords.nwLon) / origW;
+      document.getElementById('coord-nw-lat').value = (coords.nwLat - origBoven  * grLat).toFixed(6);
+      document.getElementById('coord-nw-lon').value = (coords.nwLon + origLinks  * grLon).toFixed(6);
+      document.getElementById('coord-zo-lat').value = (coords.zoLat + origOnder  * grLat).toFixed(6);
+      document.getElementById('coord-zo-lon').value = (coords.zoLon - origRechts * grLon).toFixed(6);
     }
   };
   img.src = _origKaartDataUrl;
@@ -4012,6 +4014,9 @@ function laadEigenKaart() {
   if (!eigenKaartDataUrl) { statusEl.style.color='var(--amber)'; statusEl.textContent='⚠ Kaartafbeelding ontbreekt — GeoTIFF rendering mislukt?'; return; }
   if (isNaN(nwLat)||isNaN(nwLon)||isNaN(zoLat)||isNaN(zoLon)) { statusEl.style.color='var(--amber)'; statusEl.textContent='⚠ Vul alle 4 coördinaten in'; return; }
   if (nwLat===zoLat||nwLon===zoLon) { statusEl.style.color='var(--amber)'; statusEl.textContent='⚠ NW en ZO coördinaten zijn gelijk'; return; }
+
+  // Bewaar originele coördinaten voor trim correctie
+  _origCoords = { nwLat, nwLon, zoLat, zoLon };
 
   // Leaflet bounds: [[zuidLat, westLon], [noordLat, oostLon]]
   const zuidLat = Math.min(nwLat, zoLat);
