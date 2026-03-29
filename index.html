@@ -1098,17 +1098,17 @@
           <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Wantij / drempel</div>
           <select id="wp-wantij" style="width:100%;padding:6px 8px;background:#1a2a3a;
             border:1px solid var(--border);border-radius:5px;color:var(--white);font-size:13px;
-            -webkit-appearance:none;appearance:none;">
-            <option value="HARVT:1.40">Wantij Harlingen (1.40m bij LW)</option>
-            <option value="HARVT:1.60">Blauwe Slenk / Texelstroom (1.60m)</option>
-            <option value="HARVT:1.80">Vliestroom (1.80m)</option>
-            <option value="WESTTSLG:1.20">Stortemelk (1.20m)</option>
-            <option value="WESTTSLG:1.40">Zeegat Terschelling (1.40m)</option>
-            <option value="LAUWOG:1.50">Zeegat Ameland (1.50m)</option>
-            <option value="LAUWOG:1.80">Westgat Schiermonnikoog (1.80m)</option>
-            <option value="DELFZL:2.00">Zeegat Rottumeroog (2.00m)</option>
-            <option value="KORNWDZBTN:1.50">Kornwerderzand sluis (1.50m)</option>
-            <option value="DENHDR:2.00">Marsdiep / Den Helder (2.00m)</option>
+            -webkit-appearance:none;appearance:none;" onchange="zoomNaarWantij(this.value)">
+            <option value="HARVT:1.40:53.175:5.414">Wantij Harlingen (1.40m bij LW)</option>
+            <option value="HARVT:1.60:53.180:5.050">Blauwe Slenk / Texelstroom (1.60m)</option>
+            <option value="HARVT:1.80:53.300:5.100">Vliestroom (1.80m)</option>
+            <option value="WESTTSLG:1.20:53.320:5.350">Stortemelk (1.20m)</option>
+            <option value="WESTTSLG:1.40:53.380:5.220">Zeegat Terschelling (1.40m)</option>
+            <option value="LAUWOG:1.50:53.430:5.790">Zeegat Ameland (1.50m)</option>
+            <option value="LAUWOG:1.80:53.490:6.170">Westgat Schiermonnikoog (1.80m)</option>
+            <option value="DELFZL:2.00:53.540:6.580">Zeegat Rottumeroog (2.00m)</option>
+            <option value="KORNWDZBTN:1.50:53.077:5.338">Kornwerderzand sluis (1.50m)</option>
+            <option value="DENHDR:2.00:52.964:4.745">Marsdiep / Den Helder (2.00m)</option>
           </select>
         </div>
 
@@ -4239,7 +4239,24 @@ document.addEventListener('visibilitychange', async () => {
 });
 
 // ── WADPLANNER ────────────────────────────────────────────
-// Initialiseer datum op vandaag
+let _wantijMarker = null;
+
+function zoomNaarWantij(val) {
+  const parts = val.split(':');
+  if (parts.length < 4) return;
+  const lat = parseFloat(parts[2]);
+  const lon = parseFloat(parts[3]);
+  if (isNaN(lat) || isNaN(lon)) return;
+  map.setView([lat, lon], 11);
+
+  // Plaatst een tijdelijke marker
+  if (_wantijMarker) map.removeLayer(_wantijMarker);
+  _wantijMarker = L.circleMarker([lat, lon], {
+    radius: 10, color: '#00c8c8', fillColor: '#00c8c8',
+    fillOpacity: 0.3, weight: 2
+  }).bindTooltip(document.getElementById('wp-wantij').selectedOptions[0].text,
+    { permanent: false }).addTo(map);
+}
 document.addEventListener('DOMContentLoaded', () => {
   const datumEl = document.getElementById('wp-datum');
   if (datumEl) datumEl.value = new Date().toISOString().slice(0, 10);
@@ -4250,8 +4267,9 @@ async function berekenWadPlanner() {
   const marge    = parseFloat(document.getElementById('wp-marge').value) || 0.30;
   const benodigdDiepte = diepgang + marge;
   const wantijVal = document.getElementById('wp-wantij').value;
-  const [stationCode, drempelStr] = wantijVal.split(':');
-  const drempelDiepte = parseFloat(drempelStr);
+  const parts = wantijVal.split(':');
+  const stationCode = parts[0];
+  const drempelDiepte = parseFloat(parts[1]);
   const datum = document.getElementById('wp-datum').value;
 
   const resultEl = document.getElementById('wp-resultaat');
