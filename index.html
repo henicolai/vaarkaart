@@ -1096,8 +1096,9 @@
         <!-- Wantij kiezen -->
         <div style="margin-bottom:10px;">
           <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Wantij / drempel</div>
-          <select id="wp-wantij" style="width:100%;padding:6px 8px;background:rgba(255,255,255,0.07);
-            border:1px solid var(--border);border-radius:5px;color:var(--white);font-size:13px;">
+          <select id="wp-wantij" style="width:100%;padding:6px 8px;background:#1a2a3a;
+            border:1px solid var(--border);border-radius:5px;color:var(--white);font-size:13px;
+            -webkit-appearance:none;appearance:none;">
             <option value="HARVT:1.40">Wantij Harlingen (1.40m bij LW)</option>
             <option value="HARVT:1.60">Blauwe Slenk / Texelstroom (1.60m)</option>
             <option value="HARVT:1.80">Vliestroom (1.80m)</option>
@@ -3304,8 +3305,8 @@ async function verwerkGeoTIFF(file, statusEl) {
     window._geoTiffOrigW = width;
     window._geoTiffOrigH = height;
 
-    // Schaal naar max 2500px (klein genoeg voor alle browsers)
-    const MAX_DIM = 2500;
+    // Schaal naar max 1500px (klein genoeg voor alle browsers)
+    const MAX_DIM = 1500;
     const schaal  = Math.min(1, MAX_DIM / Math.max(width, height));
     const renderW = Math.floor(width  * schaal);
     const renderH = Math.floor(height * schaal);
