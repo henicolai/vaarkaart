@@ -3305,39 +3305,47 @@ async function verwerkGeoTIFF(file, statusEl) {
     window._geoTiffOrigW = width;
     window._geoTiffOrigH = height;
 
-    // Schaal naar max 1500px (klein genoeg voor alle browsers)
-    const MAX_DIM = 1500;
+    // Schaal naar max 4000px aan langste zijde
+    const MAX_DIM = 4000;
     const schaal  = Math.min(1, MAX_DIM / Math.max(width, height));
     const renderW = Math.floor(width  * schaal);
     const renderH = Math.floor(height * schaal);
     window._geoTiffSchaalX = renderW / width;
     window._geoTiffSchaalY = renderH / height;
 
-    statusEl.textContent = `⏳ Renderen ${renderW}×${renderH}px…`;
-
-    // Lees alles in één keer op de verkleinde maat
-    const rasters = await image.readRGB({
-      interleave: true,
-      width:  renderW,
-      height: renderH
-    });
+    statusEl.textContent = `⏳ Renderen ${renderW}×${renderH}px in stroken…`;
 
     const canvas = document.createElement('canvas');
     canvas.width  = renderW;
     canvas.height = renderH;
-    const ctx     = canvas.getContext('2d');
-    const imgData = ctx.createImageData(renderW, renderH);
+    const ctx = canvas.getContext('2d');
 
-    const n = renderW * renderH;
-    for (let i = 0; i < n; i++) {
-      const j = i * 4, k = i * 3;
-      imgData.data[j]   = rasters[k];
-      imgData.data[j+1] = rasters[k+1];
-      imgData.data[j+2] = rasters[k+2];
-      imgData.data[j+3] = 255;
+    // Render in stroken van 300px hoog — elke strook ~300×4000×3 = ~3.6MB
+    const STROOK = 300;
+    for (let dy = 0; dy < renderH; dy += STROOK) {
+      const dh  = Math.min(STROOK, renderH - dy);
+      const sy0 = Math.round(dy      / renderH * height);
+      const sy1 = Math.round((dy+dh) / renderH * height);
+      if (sy1 <= sy0) continue;
+      statusEl.textContent = `⏳ ${Math.round(dy/renderH*100)}%…`;
+      await new Promise(r => setTimeout(r, 0)); // geef UI tijd
+      const strook = await image.readRGB({
+        interleave: true,
+        width:  renderW,
+        height: dh,
+        window: [0, sy0, width, sy1]
+      });
+      const imgData = ctx.createImageData(renderW, dh);
+      for (let i = 0; i < renderW * dh; i++) {
+        imgData.data[i*4]   = strook[i*3];
+        imgData.data[i*4+1] = strook[i*3+1];
+        imgData.data[i*4+2] = strook[i*3+2];
+        imgData.data[i*4+3] = 255;
+      }
+      ctx.putImageData(imgData, 0, dy);
     }
-    ctx.putImageData(imgData, 0, 0);
-    eigenKaartDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+
+    eigenKaartDataUrl = canvas.toDataURL('image/jpeg', 0.88);
     _origKaartBreedte = renderW;
     _origKaartHoogte  = renderH;
 
