@@ -3722,11 +3722,11 @@ function klaarMetBestand(naam, statusEl) {
   img.onload = () => {
     _origKaartBreedte = img.width;
     _origKaartHoogte  = img.height;
-    // Reset trim velden
-    document.getElementById('trim-boven').value  = 0;
-    document.getElementById('trim-onder').value  = 0;
-    document.getElementById('trim-links').value  = 0;
-    document.getElementById('trim-rechts').value = 0;
+    // Reset trim velden ZONDER onchange te triggeren
+    ['trim-boven','trim-onder','trim-links','trim-rechts'].forEach(id => {
+      document.getElementById(id).value = 0;
+    });
+    _origCoords = null; // reset voor nieuwe kaart
     // Toon trim sectie
     document.getElementById('kaart-trim-sectie').style.display = 'block';
   };
@@ -3828,14 +3828,15 @@ function pasTrimToe() {
     return;
   }
 
-  // Sla huidige coördinaten op als origineel VOOR trim (alleen eerste keer)
-  if (!_origCoords) {
-    _origCoords = {
-      nwLat: parseFloat(document.getElementById('coord-nw-lat').value),
-      nwLon: parseFloat(document.getElementById('coord-nw-lon').value),
-      zoLat: parseFloat(document.getElementById('coord-zo-lat').value),
-      zoLon: parseFloat(document.getElementById('coord-zo-lon').value),
-    };
+  // Lees coördinaten op dit moment — als ze leeg zijn, niet doorgaan
+  const nwLat = parseFloat(document.getElementById('coord-nw-lat').value);
+  const nwLon = parseFloat(document.getElementById('coord-nw-lon').value);
+  const zoLat = parseFloat(document.getElementById('coord-zo-lat').value);
+  const zoLon = parseFloat(document.getElementById('coord-zo-lon').value);
+
+  // Sla op als origineel (alleen eerste keer of als nog niet opgeslagen)
+  if (!_origCoords && !isNaN(nwLat) && !isNaN(nwLon) && !isNaN(zoLat) && !isNaN(zoLon)) {
+    _origCoords = { nwLat, nwLon, zoLat, zoLon };
   }
 
   const img = new window.Image();
@@ -3860,8 +3861,9 @@ function pasTrimToe() {
     ctx.drawImage(img, links, boven, newW, newH, 0, 0, newW, newH);
     eigenKaartDataUrl = canvas.toDataURL('image/jpeg', 0.88);
 
+    // Alleen coördinaten aanpassen als we ze hebben
     const coords = _origCoords;
-    if (coords && !isNaN(coords.nwLat) && !isNaN(coords.nwLon) && !isNaN(coords.zoLat) && !isNaN(coords.zoLon)) {
+    if (coords && !isNaN(coords.nwLat)) {
       const grLat = (coords.nwLat - coords.zoLat) / origH;
       const grLon = (coords.zoLon - coords.nwLon) / origW;
       document.getElementById('coord-nw-lat').value = (coords.nwLat - origBoven  * grLat).toFixed(6);
