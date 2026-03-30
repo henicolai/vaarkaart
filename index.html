@@ -4028,9 +4028,23 @@ function vulCoordinaten(nwLat, nwLon, zoLat, zoLon, naam) {
   document.getElementById('coord-nw-lon').value = nwLon;
   document.getElementById('coord-zo-lat').value = zoLat;
   document.getElementById('coord-zo-lon').value = zoLon;
-  document.getElementById('kaart-status').textContent = `📋 Coördinaten van "${naam}" ingevuld — sleep de kaart en klik Laden`;
-  document.getElementById('kaart-status').style.color = 'var(--teal)';
-  notify(`Coördinaten van ${naam} ingevuld`);
+  document.getElementById('kaart-status').textContent = `📋 Coördinaten ingevuld — sleep nu "${naam}" op het veld ↑`;
+  document.getElementById('kaart-status').style.color = 'var(--amber)';
+
+  // Laat dropzone opvallen
+  const dz = document.getElementById('kaart-dropzone');
+  dz.style.borderColor = 'var(--amber)';
+  dz.style.background = 'rgba(245,166,35,0.08)';
+  dz.querySelector('div').textContent = `⬆ Sleep "${naam}" hier`;
+
+  // Reset dropzone na 10 seconden
+  setTimeout(() => {
+    dz.style.borderColor = '';
+    dz.style.background = 'rgba(0,200,200,0.04)';
+    dz.querySelector('div').textContent = '🗺';
+  }, 10000);
+
+  notify(`Coördinaten van ${naam} ingevuld — sleep nu de afbeelding`);
 }
 
 function herslaadKaart(id) {
