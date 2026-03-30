@@ -896,6 +896,32 @@
       </div>
     </div>
 
+    <!-- Bruggen & Sluizen -->
+    <div class="sidebar-section">
+      <div class="sidebar-title" onclick="toggleSectie('bruggen-inhoud', this)"
+        style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;">
+        🌉 Bruggen & Sluizen <span id="bruggen-pijl" style="font-size:12px;color:var(--muted);">▼</span>
+      </div>
+      <div id="bruggen-inhoud" style="display:none;">
+        <div style="display:flex;gap:6px;margin-bottom:8px;">
+          <input id="brug-zoek" type="text" placeholder="Zoek brug of sluis…"
+            style="flex:1;padding:6px 10px;background:rgba(255,255,255,0.07);
+            border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:13px;"
+            oninput="zoekBrug(this.value)">
+          <button class="btn btn-ghost" onclick="toggleBrugMarkers()" id="btn-brug-markers"
+            style="padding:6px 10px;font-size:12px;" title="Toon op kaart">🗺</button>
+        </div>
+        <!-- Filter knoppen -->
+        <div style="display:flex;gap:4px;margin-bottom:8px;">
+          <button onclick="filterBruggen('alle')" id="filter-alle" class="btn-sm"
+            style="flex:1;background:rgba(0,200,200,0.15);border-color:rgba(0,200,200,0.4);color:var(--teal);">Alle</button>
+          <button onclick="filterBruggen('brug')" id="filter-brug" class="btn-sm" style="flex:1;">🌉 Brug</button>
+          <button onclick="filterBruggen('sluis')" id="filter-sluis" class="btn-sm" style="flex:1;">🔒 Sluis</button>
+        </div>
+        <div id="brug-lijst" style="display:flex;flex-direction:column;gap:4px;max-height:300px;overflow-y:auto;"></div>
+      </div>
+    </div>
+
     <!-- Eigen kaarten -->
     <div class="sidebar-section">
       <div class="sidebar-title">🗺 Eigen Zeekaarten</div>
@@ -4278,152 +4304,165 @@ document.addEventListener('visibilitychange', async () => {
   }
 });
 
-// ── WADPLANNER ────────────────────────────────────────────
-let _wantijMarker = null;
+// ── BRUGGEN & SLUIZEN ─────────────────────────────────────
+const BRUGGEN = [
+  // Noord-Holland — bruggen
+  { type:'brug', naam:'Leeghwaterbrug', plaats:'Alkmaar', lat:52.6320, lon:4.7580, hoogte:2.55, vhf:22, tijden:'Ma-Za 05:30-22:00 (geen spits 06:00-08:45, 15:30-17:30)', beheerder:'Provincie Noord-Holland' },
+  { type:'brug', naam:'Wilhelminabrug', plaats:'Alkmaar', lat:52.6295, lon:4.7490, hoogte:2.00, vhf:22, tijden:'Ma-Za 05:30-22:00, Zo 09:00-20:00', beheerder:'Gemeente Alkmaar' },
+  { type:'brug', naam:'Leimuiderbrug', plaats:'Leimuiden', lat:52.2295, lon:4.6680, hoogte:2.45, vhf:18, tijden:'Ma-Za 05:30-22:00 (spitspauze 30 min)', beheerder:'Provincie Noord-Holland' },
+  { type:'brug', naam:'Bosrandbrug', plaats:'Rijsenhout', lat:52.2680, lon:4.7240, hoogte:2.45, vhf:18, tijden:'Ma-Za 05:30-22:00 (spitspauze 30 min)', beheerder:'Provincie Noord-Holland' },
+  { type:'brug', naam:'Aalsmeerderbrug', plaats:'Aalsmeer', lat:52.2580, lon:4.7560, hoogte:2.45, vhf:18, tijden:'Ma-Za 05:30-22:00 (spitspauze 30 min)', beheerder:'Provincie Noord-Holland' },
+  { type:'brug', naam:'Schipholdraaibrug', plaats:'Schiphol', lat:52.2870, lon:4.7420, hoogte:2.45, vhf:18, tijden:'Ma-Za 05:30-22:00 (spitspauze 30 min)', beheerder:'Provincie Noord-Holland' },
+  { type:'brug', naam:'Drechterbrug', plaats:'Schardam', lat:52.6110, lon:4.9860, hoogte:2.50, vhf:22, tijden:'Ma-Za 06:00-22:00, Zo 09:00-19:00', beheerder:'Provincie Noord-Holland' },
+  { type:'brug', naam:'Overtoom', plaats:'Amsterdam', lat:52.3580, lon:4.8690, hoogte:2.25, vhf:68, tijden:'Ma-Za 07:00-21:00, Zo 09:00-21:00', beheerder:'Gemeente Amsterdam' },
 
-function zoomNaarWantij(val) {
-  const parts = val.split(':');
-  if (parts.length < 4) return;
-  const lat = parseFloat(parts[2]);
-  const lon = parseFloat(parts[3]);
-  if (isNaN(lat) || isNaN(lon)) return;
-  map.setView([lat, lon], 11);
+  // Noord-Holland — sluizen
+  { type:'sluis', naam:'Oranjesluizen', plaats:'Amsterdam', lat:52.3742, lon:4.9805, hoogte:null, vhf:18, tijden:'24 uur per dag', schutlengte:135, breedte:16, beheerder:'Rijkswaterstaat', telefoon:'0900-8861' },
+  { type:'sluis', naam:'Wilhelminasluis', plaats:'Enkhuizen', lat:52.7060, lon:5.2840, hoogte:null, vhf:22, tijden:'Apr-Okt: Ma-Za 07:00-21:00, Zo 09:00-19:00', schutlengte:85, breedte:9, beheerder:'Provincie Noord-Holland', telefoon:'0228-323424' },
+  { type:'sluis', naam:'Noordersluis IJmuiden', plaats:'IJmuiden', lat:52.4630, lon:4.5700, hoogte:null, vhf:12, tijden:'24 uur per dag', schutlengte:400, breedte:50, beheerder:'Rijkswaterstaat', telefoon:'0255-564700' },
+  { type:'sluis', naam:'Kleine Sluis IJmuiden', plaats:'IJmuiden', lat:52.4640, lon:4.5720, hoogte:null, vhf:12, tijden:'24 uur per dag', schutlengte:165, breedte:18, beheerder:'Rijkswaterstaat', telefoon:'0255-564700' },
+  { type:'sluis', naam:'Roskamsluis', plaats:'Heerhugowaard', lat:52.6590, lon:4.8460, hoogte:null, vhf:null, tijden:'Ma-Vr 09:00-18:00, Za-Zo 09:00-19:00', schutlengte:50, breedte:7, beheerder:'HHNK', telefoon:'0226-312556' },
+  { type:'sluis', naam:'Den Oever Sluis', plaats:'Den Oever', lat:52.9350, lon:5.0340, hoogte:null, vhf:20, tijden:'Ma-Vr 06:00-22:00, Za-Zo 08:00-22:00', schutlengte:120, breedte:14, beheerder:'Rijkswaterstaat', telefoon:'0517-699555' },
+  { type:'sluis', naam:'Kornwerderzand sluis', plaats:'Kornwerderzand', lat:53.0780, lon:5.3330, hoogte:null, vhf:18, tijden:'Ma-Vr 06:00-22:00, Za-Zo 08:00-22:00', schutlengte:120, breedte:14, beheerder:'Rijkswaterstaat', telefoon:'0517-699555' },
 
-  // Plaatst een tijdelijke marker
-  if (_wantijMarker) map.removeLayer(_wantijMarker);
-  _wantijMarker = L.circleMarker([lat, lon], {
-    radius: 10, color: '#00c8c8', fillColor: '#00c8c8',
-    fillOpacity: 0.3, weight: 2
-  }).bindTooltip(document.getElementById('wp-wantij').selectedOptions[0].text,
-    { permanent: false }).addTo(map);
+  // Friesland — bruggen
+  { type:'brug', naam:'Frisiabrêge', plaats:'Franeker', lat:53.1860, lon:5.5340, hoogte:6.30, vhf:80, tijden:'Ma-Vr 06:00-22:00, Za 06:00-20:00, Zo 09:00-20:00', beheerder:'Provincie Fryslân' },
+  { type:'brug', naam:'Nieuwe Willemsbrug', plaats:'Leeuwarden', lat:53.2010, lon:5.7980, hoogte:2.50, vhf:20, tijden:'Ma-Vr 06:00-22:00, Za 08:00-20:00, Zo 09:00-17:00', beheerder:'Gemeente Leeuwarden' },
+  { type:'brug', naam:'Slachtebrug', plaats:'Harlingen', lat:53.1725, lon:5.4244, hoogte:2.95, vhf:11, tijden:'Ma-Vr 06:00-22:00, Za-Zo 08:00-20:00', beheerder:'Gemeente Harlingen' },
+  { type:'brug', naam:'Van Panhuysbrug', plaats:'Tjerkwerd', lat:52.9820, lon:5.5040, hoogte:2.20, vhf:80, tijden:'Dagelijks 09:00-20:00', beheerder:'Provincie Fryslân' },
+  { type:'brug', naam:'Brug Workumer Trekvaart', plaats:'Workum', lat:52.9800, lon:5.4430, hoogte:0.75, vhf:80, tijden:'09:00-12:00, 13:00-16:15, 17:15-20:00', beheerder:'Gemeente De Friese Meren' },
+  { type:'brug', naam:'Houkesleatbrug', plaats:'Sneek', lat:53.0370, lon:5.6620, hoogte:2.35, vhf:20, tijden:'Ma-Vr 06:00-22:00, Za 08:00-20:00, Zo 09:00-20:00', beheerder:'Gemeente Súdwest-Fryslân' },
+  { type:'brug', naam:'Princessebrug', plaats:'Sneek', lat:53.0330, lon:5.6600, hoogte:2.20, vhf:20, tijden:'Ma-Vr 06:00-22:00, Za 08:00-20:00, Zo 09:00-20:00', beheerder:'Gemeente Súdwest-Fryslân' },
+  { type:'brug', naam:'IJlsterbrug', plaats:'IJlst', lat:53.0115, lon:5.6285, hoogte:1.90, vhf:20, tijden:'Apr-Okt: dagelijks 09:00-19:00', beheerder:'Gemeente Súdwest-Fryslân' },
+  { type:'brug', naam:'Lemsterbrug', plaats:'Lemmer', lat:52.8460, lon:5.7090, hoogte:2.50, vhf:20, tijden:'Ma-Vr 06:00-22:00, Za-Zo 08:00-20:00', beheerder:'Gemeente De Friese Meren' },
+
+  // Friesland — sluizen
+  { type:'sluis', naam:'Harlingen zeesluis', plaats:'Harlingen', lat:53.1760, lon:5.4130, hoogte:null, vhf:11, tijden:'Op verzoek, afhankelijk getij', schutlengte:110, breedte:14, beheerder:'Gemeente Harlingen', telefoon:'0517-414726' },
+  { type:'sluis', naam:'Sluis Hindeloopen', plaats:'Hindeloopen', lat:52.9380, lon:5.3980, hoogte:null, vhf:80, tijden:'Apr-Okt: dagelijks 09:00-19:00', schutlengte:30, breedte:4.85, beheerder:'Provincie Fryslân', telefoon:'058-2925888' },
+  { type:'sluis', naam:'Lemmer sluis', plaats:'Lemmer', lat:52.8450, lon:5.7000, hoogte:null, vhf:20, tijden:'Ma-Vr 06:00-22:00, Za-Zo 08:00-20:00', schutlengte:60, breedte:8, beheerder:'Provincie Fryslân', telefoon:'058-2925888' },
+  { type:'sluis', naam:'Stavoren zeesluis', plaats:'Stavoren', lat:52.8860, lon:5.3640, hoogte:null, vhf:80, tijden:'Apr-Okt: dagelijks 08:00-20:00', schutlengte:50, breedte:8, beheerder:'Gemeente De Friese Meren', telefoon:'0514-681234' },
+  { type:'sluis', naam:'Dokkumer Nieuwe Zijlen', plaats:'Dokkum', lat:53.3030, lon:5.9940, hoogte:null, vhf:20, tijden:'Ma-Vr 06:00-20:00, Za 08:00-18:00', schutlengte:40, breedte:6, beheerder:'Wetterskip Fryslân', telefoon:'058-2925888' },
+  { type:'sluis', naam:'Lauwersoogsluis', plaats:'Lauwersoog', lat:53.4030, lon:6.1970, hoogte:null, vhf:9, tijden:'Op verzoek, VHF 9', schutlengte:120, breedte:16, beheerder:'Rijkswaterstaat', telefoon:'0519-349040' },
+];
+
+let _brugFilter = 'alle';
+const brugLaag = L.layerGroup();
+let brugMarkersAan = false;
+
+function maakBrugIcon(type) {
+  const kleur = type === 'sluis' ? '#0ea5e9' : '#7c3aed';
+  const emoji = type === 'sluis' ? '🔒' : '🌉';
+  return L.divIcon({
+    className: '',
+    html: `<div style="width:26px;height:26px;background:${kleur};border:2px solid white;
+      border-radius:4px;display:flex;align-items:center;justify-content:center;
+      font-size:13px;box-shadow:0 2px 6px rgba(0,0,0,0.5);">${emoji}</div>`,
+    iconSize: [26,26], iconAnchor: [13,13]
+  });
 }
-document.addEventListener('DOMContentLoaded', () => {
-  const datumEl = document.getElementById('wp-datum');
-  if (datumEl) datumEl.value = new Date().toISOString().slice(0, 10);
-});
 
-async function berekenWadPlanner() {
-  const diepgang = parseFloat(document.getElementById('wp-diepgang').value) || 1.90;
-  const marge    = parseFloat(document.getElementById('wp-marge').value) || 0.30;
-  const benodigdDiepte = diepgang + marge;
-  const wantijVal = document.getElementById('wp-wantij').value;
-  const parts = wantijVal.split(':');
-  const stationCode = parts[0];
-  const drempelDiepte = parseFloat(parts[1]);
-  const datum = document.getElementById('wp-datum').value;
+function brugPopup(b) {
+  const kleur = b.hoogte !== null ? (b.hoogte < 2.0 ? '#e84545' : b.hoogte < 3.0 ? '#f5a623' : '#34d399') : '#4fc3f7';
+  const hoogteStr = b.hoogte !== null ? `<b style="color:${kleur}">${b.hoogte}m</b>` : '—';
+  const sluisInfo = b.type === 'sluis' ? `
+    Schutlengte: <b>${b.schutlengte}m</b> · Breedte: <b>${b.breedte}m</b><br>` : '';
+  const telStr = b.telefoon ? `📞 ${b.telefoon}<br>` : '';
+  return `
+    <b>${b.type==='sluis'?'🔒':'🌉'} ${b.naam}</b><br>
+    <small style="color:#888">${b.plaats}</small><br>
+    ${b.type==='brug' ? `Doorvaarthoogte: ${hoogteStr}<br>` : sluisInfo}
+    VHF: <b>${b.vhf || '—'}</b><br>${telStr}
+    <small style="color:#aaa;display:block;margin-top:4px;">🕐 ${b.tijden}</small>
+    <small style="color:#666">${b.beheerder}</small>
+  `;
+}
 
-  const resultEl = document.getElementById('wp-resultaat');
-  resultEl.style.display = 'block';
-  resultEl.innerHTML = '<div style="color:var(--muted);font-size:12px;">⏳ Getijdata ophalen…</div>';
-
-  // Haal getijdata op via RWS Waterinfo
-  const datumObj = new Date(datum);
-  const eindDatum = new Date(datumObj);
-  eindDatum.setDate(eindDatum.getDate() + 1);
-
-  const url = `https://waterinfo.rws.nl/api/point/extremesByCode?` +
-    `locationCodes=${stationCode}&` +
-    `startdate=${datumObj.toISOString().slice(0,10)}T00:00:00&` +
-    `enddate=${eindDatum.toISOString().slice(0,10)}T00:00:00`;
-
-  let getijData = null;
-  try {
-    const res = await fetch(url);
-    if (res.ok) getijData = await res.json();
-  } catch(e) {}
-
-  // Bereken getijvenster op basis van astronomische cyclus als fallback
-  const station = GETIJ_STATIONS.find(s => s.code === stationCode);
-  const getijHoogte = station ? 1.0 : 0.9; // gemiddeld getijverschil in meters
-
-  // Bouw tijdlijn van waterstand over de dag
-  const tijdlijn = [];
-  const corrMs = (CORR_STATIONS[stationCode] || 0) * 60000;
-  const cyclusMs = 6 * 3600000 + 12.5 * 60000;
-  const refHW = new Date('2026-01-01T00:30:00Z').getTime() + corrMs;
-  const gemWater = 0.0; // NAP
-
-  for (let min = 0; min < 1440; min += 10) {
-    const t = new Date(datumObj);
-    t.setHours(0, min, 0, 0);
-    const elapsed = (t.getTime() - refHW) % (cyclusMs * 2);
-    const fase = ((elapsed % (cyclusMs * 2)) + cyclusMs * 2) % (cyclusMs * 2);
-    const waterstand = gemWater + getijHoogte * Math.cos(fase / cyclusMs * Math.PI);
-    tijdlijn.push({ tijd: t, waterstand, minuut: min });
-  }
-
-  // Bepaal waterstand op drempel = drempelDiepte + waterstand
-  // Boot kan door als: drempelDiepte + waterstand >= benodigdDiepte
-  // dus waterstand >= benodigdDiepte - drempelDiepte
-  const minimaalWater = benodigdDiepte - drempelDiepte;
-
-  const vensters = [];
-  let inVenster = false;
-  let vensterStart = null;
-
-  for (const punt of tijdlijn) {
-    if (punt.waterstand >= minimaalWater) {
-      if (!inVenster) { inVenster = true; vensterStart = punt; }
-    } else {
-      if (inVenster) {
-        vensters.push({ start: vensterStart, eind: punt });
-        inVenster = false;
-      }
+function filterBruggen(filter) {
+  _brugFilter = filter;
+  ['alle','brug','sluis'].forEach(f => {
+    const btn = document.getElementById(`filter-${f}`);
+    if (btn) {
+      btn.style.background = f===filter ? 'rgba(0,200,200,0.15)' : '';
+      btn.style.borderColor = f===filter ? 'rgba(0,200,200,0.4)' : '';
+      btn.style.color = f===filter ? 'var(--teal)' : '';
     }
-  }
-  if (inVenster) vensters.push({ start: vensterStart, eind: tijdlijn[tijdlijn.length-1] });
+  });
+  const q = document.getElementById('brug-zoek').value;
+  zoekBrug(q);
+}
 
-  // Render resultaat
-  const wantijNaam = document.getElementById('wp-wantij').selectedOptions[0].text;
-  let html = `
-    <div style="background:rgba(0,200,200,0.08);border:1px solid rgba(0,200,200,0.3);
-      border-radius:8px;padding:10px;margin-bottom:8px;">
-      <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">${wantijNaam}</div>
-      <div style="font-size:12px;color:var(--muted);">
-        Diepgang: <b style="color:var(--white);">${diepgang}m</b> + marge ${marge}m = 
-        <b style="color:var(--amber);">${benodigdDiepte.toFixed(2)}m</b> benodigd
-      </div>
-      <div style="font-size:12px;color:var(--muted);">
-        Drempeldiepte: <b style="color:var(--white);">${drempelDiepte}m</b> bij LW
-      </div>
-    </div>`;
-
-  if (!vensters.length) {
-    html += `<div style="background:rgba(232,69,69,0.1);border:1px solid rgba(232,69,69,0.3);
-      border-radius:8px;padding:10px;text-align:center;color:#e84545;font-size:13px;">
-      ⚠ Geen doorvaart mogelijk op ${datum}<br>
-      <small style="color:var(--muted);">Boot te diep voor dit wantij vandaag</small>
-    </div>`;
+function toggleBrugMarkers() {
+  brugMarkersAan = !brugMarkersAan;
+  const btn = document.getElementById('btn-brug-markers');
+  if (brugMarkersAan) {
+    brugLaag.clearLayers();
+    BRUGGEN.forEach(b => {
+      L.marker([b.lat, b.lon], { icon: maakBrugIcon(b.type), zIndexOffset: 380 })
+        .bindPopup(brugPopup(b), { maxWidth: 240 })
+        .addTo(brugLaag);
+    });
+    brugLaag.addTo(map);
+    btn.style.background = 'rgba(124,58,237,0.2)';
+    btn.style.borderColor = 'rgba(124,58,237,0.5)';
+    notify('Bruggen & sluizen op kaart ✓');
   } else {
-    html += `<div style="font-size:11px;color:var(--teal);margin-bottom:6px;letter-spacing:1px;">GETIJVENSTER${vensters.length > 1 ? 'S' : ''} OP ${datum}</div>`;
-    for (const v of vensters) {
-      const startStr = v.start.tijd.toLocaleTimeString('nl-NL', { hour:'2-digit', minute:'2-digit' });
-      const eindStr  = v.eind.tijd.toLocaleTimeString('nl-NL', { hour:'2-digit', minute:'2-digit' });
-      const duurMin  = Math.round((v.eind.tijd - v.start.tijd) / 60000);
-      const duurStr  = duurMin >= 60 ? `${Math.floor(duurMin/60)}u ${duurMin%60}min` : `${duurMin}min`;
-      const kleur = duurMin >= 120 ? 'var(--teal)' : duurMin >= 60 ? 'var(--amber)' : '#e84545';
-      html += `
-        <div style="background:rgba(255,255,255,0.04);border:1px solid var(--border);
-          border-left:3px solid ${kleur};border-radius:6px;padding:8px 10px;margin-bottom:6px;">
-          <div style="font-family:'Teko',sans-serif;font-size:18px;color:${kleur};">
-            ${startStr} — ${eindStr}
-          </div>
-          <div style="font-size:11px;color:var(--muted);">Duur: ${duurStr}</div>
-        </div>`;
-    }
-    html += `<div style="font-size:10px;color:var(--muted);margin-top:4px;">
-      ⚠ Berekend op astronomisch getij — geen weerseffecten</div>`;
+    map.removeLayer(brugLaag);
+    btn.style.background = '';
+    btn.style.borderColor = '';
   }
-
-  resultEl.innerHTML = html;
 }
 
-const CORR_STATIONS = {
-  'VLISSGN': -65, 'HOEKVHLD': 0, 'SCHEVNGN': 30, 'IJMDBTHVN': 95,
-  'DENHDR': 155, 'WESTTSLG': 185, 'HUIBGT': 210, 'DELFZL': 225,
-  'HARVT': 175, 'KORNWDZBTN': 165, 'OUDSD': 150, 'LAUWOG': 200,
-};
+function renderBrugLijst(lijst) {
+  const el = document.getElementById('brug-lijst');
+  el.innerHTML = lijst.map(b => {
+    const kleur = b.type==='sluis' ? '#0ea5e9' :
+      (b.hoogte < 2.0 ? 'var(--danger)' : b.hoogte < 3.0 ? 'var(--amber)' : 'var(--teal)');
+    const waarde = b.type==='sluis'
+      ? `${b.schutlengte}×${b.breedte}m`
+      : `${b.hoogte}m`;
+    return `
+      <div onclick="zoomNaarBrug('${b.naam.replace(/'/g,"\\'")}')" style="
+        padding:8px 10px;background:rgba(255,255,255,0.04);
+        border:1px solid var(--border);border-radius:6px;cursor:pointer;"
+        onmouseover="this.style.borderColor='rgba(124,58,237,0.5)'"
+        onmouseout="this.style.borderColor='var(--border)'">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div style="font-family:'Teko',sans-serif;font-size:15px;">
+            ${b.type==='sluis'?'🔒':'🌉'} ${b.naam}
+          </div>
+          <div style="font-size:11px;color:${kleur};font-weight:bold;">${waarde}</div>
+        </div>
+        <div style="font-size:10px;color:var(--muted);margin-top:1px;">
+          ${b.plaats} · VHF ${b.vhf || '—'}
+        </div>
+        <div style="font-size:10px;color:var(--muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+          🕐 ${b.tijden.split(',')[0]}…
+        </div>
+      </div>`;
+  }).join('');
+}
 
+function zoekBrug(q) {
+  let lijst = BRUGGEN;
+  if (_brugFilter !== 'alle') lijst = lijst.filter(b => b.type === _brugFilter);
+  if (q) lijst = lijst.filter(b =>
+    b.naam.toLowerCase().includes(q.toLowerCase()) ||
+    b.plaats.toLowerCase().includes(q.toLowerCase()));
+  renderBrugLijst(lijst);
+}
+
+function zoomNaarBrug(naam) {
+  const b = BRUGGEN.find(b => b.naam === naam);
+  if (!b) return;
+  map.setView([b.lat, b.lon], 14);
+  if (!brugMarkersAan) toggleBrugMarkers();
+  brugLaag.eachLayer(layer => {
+    if (Math.abs(layer.getLatLng().lat - b.lat) < 0.001) layer.openPopup();
+  });
+}
+
+// Init
+renderBrugLijst(BRUGGEN);
 // ── INKLAPBARE SECTIES ────────────────────────────────────
 function toggleSectie(id, titleEl) {
   const inhoud = document.getElementById(id);
