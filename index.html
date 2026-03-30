@@ -4056,7 +4056,10 @@ function laadEigenKaart() {
   const dataUrl = eigenKaartDataUrl; // bewaar vóór reset
   const opacity = parseInt(document.getElementById('kaart-opacity').value) / 100;
 
-  console.log('Kaart laden:', naam, bounds, opacity);
+  console.log('Kaart laden:', naam);
+  console.log('Ingevoerd: NW=', nwLat, nwLon, 'ZO=', zoLat, zoLon);
+  console.log('Bounds:', bounds);
+  notify(`Kaart: NW ${nwLat.toFixed(4)}°N ${nwLon.toFixed(4)}°O → ZO ${zoLat.toFixed(4)}°N ${zoLon.toFixed(4)}°O`);
 
   const overlay = L.imageOverlay(dataUrl, bounds, {
     opacity, interactive: false, zIndex: 300
