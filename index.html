@@ -1022,21 +1022,20 @@
           <div style="font-size:10px;color:var(--muted);">Boven</div>
           <div style="font-size:10px;color:var(--muted);">Onder</div>
           <input type="number" id="trim-boven" value="0" min="0"
-            style="padding:3px 6px;background:rgba(255,255,255,0.07);border:1px solid var(--border);border-radius:4px;color:var(--white);font-size:12px;"
-            onchange="pasTrimToe()">
+            style="padding:3px 6px;background:rgba(255,255,255,0.07);border:1px solid var(--border);border-radius:4px;color:var(--white);font-size:12px;">
           <input type="number" id="trim-onder" value="0" min="0"
-            style="padding:3px 6px;background:rgba(255,255,255,0.07);border:1px solid var(--border);border-radius:4px;color:var(--white);font-size:12px;"
-            onchange="pasTrimToe()">
+            style="padding:3px 6px;background:rgba(255,255,255,0.07);border:1px solid var(--border);border-radius:4px;color:var(--white);font-size:12px;">
           <div style="font-size:10px;color:var(--muted);">Links</div>
           <div style="font-size:10px;color:var(--muted);">Rechts</div>
           <input type="number" id="trim-links" value="0" min="0"
-            style="padding:3px 6px;background:rgba(255,255,255,0.07);border:1px solid var(--border);border-radius:4px;color:var(--white);font-size:12px;"
-            onchange="pasTrimToe()">
+            style="padding:3px 6px;background:rgba(255,255,255,0.07);border:1px solid var(--border);border-radius:4px;color:var(--white);font-size:12px;">
           <input type="number" id="trim-rechts" value="0" min="0"
-            style="padding:3px 6px;background:rgba(255,255,255,0.07);border:1px solid var(--border);border-radius:4px;color:var(--white);font-size:12px;"
-            onchange="pasTrimToe()">
+            style="padding:3px 6px;background:rgba(255,255,255,0.07);border:1px solid var(--border);border-radius:4px;color:var(--white);font-size:12px;">
         </div>
         <div id="trim-hint" style="font-size:10px;color:var(--muted);margin-top:4px;display:none;"></div>
+        <button class="btn btn-ghost" onclick="pasTrimToe()" style="width:100%;margin-top:6px;font-size:12px;color:var(--teal);">
+          ✓ Pas bijsnijding toe
+        </button>
       </div>
 
       <button class="btn btn-primary" id="btn-kaart-laden" disabled onclick="laadEigenKaart()" style="margin-bottom:8px;">📂 Kaart toevoegen</button>
@@ -3499,6 +3498,7 @@ function verwerkKaartBestand(file) {
   statusEl.style.color = 'var(--muted)';
   statusEl.textContent = '⏳ Bestand lezen…';
   eigenKaartDataUrl = null;
+  _origCoords = null; // reset bij elk nieuw bestand
   document.getElementById('btn-kaart-laden').disabled = true;
   document.getElementById('kaart-bestandsnaam').style.display = 'none';
 
