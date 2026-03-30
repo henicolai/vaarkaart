@@ -3518,22 +3518,42 @@ function verwerkKaartBestand(file) {
     const isJPG = bytes[0]===0xFF && bytes[1]===0xD8;
 
     if (isPNG || isJPG) {
-      // Gebruik blob URL — werkt voor grote bestanden zonder btoa limiet
+      // Laad via Image element en teken op canvas — werkt altijd
       const blob = new Blob([buf], { type: isJPG ? 'image/jpeg' : 'image/png' });
-      eigenKaartDataUrl = URL.createObjectURL(blob);
-      // Sla ook originele afmetingen op via Image element
+      const blobUrl = URL.createObjectURL(blob);
       const tmpImg = new window.Image();
       tmpImg.onload = () => {
-        _origKaartBreedte = tmpImg.width;
-        _origKaartHoogte  = tmpImg.height;
-        window._geoTiffOrigW = tmpImg.width;
-        window._geoTiffOrigH = tmpImg.height;
+        const w = tmpImg.width;
+        const h = tmpImg.height;
+        _origKaartBreedte = w;
+        _origKaartHoogte  = h;
+        window._geoTiffOrigW = w;
+        window._geoTiffOrigH = h;
         window._geoTiffSchaalX = 1;
         window._geoTiffSchaalY = 1;
+
+        // Render op canvas — max 4000px
+        const MAX = 4000;
+        const schaal = Math.min(1, MAX / Math.max(w, h));
+        const cw = Math.floor(w * schaal);
+        const ch = Math.floor(h * schaal);
+        const canvas = document.createElement('canvas');
+        canvas.width = cw; canvas.height = ch;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(tmpImg, 0, 0, cw, ch);
+        eigenKaartDataUrl = canvas.toDataURL('image/jpeg', 0.88);
+        window._geoTiffSchaalX = cw / w;
+        window._geoTiffSchaalY = ch / h;
+        URL.revokeObjectURL(blobUrl);
+        document.getElementById('coord-sectie').style.display = 'block';
+        klaarMetBestand(file.name, statusEl);
       };
-      tmpImg.src = eigenKaartDataUrl;
-      document.getElementById('coord-sectie').style.display = 'block';
-      klaarMetBestand(file.name, statusEl);
+      tmpImg.onerror = () => {
+        statusEl.style.color = 'var(--danger)';
+        statusEl.textContent = '⚠ Kan afbeelding niet laden';
+        URL.revokeObjectURL(blobUrl);
+      };
+      tmpImg.src = blobUrl;
       return;
     }
     if (isBMP) {
