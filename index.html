@@ -4059,8 +4059,11 @@ function laadEigenKaart() {
   const zoLon = parseFloat(document.getElementById('coord-zo-lon').value);
   const naam  = document.getElementById('kaart-bestandsnaam').textContent.replace('📄 ','') || 'Kaart';
 
-  if (!eigenKaartDataUrl) { statusEl.style.color='var(--amber)'; statusEl.textContent='⚠ Kaartafbeelding ontbreekt — GeoTIFF rendering mislukt?'; return; }
-  if (isNaN(nwLat)||isNaN(nwLon)||isNaN(zoLat)||isNaN(zoLon)) { statusEl.style.color='var(--amber)'; statusEl.textContent='⚠ Vul alle 4 coördinaten in'; return; }
+  if (!eigenKaartDataUrl) { statusEl.style.color='var(--amber)'; statusEl.textContent='⚠ Afbeelding nog niet geladen — wacht even na het slepen'; return; }
+  if (isNaN(nwLat)) { statusEl.style.color='var(--amber)'; statusEl.textContent='⚠ NW Breedte ontbreekt of ongeldig'; return; }
+  if (isNaN(nwLon)) { statusEl.style.color='var(--amber)'; statusEl.textContent='⚠ NW Lengte ontbreekt of ongeldig'; return; }
+  if (isNaN(zoLat)) { statusEl.style.color='var(--amber)'; statusEl.textContent='⚠ ZO Breedte ontbreekt of ongeldig'; return; }
+  if (isNaN(zoLon)) { statusEl.style.color='var(--amber)'; statusEl.textContent='⚠ ZO Lengte ontbreekt of ongeldig'; return; }
   if (nwLat===zoLat||nwLon===zoLon) { statusEl.style.color='var(--amber)'; statusEl.textContent='⚠ NW en ZO coördinaten zijn gelijk'; return; }
 
   // Bewaar originele coördinaten voor trim correctie
