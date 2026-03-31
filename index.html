@@ -1307,7 +1307,24 @@ const lightLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/vo
 });
 
 lightLayer.addTo(map);
-seaLayer.addTo(map);
+
+// Herstel toggle-staten uit localStorage
+const _lagenStaten = JSON.parse(localStorage.getItem('vaarkaart_lagen') || '{}');
+function _slaLaagOp(id, aan) {
+  const st = JSON.parse(localStorage.getItem('vaarkaart_lagen') || '{}');
+  st[id] = aan;
+  localStorage.setItem('vaarkaart_lagen', JSON.stringify(st));
+}
+
+// OpenSeaMap standaard aan, herstel staat
+if (!('toggle-sea' in _lagenStaten) || _lagenStaten['toggle-sea']) {
+  seaLayer.addTo(map);
+  const el = document.getElementById('toggle-sea');
+  if (el) el.checked = true;
+} else {
+  const el = document.getElementById('toggle-sea');
+  if (el) el.checked = false;
+}
 
 // Zorg dat de kaart nooit zwart is — herstel basiskaart als tiles falen
 map.on('tileerror', () => {
@@ -2320,8 +2337,128 @@ function seaLayerAanAlsAan() {
   if (document.getElementById('toggle-sea').checked) seaLayer.addTo(map);
 }
 
+// ── BRUGGEN & SLUIZEN ─────────────────────────────────────
+const BRUGGEN_DATA = [
+  // Noord-Holland
+  { naam:'Wilhelminasluis Zaandam', lat:52.4435, lon:4.8175, type:'sluis', vhf:22, hoogte:null, info:'Toegang Zaan vanuit Noordzeekanaal. VHF 22.' },
+  { naam:'Julianabrug Zaandam', lat:52.4441, lon:4.8211, type:'brug', hoogte:3.0, info:'Beweegbare brug Zaandam centrum.' },
+  { naam:'Wilhelminabrug Zaandam', lat:52.4448, lon:4.8230, type:'brug', hoogte:3.0, info:'Beweegbare brug Zaandam.' },
+  { naam:'Schellingwouderbrug Amsterdam', lat:52.3930, lon:5.0020, type:'brug', hoogte:8.0, info:'Vaste brug Amsterdam-Noord. Doorvaarthoogte 8m.' },
+  { naam:'Oranjesluizen Amsterdam', lat:52.3780, lon:5.0070, type:'sluis', vhf:18, hoogte:null, info:'Verbinding IJ–Markermeer. VHF 18.' },
+  { naam:'Buiten-IJ / IJssluis', lat:52.3885, lon:4.9660, type:'sluis', vhf:18, hoogte:null, info:'Sluis bij Den Oever richting.' },
+  { naam:'Nauerna Sluis', lat:52.4730, lon:4.8250, type:'sluis', vhf:null, hoogte:null, info:'Kleine sluis Nauerna.' },
+  { naam:'Spaarnebrug Haarlem', lat:52.3810, lon:4.6370, type:'brug', hoogte:2.6, info:'Beweegbare brug centrum Haarlem. Hoogte gesloten 2.6m.' },
+  { naam:'Waarderbrug Haarlem', lat:52.3830, lon:4.6440, type:'brug', hoogte:2.5, info:'Beweegbare brug Haarlem.' },
+  { naam:'Mühring / Cruquiusbrug', lat:52.3550, lon:4.6280, type:'brug', hoogte:2.4, info:'Beweegbare brug bij Cruquius.' },
+  { naam:'Sluis IJmuiden', lat:52.4620, lon:4.5940, type:'sluis', vhf:22, hoogte:null, info:'Noordersluis / Middensluis IJmuiden. VHF 22.' },
+  { naam:'Den Oever sluis', lat:52.9350, lon:5.0400, type:'sluis', vhf:20, hoogte:null, info:'Sluis Afsluitdijk westzijde. VHF 20.' },
+  { naam:'Stevinsluizen Den Oever', lat:52.9340, lon:5.0370, type:'sluis', vhf:20, hoogte:null, info:'Spuisluizen Den Oever.' },
+  { naam:'Nieuwe Niedorperkogge brug', lat:52.7380, lon:4.9850, type:'brug', hoogte:2.3, info:'Beweegbare brug Noord-Holland.' },
+  { naam:'Enkhuizen – Krabbersgat sluis', lat:52.7050, lon:5.2890, type:'sluis', vhf:22, hoogte:null, info:'Sluis Enkhuizen IJsselmeer/Markermeer. VHF 22.' },
+  { naam:'Hoorn – Grashaven brug', lat:52.6440, lon:5.0590, type:'brug', hoogte:2.8, info:'Toegang Binnenhaven Hoorn.' },
+  { naam:'Alkmaar – Wilhelminasluis', lat:52.6280, lon:4.7480, type:'sluis', vhf:null, hoogte:null, info:'Sluis Alkmaar.' },
+  { naam:'Purmerend – Beemsterbrug', lat:52.5130, lon:4.9600, type:'brug', hoogte:2.5, info:'Beweegbare brug Purmerend.' },
+  // Friesland
+  { naam:'Kornwerderzand sluis', lat:53.0770, lon:5.3380, type:'sluis', vhf:18, hoogte:null, info:'Sluis Afsluitdijk oostzijde. VHF 18. Doorvaart diepgang max 3.5m.' },
+  { naam:'Harlingen – Willemshaven sluis', lat:53.1740, lon:5.4160, type:'sluis', vhf:11, hoogte:null, info:'Sluis Harlingen binnenhaven. VHF 11.' },
+  { naam:'Leeuwarden – Eeuwenbrug', lat:53.2010, lon:5.7900, type:'brug', hoogte:2.4, info:'Beweegbare brug Leeuwarden centrum.' },
+  { naam:'Leeuwarden – Oostergobrug', lat:53.2020, lon:5.8020, type:'brug', hoogte:2.4, info:'Beweegbare brug Leeuwarden.' },
+  { naam:'Sneek – Houkesloot sluis', lat:53.0340, lon:5.6600, type:'sluis', vhf:null, hoogte:null, info:'Sluis bij Sneek.' },
+  { naam:'Sneekerbrug', lat:53.0320, lon:5.6630, type:'brug', hoogte:2.5, info:'Beweegbare brug Sneek centrum.' },
+  { naam:'Bolsward – Stadsbrug', lat:53.0650, lon:5.5270, type:'brug', hoogte:2.3, info:'Beweegbare brug Bolsward.' },
+  { naam:'Franeker – Sluis', lat:53.1840, lon:5.5430, type:'sluis', vhf:null, hoogte:null, info:'Sluis Franeker.' },
+  { naam:'Dokkum – Brug', lat:53.3260, lon:5.9990, type:'brug', hoogte:2.2, info:'Beweegbare brug Dokkum.' },
+  { naam:'Stavoren – Sluis', lat:52.8820, lon:5.3640, type:'sluis', vhf:null, hoogte:null, info:'Sluis Stavoren IJsselmeer. VHF 9.' },
+  { naam:'Lemmer – Prinses Margrietsluis', lat:52.8470, lon:5.7100, type:'sluis', vhf:20, hoogte:null, info:'Sluis Lemmer. VHF 20.' },
+  { naam:'IJlst – Wymbritseradeel brug', lat:53.0100, lon:5.6220, type:'brug', hoogte:2.3, info:'Beweegbare brug IJlst.' },
+  { naam:'Workum – Brug', lat:52.9760, lon:5.4430, type:'brug', hoogte:2.5, info:'Toegang Workum vanuit IJsselmeer.' },
+  { naam:'Makkum – Sluis', lat:53.0570, lon:5.3980, type:'sluis', vhf:null, hoogte:null, info:'Sluis Makkum–Waddenzee.' },
+  { naam:'Hindeloopen – Haven', lat:52.9410, lon:5.4010, type:'brug', hoogte:2.4, info:'Toegangsbrug Hindeloopen.' },
+];
+
+let _brugFilter = 'alle';
+let _bruggenMarkers = [];
+let _bruggenLayerGroup = null;
+window._brugMarkersAan = false;
+
+function zoekBrug(term) {
+  renderBruggenLijst(term);
+}
+
+function renderBruggenLijst(zoekterm) {
+  const lijst = document.getElementById('brug-lijst');
+  if (!lijst) return;
+  const term = (zoekterm || document.getElementById('brug-zoek')?.value || '').toLowerCase();
+  const gefilterd = BRUGGEN_DATA.filter(b => {
+    if (_brugFilter !== 'alle' && b.type !== _brugFilter) return false;
+    if (term && !b.naam.toLowerCase().includes(term)) return false;
+    return true;
+  });
+  lijst.innerHTML = '';
+  if (gefilterd.length === 0) {
+    lijst.innerHTML = '<div style="font-size:12px;color:var(--muted);text-align:center;padding:8px;">Geen resultaten</div>';
+    return;
+  }
+  gefilterd.forEach(b => {
+    const div = document.createElement('div');
+    div.style.cssText = 'background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:6px;padding:8px 10px;cursor:pointer;';
+    div.onmouseenter = () => div.style.background = 'rgba(0,200,200,0.08)';
+    div.onmouseleave = () => div.style.background = 'rgba(255,255,255,0.04)';
+    div.onclick = () => map.flyTo([b.lat, b.lon], 15);
+    const icon = b.type === 'sluis' ? '🔒' : '🌉';
+    const extra = b.hoogte ? ` · ${b.hoogte}m` : b.vhf ? ` · VHF ${b.vhf}` : '';
+    div.innerHTML = `
+      <div style="font-size:13px;color:var(--white);font-weight:600;">${icon} ${b.naam}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px;">${b.info}${extra}</div>`;
+    lijst.appendChild(div);
+  });
+}
+
+function toggleBrugMarkers() {
+  const btn = document.getElementById('btn-brug-markers');
+  if (window._brugMarkersAan) {
+    window._brugMarkersAan = false;
+    if (btn) btn.style.background = '';
+    if (_bruggenLayerGroup) map.removeLayer(_bruggenLayerGroup);
+  } else {
+    window._brugMarkersAan = true;
+    if (btn) btn.style.background = 'rgba(0,200,200,0.2)';
+    if (!_bruggenLayerGroup) {
+      _bruggenLayerGroup = L.layerGroup();
+      BRUGGEN_DATA.forEach(b => {
+        const icon = b.type === 'sluis' ? '🔒' : '🌉';
+        const marker = L.marker([b.lat, b.lon], {
+          icon: L.divIcon({
+            html: `<div style="font-size:18px;line-height:1;">${icon}</div>`,
+            className: '',
+            iconSize: [24, 24],
+            iconAnchor: [12, 12]
+          })
+        }).bindPopup(`<b>${b.naam}</b><br>${b.info}${b.hoogte ? '<br>Hoogte gesloten: '+b.hoogte+'m' : ''}${b.vhf ? '<br>VHF '+b.vhf : ''}`);
+        _bruggenLayerGroup.addLayer(marker);
+      });
+    }
+    _bruggenLayerGroup.addTo(map);
+  }
+}
+
+function filterBruggen(type) {
+  _brugFilter = type;
+  ['alle','brug','sluis'].forEach(t => {
+    const el = document.getElementById('filter-' + t);
+    if (el) el.style.background = t === type ? 'rgba(0,200,200,0.2)' : '';
+  });
+  renderBruggenLijst();
+}
+
+// Init bruggen lijst bij opstarten
+document.addEventListener('DOMContentLoaded', () => {
+  renderBruggenLijst();
+});
+
 function toggleSeaMap(on) {
   on ? seaLayer.addTo(map) : map.removeLayer(seaLayer);
+  _slaLaagOp('toggle-sea', on);
 }
 
 function toggleSatellite(on) {
