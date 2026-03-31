@@ -1195,6 +1195,81 @@
 <div class="notify" id="notify"></div>
 
 <script>
+// ── UI HULPFUNCTIES ────────────────────────────────────────
+function toggleSectie(id, titleEl) {
+  const inhoud = document.getElementById(id);
+  if (!inhoud) return;
+  const pijlId = id.replace('-inhoud', '-pijl');
+  const pijl = document.getElementById(pijlId);
+  const open = inhoud.style.display !== 'none';
+  inhoud.style.display = open ? 'none' : '';
+  if (pijl) pijl.textContent = open ? '▶' : '▼';
+}
+
+function toggleSidebar() {
+  const sidebar = document.querySelector('.sidebar');
+  const btn = document.getElementById('sidebar-toggle');
+  if (!sidebar) return;
+  sidebar.classList.toggle('collapsed');
+  if (btn) btn.textContent = sidebar.classList.contains('collapsed') ? '▶ Menu' : '◀ Menu';
+}
+
+function toggleInstellingen() {
+  const modal = document.getElementById('instellingen-modal');
+  if (!modal) return;
+  modal.style.display = modal.style.display === 'flex' ? 'none' : 'flex';
+}
+
+function toggleWakeLock() {
+  const btn = document.getElementById('wakelock-btn');
+  if (!('wakeLock' in navigator)) {
+    if (btn) btn.textContent = 'Niet beschikbaar op dit apparaat';
+    return;
+  }
+  if (window._wakeLock) {
+    window._wakeLock.release();
+    window._wakeLock = null;
+    if (btn) btn.textContent = 'Tik om te activeren';
+  } else {
+    navigator.wakeLock.request('screen').then(lock => {
+      window._wakeLock = lock;
+      if (btn) btn.textContent = 'Actief — tik om te deactiveren';
+      lock.addEventListener('release', () => {
+        window._wakeLock = null;
+        if (btn) btn.textContent = 'Tik om te activeren';
+      });
+    }).catch(() => {
+      if (btn) btn.textContent = 'Activeren mislukt';
+    });
+  }
+}
+
+function toggleBrugMarkers() {
+  // Implementatie via bestaande brug-toggle logica
+  const btn = document.getElementById('btn-brug-markers');
+  if (window._brugMarkersAan) {
+    window._brugMarkersAan = false;
+    if (btn) btn.textContent = '🗺';
+    if (window._bruggenLayer) map.removeLayer(window._bruggenLayer);
+  } else {
+    window._brugMarkersAan = true;
+    if (btn) btn.textContent = '🗺 ✓';
+    if (window._bruggenLayer) window._bruggenLayer.addTo(map);
+  }
+}
+
+function filterBruggen(type) {
+  const knoppen = ['filter-alle', 'filter-brug', 'filter-sluis'];
+  knoppen.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.background = '';
+  });
+  const actief = document.getElementById('filter-' + type);
+  if (actief) actief.style.background = 'rgba(0,200,200,0.2)';
+  window._brugFilter = type;
+  if (typeof renderBruggenLijst === 'function') renderBruggenLijst();
+}
+
 // ── MAP SETUP ──────────────────────────────────────────────
 const map = L.map('map', {
   center: [52.37, 4.90],
@@ -1219,7 +1294,7 @@ const satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/servic
 });
 
 // OpenSeaMap layer
-const seaLayer = L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', {
+const seaLayer = L.tileLayer('https://t1.openseamap.org/seamark/{z}/{x}/{y}.png', {
   attribution: '© OpenSeaMap',
   maxZoom: 18,
   opacity: 0.9
@@ -2306,7 +2381,7 @@ function toggleDiepte(aan) {
 // ── RWS BOEIEN ────────────────────────────────────────────
 // OpenSeaMap bevat alle officiële Nederlandse boeien en bakens
 // Dit werkt altijd zonder CORS problemen
-const boeiWMSLayer = L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', {
+const boeiWMSLayer = L.tileLayer('https://t1.openseamap.org/seamark/{z}/{x}/{y}.png', {
   attribution: '© OpenSeaMap',
   opacity: 1.0,
   maxZoom: 18,
