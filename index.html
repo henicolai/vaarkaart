@@ -1133,6 +1133,11 @@
           style="display:none" onchange="laadGpx(this.files[0])">
       </div>
       <div id="gpx-status" style="font-size:11px;color:var(--muted);margin-bottom:6px;"></div>
+      <!-- Icoontjeskiezer -->
+      <div id="gpx-icon-kiezer" style="display:none;margin-bottom:8px;">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:5px;">Icoon voor deze import:</div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px;" id="gpx-icon-opties"></div>
+      </div>
       <div id="gpx-lijst" style="display:flex;flex-direction:column;gap:4px;max-height:200px;overflow-y:auto;"></div>
       <button class="btn btn-ghost" id="btn-gpx-wis" style="display:none;margin-top:6px;font-size:12px;" onclick="wisGpx()">✕ Wis alle waypoints</button>
     </div>
@@ -3307,6 +3312,78 @@ function verwijderWaypoint(naam) {
 const gpxLaag = L.layerGroup().addTo(map);
 let gpxWaypoints = [];
 
+// ── GPX ICOONTJESKIEZER ───────────────────────────────────
+const GPX_ICONEN = [
+  { id: 'anker',    emoji: '⚓', label: 'Anker' },
+  { id: 'pin',      emoji: '📍', label: 'Pin' },
+  { id: 'ster',     emoji: '⭐', label: 'Ster' },
+  { id: 'vlag',     emoji: '🚩', label: 'Vlag' },
+  { id: 'gevaar',   emoji: '⚠️', label: 'Gevaar' },
+  { id: 'haven',    emoji: '🏠', label: 'Haven' },
+  { id: 'boei',     emoji: '🔴', label: 'Boei' },
+  { id: 'vis',      emoji: '🐟', label: 'Vis' },
+  { id: 'doel',     emoji: '🎯', label: 'Doel' },
+  { id: 'brug',     emoji: '🌉', label: 'Brug' },
+];
+let _gpxGekozenIcon = GPX_ICONEN[0];
+let _gpxPendingData = null; // { punten, trkPunten } wacht op icoontje
+
+function toonIconKiezer(punten, trkPunten) {
+  _gpxPendingData = { punten, trkPunten };
+  const kiezer = document.getElementById('gpx-icon-kiezer');
+  const opties = document.getElementById('gpx-icon-opties');
+  kiezer.style.display = 'block';
+  opties.innerHTML = '';
+  GPX_ICONEN.forEach(ic => {
+    const btn = document.createElement('button');
+    btn.title = ic.label;
+    btn.style.cssText = `font-size:20px;background:${ic.id === _gpxGekozenIcon.id ? 'rgba(0,200,200,0.25)' : 'rgba(255,255,255,0.06)'};border:1px solid ${ic.id === _gpxGekozenIcon.id ? 'var(--teal)' : 'var(--border)'};border-radius:6px;padding:4px 7px;cursor:pointer;`;
+    btn.textContent = ic.emoji;
+    btn.onclick = () => {
+      _gpxGekozenIcon = ic;
+      toonIconKiezer(_gpxPendingData.punten, _gpxPendingData.trkPunten);
+      plaatsGpxPunten(_gpxPendingData.punten, _gpxPendingData.trkPunten);
+    };
+    opties.appendChild(btn);
+  });
+  plaatsGpxPunten(punten, trkPunten);
+}
+
+function plaatsGpxPunten(punten, trkPunten) {
+  gpxLaag.clearLayers();
+  gpxWaypoints = [];
+  const bounds = [];
+
+  if (trkPunten.length > 1) {
+    L.polyline(trkPunten.map(p => [p.lat, p.lon]), { color: '#00c8c8', weight: 3, opacity: 0.8 }).addTo(gpxLaag);
+  }
+
+  punten.forEach((p, i) => {
+    if (p.type === 'trk' && i !== 0 && i !== trkPunten.length - 1) {
+      bounds.push([p.lat, p.lon]);
+      return;
+    }
+    const naam = p.el.querySelector('name')?.textContent?.trim() || `WP ${i+1}`;
+    const desc = p.el.querySelector('desc')?.textContent?.trim() || '';
+    const icon = L.divIcon({
+      className: '',
+      html: `<div style="font-size:20px;line-height:1;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.6));">${_gpxGekozenIcon.emoji}</div>`,
+      iconSize: [24, 24],
+      iconAnchor: [12, 20]
+    });
+    const marker = L.marker([p.lat, p.lon], { icon, zIndexOffset: 600 })
+      .bindPopup(`<b>${_gpxGekozenIcon.emoji} ${naam}</b>${desc ? '<br><small>' + desc + '</small>' : ''}<br><small style="color:#888">${formatCoord(p.lat, p.lon)}</small>`)
+      .addTo(gpxLaag);
+    gpxWaypoints.push({ naam, lat: p.lat, lon: p.lon, marker });
+    bounds.push([p.lat, p.lon]);
+  });
+
+  if (bounds.length) {
+    map.fitBounds(L.latLngBounds(bounds), { padding: [30, 30] });
+    renderGpxLijst();
+  }
+}
+
 function handleGpxDrop(event) {
   event.preventDefault();
   document.getElementById('gpx-dropzone').style.background = 'rgba(245,166,35,0.04)';
@@ -3358,64 +3435,13 @@ function laadGpx(file) {
         return;
       }
 
-      // Teken tracks als lijn
       const trkPunten = punten.filter(p => p.type === 'trk');
-      if (trkPunten.length > 1) {
-        L.polyline(trkPunten.map(p => [p.lat, p.lon]), { color: '#00c8c8', weight: 3, opacity: 0.8 }).addTo(gpxLaag);
-      }
-
-      // Wis bestaande waypoints
-      gpxLaag.clearLayers();
-      gpxWaypoints = [];
-      const bounds = [];
-
-      // Teken lijn opnieuw na clearLayers
-      if (trkPunten.length > 1) {
-        L.polyline(trkPunten.map(p => [p.lat, p.lon]), { color: '#00c8c8', weight: 3, opacity: 0.8 }).addTo(gpxLaag);
-      }
-
-      punten.forEach((p, i) => {
-        const naam = p.el.querySelector('name')?.textContent?.trim() || `WP ${i+1}`;
-        const desc = p.el.querySelector('desc')?.textContent?.trim() || '';
-        const sym  = p.el.querySelector('sym')?.textContent?.trim() || '';
-        const kleur = p.type === 'trk' ? '#00c8c8'
-                    : sym.toLowerCase().includes('danger') ? '#e84545'
-                    : sym.toLowerCase().includes('anchor') ? '#4fc3f7'
-                    : '#f5a623';
-        // Voor tracks alleen begin en eindpunt markeren
-        if (p.type === 'trk' && i !== 0 && i !== trkPunten.length - 1) {
-          bounds.push([p.lat, p.lon]);
-          return;
-        }
-        const icon = L.divIcon({
-          className: '',
-          html: `<div style="width:20px;height:20px;background:${kleur};border:2px solid white;
-            border-radius:50% 50% 50% 0;transform:rotate(-45deg);
-            box-shadow:0 2px 6px rgba(0,0,0,0.5);"></div>`,
-          iconSize: [20,20], iconAnchor: [10,20]
-        });
-        const marker = L.marker([p.lat, p.lon], { icon, zIndexOffset: 600 })
-          .bindPopup(`<b>📌 ${naam}</b>${desc?'<br><small>'+desc+'</small>':''}
-            <br><small style="color:#888">${formatCoord(p.lat, p.lon)}</small>`)
-          .addTo(gpxLaag);
-        gpxWaypoints.push({ naam, lat: p.lat, lon: p.lon, marker });
-        bounds.push([p.lat, p.lon]);
-      });
-
-      if (!bounds.length) {
-        statusEl.style.color = 'var(--amber)';
-        statusEl.textContent = '⚠ Geen geldige coördinaten gevonden';
-        return;
-      }
-      map.fitBounds(L.latLngBounds(bounds), { padding:[30,30] });
       statusEl.style.color = 'var(--teal)';
-      const trkAantal = trkPunten.length;
-      const wptAantal = gpxWaypoints.length;
-      statusEl.textContent = trkAantal > 1
-        ? `✓ Track geladen (${trkAantal} punten, ${wptAantal} markers)`
-        : `✓ ${wptAantal} waypoints geladen`;
+      statusEl.textContent = trkPunten.length > 1
+        ? `✓ Track geladen (${trkPunten.length} punten) — kies icoon`
+        : `✓ ${punten.length} punten geladen — kies icoon`;
       document.getElementById('btn-gpx-wis').style.display = 'block';
-      renderGpxLijst();
+      toonIconKiezer(punten, trkPunten);
       notify(`📌 GPX geladen`);
     } catch(err) {
       statusEl.style.color = 'var(--danger)';
@@ -3630,5 +3656,6 @@ function verwerkKaartBestand(file) {
 
 
 
+</script>
 </body>
 </html>
