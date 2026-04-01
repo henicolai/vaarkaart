@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fietsknooppunten Nederland</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --groen: #1a7a3c;
+    --groen-licht: #2ea84f;
+    --wit: #f5f0e8;
+    --donker: #1a1a14;
+    --accent: #e8b84b;
+  }
+  html, body { height: 100%; }
+  body {
+    font-family: system-ui, sans-serif;
+    background: var(--donker);
+    color: var(--wit);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 16px;
+    background: var(--donker);
+    border-bottom: 2px solid var(--groen);
+    flex-shrink: 0;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .logo { display: flex; align-items: center; gap: 10px; }
+  .logo-icon {
+    width: 34px; height: 34px;
+    background: var(--groen); border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 17px;
+  }
+  h1 { font-size: 1.1rem; font-weight: 700; }
+  h1 span { color: var(--groen-licht); }
+  .subtitle { font-size: 0.58rem; color: #888; letter-spacing: 0.08em; text-transform: uppercase; margin-top: 1px; }
+  .controls { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .btn {
+    background: #2a2a1e; border: 1px solid #444; color: var(--wit);
+    padding: 5px 10px; border-radius: 4px; font-size: 0.7rem;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .btn:hover { border-color: var(--groen-licht); }
+  .btn.active { background: var(--groen); border-color: var(--groen); color: #fff; }
+  #map { flex: 1; width: 100%; }
+  .statusbar {
+    display: flex; gap: 16px; flex-wrap: wrap;
+    padding: 5px 16px;
+    background: #111; border-top: 1px solid #2a2a1e;
+    font-size: 0.6rem; color: #666; flex-shrink: 0;
+    align-items: center;
+  }
+  .statusbar strong { color: var(--groen-licht); }
+  #gps-info { color: var(--groen-licht); margin-left: auto; }
+  .leaflet-control-attribution { font-size: 9px !important; background: rgba(20,20,14,0.75) !important; color: #777 !important; }
+  .leaflet-control-attribution a { color: #aaa !important; }
+  .leaflet-control-zoom a { background: #222 !important; color: var(--groen-licht) !important; border-color: #444 !important; }
+  .leaflet-control-zoom a:hover { background: var(--groen) !important; color: #fff !important; }
+  .leaflet-popup-content-wrapper { background: #1e1e14; color: #eee; border: 1px solid var(--groen); border-radius: 6px; }
+  .leaflet-popup-tip { background: #1e1e14; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">🚴</div>
+    <div>
+      <h1>Fiets<span>knooppunten</span></h1>
+      <div class="subtitle">Nederland — interactieve kaart</div>
+    </div>
+  </div>
+  <div class="controls">
+    <button class="btn active" id="btn-cyclo" onclick="setBase('cyclo')">Fiets (CyclOSM)</button>
+    <button class="btn" id="btn-osm" onclick="setBase('osm')">Standaard</button>
+    <button class="btn" id="btn-topo" onclick="setBase('topo')">Topo</button>
+    <button class="btn active" id="btn-overlay" onclick="toggleOverlay()">Knooppunten overlay</button>
+    <button class="btn" id="btn-gps" onclick="toggleGPS()">📍 GPS</button>
+  </div>
+</header>
+
+<div id="map"></div>
+
+<div class="statusbar">
+  <span>🗺️ <strong>~10.500</strong> knooppunten</span>
+  <span>📏 <strong>36.000+ km</strong> routes</span>
+  <span>Zoom in tot niveau 13+ voor knooppuntnummers</span>
+  <span id="gps-info"></span>
+</div>
+
+<script>
+const map = L.map('map', { center: [52.3, 5.3], zoom: 8 });
+
+const layers = {
+  cyclo: L.tileLayer('https://{s}.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://cyclosm.org">CyclOSM</a> © <a href="https://openstreetmap.org">OSM</a>',
+    maxZoom: 20
+  }),
+  osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://openstreetmap.org">OpenStreetMap</a>',
+    maxZoom: 19
+  }),
+  topo: L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://opentopomap.org">OpenTopoMap</a>',
+    maxZoom: 17
+  })
+};
+
+const overlay = L.tileLayer('https://tile.waymarkedtrails.org/cycling/{z}/{x}/{y}.png', {
+  attribution: '© <a href="https://cycling.waymarkedtrails.org">Waymarked Trails</a>',
+  maxZoom: 19, opacity: 0.9
+});
+
+let currentBase = 'cyclo';
+let overlayOn = true;
+
+layers.cyclo.addTo(map);
+overlay.addTo(map);
+
+L.control.scale({ imperial: false, metric: true, position: 'bottomright' }).addTo(map);
+
+function setBase(name) {
+  Object.keys(layers).forEach(k => {
+    map.removeLayer(layers[k]);
+    document.getElementById('btn-' + k).classList.remove('active');
+  });
+  layers[name].addTo(map);
+  if (overlayOn) overlay.addTo(map);
+  document.getElementById('btn-' + name).classList.add('active');
+  currentBase = name;
+}
+
+function toggleOverlay() {
+  overlayOn = !overlayOn;
+  document.getElementById('btn-overlay').classList.toggle('active', overlayOn);
+  overlayOn ? overlay.addTo(map) : map.removeLayer(overlay);
+}
+
+// GPS
+let gpsActive = false;
+let watchId = null;
+let gpsMarker = null;
+let gpsRing = null;
+
+function toggleGPS() {
+  gpsActive ? stopGPS() : startGPS();
+}
+
+function startGPS() {
+  if (!navigator.geolocation) { alert('Geolocatie niet beschikbaar.'); return; }
+  const btn = document.getElementById('btn-gps');
+  btn.textContent = '⏳ Zoeken...';
+  btn.classList.add('active');
+  gpsActive = true;
+
+  watchId = navigator.geolocation.watchPosition(
+    pos => {
+      const { latitude: lat, longitude: lng, accuracy: acc } = pos.coords;
+
+      if (!gpsMarker) {
+        gpsRing = L.circle([lat, lng], {
+          radius: acc,
+          color: '#2ea84f', fillColor: '#2ea84f',
+          fillOpacity: 0.12, weight: 1
+        }).addTo(map);
+
+        gpsMarker = L.circleMarker([lat, lng], {
+          radius: 8, color: '#fff', weight: 2.5,
+          fillColor: '#1a7a3c', fillOpacity: 1
+        }).bindPopup('<b>Jouw positie</b>').addTo(map);
+
+        map.setView([lat, lng], 14);
+      } else {
+        gpsMarker.setLatLng([lat, lng]);
+        gpsRing.setLatLng([lat, lng]);
+        gpsRing.setRadius(acc);
+      }
+
+      btn.textContent = '📡 GPS aan';
+      document.getElementById('gps-info').textContent =
+        `📍 ${lat.toFixed(5)}, ${lng.toFixed(5)}  ±${Math.round(acc)}m`;
+    },
+    err => {
+      stopGPS();
+      alert('GPS fout: ' + err.message);
+    },
+    { enableHighAccuracy: true, maximumAge: 4000, timeout: 15000 }
+  );
+}
+
+function stopGPS() {
+  if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; }
+  if (gpsMarker) { map.removeLayer(gpsMarker); gpsMarker = null; }
+  if (gpsRing)   { map.removeLayer(gpsRing);   gpsRing = null; }
+  gpsActive = false;
+  document.getElementById('btn-gps').textContent = '📍 GPS';
+  document.getElementById('btn-gps').classList.remove('active');
+  document.getElementById('gps-info').textContent = '';
+}
+</script>
+</body>
+</html>
