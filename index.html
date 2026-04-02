@@ -622,9 +622,6 @@
       <a href="handleiding.html" target="_blank" class="btn btn-ghost" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:6px;text-decoration:none;">
         📖 Handleiding
       </a>
-      <a href="fietsknooppunten.html" target="_blank" class="btn btn-ghost" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:6px;text-decoration:none;">
-        🚴 Fietsknooppunten
-      </a>
       <a href="https://bunq.me/HendrikEeuwe" target="_blank" style="
         width:100%;display:flex;align-items:center;justify-content:center;gap:8px;
         margin-top:6px;padding:8px;border-radius:6px;text-decoration:none;
@@ -923,6 +920,18 @@
         </div>
         <div id="brug-lijst" style="display:flex;flex-direction:column;gap:4px;max-height:300px;overflow-y:auto;"></div>
       </div>
+    </div>
+
+    <!-- Stremmingen -->
+    <div class="sidebar-section">
+      <div class="sidebar-title">⚠️ Stremmingen</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">Actuele scheepvaartberichten via Rijkswaterstaat FIS</div>
+      <button class="btn btn-ghost" onclick="openStremmingen()" style="margin-bottom:6px;">
+        ↗ Open stremmingen kaart
+      </button>
+      <button class="btn btn-ghost" onclick="openVaarweginformatie()" style="font-size:13px;">
+        ↗ Vaarweginformatie.nl
+      </button>
     </div>
 
     <!-- Eigen kaarten -->
@@ -2139,6 +2148,19 @@ function openAIS() {
   const lon = pos ? pos.lon.toFixed(4) : map.getCenter().lng.toFixed(4);
   const zoom = Math.min(map.getZoom(), 14);
   window.open(`https://www.vesselfinder.com/?lat=${lat}&lon=${lon}&zoom=${zoom}`, '_blank');
+}
+
+function openStremmingen() {
+  const pos = window._laatsteGpsPositie;
+  const lat = pos ? pos.lat.toFixed(4) : map.getCenter().lat.toFixed(4);
+  const lon = pos ? pos.lon.toFixed(4) : map.getCenter().lng.toFixed(4);
+  const zoom = Math.min(map.getZoom(), 13);
+  // Vaarweginformatie kaart gecentreerd op huidige positie
+  window.open(`https://vaarweginformatie.nl/frp/main/#?lang=nl&lat=${lat}&lng=${lon}&zoom=${zoom}&layers=waterway,nts`, '_blank');
+}
+
+function openVaarweginformatie() {
+  window.open('https://vaarweginformatie.nl/frp/main/#?lang=nl&layers=waterway,nts', '_blank');
 }
 
 // ── HAVENS ────────────────────────────────────────────────
