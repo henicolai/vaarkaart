@@ -7,207 +7,245 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  :root {
-    --groen: #1a7a3c;
-    --groen-licht: #2ea84f;
-    --wit: #f5f0e8;
-    --donker: #1a1a14;
-    --accent: #e8b84b;
-  }
-  html, body { height: 100%; }
-  body {
-    font-family: system-ui, sans-serif;
-    background: var(--donker);
-    color: var(--wit);
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-  header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 8px 16px;
-    background: var(--donker);
-    border-bottom: 2px solid var(--groen);
-    flex-shrink: 0;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-  .logo { display: flex; align-items: center; gap: 10px; }
-  .logo-icon {
-    width: 34px; height: 34px;
-    background: var(--groen); border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 17px;
-  }
-  h1 { font-size: 1.1rem; font-weight: 700; }
-  h1 span { color: var(--groen-licht); }
-  .subtitle { font-size: 0.58rem; color: #888; letter-spacing: 0.08em; text-transform: uppercase; margin-top: 1px; }
-  .controls { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
-  .btn {
-    background: #2a2a1e; border: 1px solid #444; color: var(--wit);
-    padding: 5px 10px; border-radius: 4px; font-size: 0.7rem;
-    cursor: pointer; transition: all 0.15s;
-  }
-  .btn:hover { border-color: var(--groen-licht); }
-  .btn.active { background: var(--groen); border-color: var(--groen); color: #fff; }
-  #map { flex: 1; width: 100%; }
-  .statusbar {
-    display: flex; gap: 16px; flex-wrap: wrap;
-    padding: 5px 16px;
-    background: #111; border-top: 1px solid #2a2a1e;
-    font-size: 0.6rem; color: #666; flex-shrink: 0;
-    align-items: center;
-  }
-  .statusbar strong { color: var(--groen-licht); }
-  #gps-info { color: var(--groen-licht); margin-left: auto; }
-  .leaflet-control-attribution { font-size: 9px !important; background: rgba(20,20,14,0.75) !important; color: #777 !important; }
-  .leaflet-control-attribution a { color: #aaa !important; }
-  .leaflet-control-zoom a { background: #222 !important; color: var(--groen-licht) !important; border-color: #444 !important; }
-  .leaflet-control-zoom a:hover { background: var(--groen) !important; color: #fff !important; }
-  .leaflet-popup-content-wrapper { background: #1e1e14; color: #eee; border: 1px solid var(--groen); border-radius: 6px; }
-  .leaflet-popup-tip { background: #1e1e14; }
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--g:#1a7a3c;--gl:#2ea84f;--d:#1a1a14;--t:#00c8c8;--y:#e8b84b}
+html,body{height:100%}
+body{font-family:system-ui,sans-serif;background:var(--d);color:#f5f0e8;height:100vh;display:flex;flex-direction:column;overflow:visible}
+header{display:flex;align-items:center;justify-content:space-between;padding:8px 16px;background:var(--d);border-bottom:2px solid var(--g);flex-shrink:0;flex-wrap:wrap;gap:8px;position:relative;z-index:2000}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-icon{width:34px;height:34px;background:var(--g);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:17px}
+h1{font-size:1.1rem;font-weight:700}
+h1 span{color:var(--gl)}
+.sub{font-size:0.58rem;color:#888;letter-spacing:0.08em;text-transform:uppercase;margin-top:1px}
+.ctrls{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.btn{background:#2a2a1e;border:1px solid #444;color:#f5f0e8;padding:5px 10px;border-radius:4px;font-size:0.7rem;cursor:pointer;transition:all 0.15s;white-space:nowrap}
+.btn:hover{border-color:var(--gl)}
+.btn.on{background:var(--g);border-color:var(--g);color:#fff}
+#map-wrap{flex:1;display:flex;flex-direction:row;overflow:hidden}
+#map{flex:1;height:100%}
+#rp{width:220px;min-width:220px;background:#161610;border-left:2px solid var(--g);font-size:0.7rem;overflow-y:auto;display:flex;flex-direction:column}
+#rph{background:var(--g);padding:7px 12px;font-weight:700;font-size:0.75rem;display:flex;justify-content:space-between;align-items:center}
+#rpb{padding:10px 12px}
+#kl{max-height:180px;overflow-y:auto;margin-bottom:8px}
+.ki{display:flex;align-items:center;padding:4px 6px;margin-bottom:3px;background:rgba(255,255,255,0.05);border-radius:4px;gap:6px}
+.kn{background:var(--y);color:#222;border-radius:50%;width:22px;height:22px;min-width:22px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.62rem}
+.kl2{flex:1;color:#bbb;font-size:0.65rem}
+.kd{cursor:pointer;color:#666;padding:0 3px}
+.kd:hover{color:#f66}
+#ra{text-align:center;padding:6px;background:rgba(0,200,100,0.1);border-radius:4px;margin-bottom:8px;color:var(--gl);font-weight:700;font-size:0.85rem;display:none}
+.rbtns{display:flex;gap:5px}
+.rbtns .btn{flex:1;font-size:0.65rem;padding:5px 4px;text-align:center}
+.sb{display:flex;gap:12px;flex-wrap:wrap;padding:5px 16px;background:#111;border-top:1px solid #222;font-size:0.6rem;color:#666;flex-shrink:0;align-items:center;position:relative;z-index:2000}
+#sm{color:var(--t)}
+#gi{color:var(--gl);margin-left:auto}
+#loader{display:none;position:absolute;top:50%;left:calc(50% - 110px);transform:translate(-50%,-50%);background:rgba(20,20,14,0.95);border:1px solid var(--g);border-radius:8px;padding:14px 24px;z-index:2000;font-size:0.8rem;color:var(--gl)}
+.leaflet-control-attribution{font-size:9px!important;background:rgba(20,20,14,0.75)!important;color:#777!important}
+.leaflet-control-attribution a{color:#aaa!important}
+.leaflet-control-zoom a{background:#222!important;color:var(--gl)!important;border-color:#444!important}
+.leaflet-control-zoom a:hover{background:var(--g)!important;color:#fff!important}
+.leaflet-popup-content-wrapper{background:#1e1e14;color:#eee;border:1px solid var(--g);border-radius:6px}
+.leaflet-popup-tip{background:#1e1e14}
 </style>
 </head>
 <body>
-
 <header>
   <div class="logo">
-    <div class="logo-icon">🚴</div>
+    <div class="logo-icon">&#x1F6B4;</div>
     <div>
       <h1>Fiets<span>knooppunten</span></h1>
-      <div class="subtitle">Nederland — interactieve kaart</div>
+      <div class="sub">Nederland &mdash; routeplanner</div>
     </div>
   </div>
-  <div class="controls">
-    <button class="btn active" id="btn-cyclo" onclick="setBase('cyclo')">Fiets (CyclOSM)</button>
-    <button class="btn" id="btn-osm" onclick="setBase('osm')">Standaard</button>
-    <button class="btn" id="btn-topo" onclick="setBase('topo')">Topo</button>
-    <button class="btn active" id="btn-overlay" onclick="toggleOverlay()">Knooppunten overlay</button>
-    <button class="btn" id="btn-gps" onclick="toggleGPS()">📍 GPS</button>
+  <div class="ctrls">
+    <button class="btn on" id="b-v" onclick="setBase('v')">Voyager</button>
+    <button class="btn" id="b-t" onclick="setBase('t')">Topo</button>
+    <button class="btn" id="b-s" onclick="setBase('s')">Satelliet</button>
+    <button class="btn" id="b-gps" onclick="toggleGPS()">&#x1F4CD; GPS</button>
+    <button class="btn" onclick="location.href='index.html'">&#x26F5; VaarKaart</button>
   </div>
 </header>
 
-<div id="map"></div>
+<div id="map-wrap">
+  <div id="map"></div>
 
-<div class="statusbar">
-  <span>🗺️ <strong>~10.500</strong> knooppunten</span>
-  <span>📏 <strong>36.000+ km</strong> routes</span>
-  <span>Zoom in tot niveau 13+ voor knooppuntnummers</span>
-  <span id="gps-info"></span>
+  <div id="rp">
+    <div id="rph">&#x1F6B4; Route <span id="kc" style="font-weight:normal;font-size:0.65rem;opacity:0.8">0 knooppunten</span></div>
+    <div id="rpb">
+      <div id="kh" style="color:#888;font-size:0.65rem;margin-bottom:8px">Zoom in tot niveau 12+ en klik op een knooppunt om te beginnen.</div>
+      <div id="kl"></div>
+      <div id="ra"></div>
+      <div class="rbtns">
+        <button class="btn" onclick="wisRoute()" style="color:#f99">&#x2715; Wis</button>
+        <button class="btn" onclick="exportGPX()" id="b-gpx" disabled>&#x1F4E5; GPX</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="loader">&#x23F3; Knooppunten laden...</div>
+</div>
+
+<div class="sb">
+  <span id="sm">Zoom in tot niveau 12+ om knooppunten te laden</span>
+  <span id="gi"></span>
 </div>
 
 <script>
-const map = L.map('map', { center: [52.3, 5.3], zoom: 8 });
-
-const layers = {
-  cyclo: L.tileLayer('https://{s}.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png', {
-    attribution: '© <a href="https://cyclosm.org">CyclOSM</a> © <a href="https://openstreetmap.org">OSM</a>',
-    maxZoom: 20
-  }),
-  osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© <a href="https://openstreetmap.org">OpenStreetMap</a>',
-    maxZoom: 19
-  }),
-  topo: L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
-    attribution: '© <a href="https://opentopomap.org">OpenTopoMap</a>',
-    maxZoom: 17
-  })
+var map=L.map('map',{center:[52.3,5.3],zoom:8});
+var CARTO='https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+var CARTO_ATTR='&copy; <a href="https://openstreetmap.org">OSM</a> &copy; <a href="https://carto.com">CARTO</a>';
+var layers={
+  v:L.tileLayer(CARTO,{attribution:CARTO_ATTR,maxZoom:20,subdomains:'abcd'}),
+  t:L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',{attribution:'&copy; Esri',maxZoom:18}),
+  s:L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{attribution:'&copy; Esri',maxZoom:19})
 };
+// Fiets overlay (knooppunten zichtbaar op hoog zoom)
+var fietsOverlay=L.tileLayer('https://tile.waymarkedtrails.org/cycling/{z}/{x}/{y}.png',{maxZoom:19,opacity:0.7});
+layers.v.addTo(map);
+fietsOverlay.addTo(map);
+L.control.scale({imperial:false,metric:true,position:'bottomright'}).addTo(map);
 
-const overlay = L.tileLayer('https://tile.waymarkedtrails.org/cycling/{z}/{x}/{y}.png', {
-  attribution: '© <a href="https://cycling.waymarkedtrails.org">Waymarked Trails</a>',
-  maxZoom: 19, opacity: 0.9
-});
-
-let currentBase = 'cyclo';
-let overlayOn = true;
-
-layers.cyclo.addTo(map);
-overlay.addTo(map);
-
-L.control.scale({ imperial: false, metric: true, position: 'bottomright' }).addTo(map);
-
-function setBase(name) {
-  Object.keys(layers).forEach(k => {
-    map.removeLayer(layers[k]);
-    document.getElementById('btn-' + k).classList.remove('active');
-  });
-  layers[name].addTo(map);
-  if (overlayOn) overlay.addTo(map);
-  document.getElementById('btn-' + name).classList.add('active');
-  currentBase = name;
+function setBase(n){
+  Object.keys(layers).forEach(function(k){map.removeLayer(layers[k]);document.getElementById('b-'+k).classList.remove('on')});
+  layers[n].addTo(map);
+  fietsOverlay.addTo(map); // overlay altijd bovenop
+  document.getElementById('b-'+n).classList.add('on');
 }
 
-function toggleOverlay() {
-  overlayOn = !overlayOn;
-  document.getElementById('btn-overlay').classList.toggle('active', overlayOn);
-  overlayOn ? overlay.addTo(map) : map.removeLayer(overlay);
+// Knooppunten via Overpass
+var knoopLayer=L.layerGroup().addTo(map);
+var routeLayer=L.layerGroup().addTo(map);
+var knoopData={},kMarkers={},loadedBounds=null,loadTimer=null;
+var route=[],routeLijn=null;
+
+var SERVERS=[
+  'https://overpass-api.de/api/interpreter',
+  'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter'
+];
+
+function ss(m){document.getElementById('sm').textContent=m}
+
+map.on('moveend',function(){
+  clearTimeout(loadTimer);
+  if(map.getZoom()<12){ss('Zoom in tot niveau 12+ om knooppunten te laden');knoopLayer.clearLayers();knoopData={};kMarkers={};loadedBounds=null;return}
+  loadTimer=setTimeout(load,600);
+});
+
+function tryFetch(q,i){
+  i=i||0;
+  if(i>=SERVERS.length)return Promise.reject(new Error('Geen server beschikbaar'));
+  return fetch(SERVERS[i],{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'data='+encodeURIComponent(q)})
+    .then(function(r){if(!r.ok)throw 0;return r.json()})
+    .catch(function(){return tryFetch(q,i+1)});
+}
+
+function load(){
+  var b=map.getBounds();
+  if(loadedBounds&&loadedBounds.contains(b))return;
+  var p=0.02,s=b.getSouth()-p,w=b.getWest()-p,n=b.getNorth()+p,e=b.getEast()+p;
+  var q='[out:json][timeout:25];node["rcn_ref"]('+s+','+w+','+n+','+e+');out body;';
+  document.getElementById('loader').style.display='block';
+  ss('Knooppunten laden...');
+  tryFetch(q).then(function(data){
+    document.getElementById('loader').style.display='none';
+    var sel={};route.forEach(function(k){sel[k.id]=1});
+    knoopLayer.clearLayers();knoopData={};kMarkers={};
+    data.elements.forEach(function(el){
+      var ref=el.tags&&el.tags.rcn_ref;
+      if(!ref)return;
+      knoopData[el.id]={lat:el.lat,lng:el.lon,ref:ref};
+      mkMarker(el.id,el.lat,el.lon,ref,!!sel[el.id]);
+    });
+    loadedBounds=b.pad(0.1);
+    ss(data.elements.length+' knooppunten geladen &mdash; klik om route te plannen');
+  }).catch(function(err){
+    document.getElementById('loader').style.display='none';
+    ss('Fout laden knooppunten'+(err?' ('+err.message+')':''));
+  });
+}
+
+function mkMarker(id,lat,lng,ref,sel){
+  var sz=28,bg=sel?'#e8b84b':'#1a7a3c',fg=sel?'#222':'#fff';
+  var icon=L.divIcon({className:'',
+    html:'<div id="ki'+id+'" style="width:'+sz+'px;height:'+sz+'px;background:'+bg+';border:2.5px solid #fff;border-radius:50%;color:'+fg+';font-weight:700;font-size:11px;line-height:'+sz+'px;text-align:center;cursor:pointer;box-shadow:0 1px 5px rgba(0,0,0,0.5)">'+ref+'</div>',
+    iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]});
+  var m=L.marker([lat,lng],{icon:icon,zIndexOffset:100});
+  m.on('click',function(){klik(id,lat,lng,ref)});
+  m.addTo(knoopLayer);kMarkers[id]=m;
+}
+
+function kleurKnoop(id,sel){
+  var el=document.getElementById('ki'+id);
+  if(!el)return;
+  el.style.background=sel?'#e8b84b':'#1a7a3c';
+  el.style.color=sel?'#222':'#fff';
+}
+
+function klik(id,lat,lng,ref){
+  if(route.length&&route[route.length-1].id===id)return;
+  route.push({id:id,lat:lat,lng:lng,ref:ref});
+  kleurKnoop(id,true);panel();teken();
+}
+
+function teken(){
+  if(routeLijn)routeLayer.removeLayer(routeLijn);
+  if(route.length<2)return;
+  routeLijn=L.polyline(route.map(function(k){return[k.lat,k.lng]}),{color:'#e8b84b',weight:4,opacity:0.95}).addTo(routeLayer);
+}
+
+function dist(){
+  var t=0;
+  for(var i=1;i<route.length;i++)t+=L.latLng(route[i-1].lat,route[i-1].lng).distanceTo(L.latLng(route[i].lat,route[i].lng));
+  return t;
+}
+
+function panel(){
+  var kl=document.getElementById('kl');
+  document.getElementById('kc').textContent=route.length+' knooppunten';
+  document.getElementById('b-gpx').disabled=route.length<2;
+  if(!route.length){document.getElementById('kh').style.display='block';kl.innerHTML='';document.getElementById('ra').style.display='none';return}
+  document.getElementById('kh').style.display='none';
+  kl.innerHTML=route.map(function(k,i){
+    return '<div class="ki"><div class="kn">'+k.ref+'</div><div class="kl2">'+(i===0?'Start':i===route.length-1?'Einde':'Via')+'</div><div class="kd" onclick="del('+i+')">&#x2715;</div></div>';
+  }).join('');
+  if(route.length>=2){document.getElementById('ra').style.display='block';document.getElementById('ra').textContent='~ '+(dist()/1000).toFixed(1)+' km';}
+  else document.getElementById('ra').style.display='none';
+}
+
+function del(i){var k=route.splice(i,1)[0];kleurKnoop(k.id,false);panel();teken()}
+function wisRoute(){route.forEach(function(k){kleurKnoop(k.id,false)});route=[];if(routeLijn){routeLayer.removeLayer(routeLijn);routeLijn=null}panel()}
+
+function exportGPX(){
+  if(route.length<2)return;
+  var nm=route.map(function(k){return k.ref}).join('-');
+  var w=route.map(function(k){return'  <wpt lat="'+k.lat+'" lon="'+k.lng+'"><name>'+k.ref+'</name></wpt>'}).join('\n');
+  var t=route.map(function(k){return'      <trkpt lat="'+k.lat+'" lon="'+k.lng+'"><name>'+k.ref+'</name></trkpt>'}).join('\n');
+  var g='<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="FietsKnooppunten" xmlns="http://www.topografix.com/GPX/1/1">\n  <metadata><name>Fietsroute '+nm+'</name><time>'+new Date().toISOString()+'</time></metadata>\n'+w+'\n  <trk><name>Fietsroute '+nm+'</name><trkseg>\n'+t+'\n  </trkseg></trk>\n</gpx>';
+  var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([g],{type:'application/gpx+xml'}));a.download='fietsroute-'+nm+'.gpx';a.click();
 }
 
 // GPS
-let gpsActive = false;
-let watchId = null;
-let gpsMarker = null;
-let gpsRing = null;
-
-function toggleGPS() {
-  gpsActive ? stopGPS() : startGPS();
+var gpsOn=false,wid=null,gM=null,gR=null;
+function toggleGPS(){gpsOn?stopGPS():startGPS()}
+function startGPS(){
+  if(!navigator.geolocation){alert('Geen geolocatie');return}
+  var b=document.getElementById('b-gps');b.textContent='Zoeken...';b.classList.add('on');gpsOn=true;
+  wid=navigator.geolocation.watchPosition(function(p){
+    var la=p.coords.latitude,lo=p.coords.longitude,ac=p.coords.accuracy;
+    if(!gM){
+      gR=L.circle([la,lo],{radius:ac,color:'#2ea84f',fillColor:'#2ea84f',fillOpacity:0.12,weight:1}).addTo(map);
+      gM=L.circleMarker([la,lo],{radius:8,color:'#fff',weight:2.5,fillColor:'#1a7a3c',fillOpacity:1}).bindPopup('<b>Jouw positie</b>').addTo(map);
+      map.setView([la,lo],13);
+    } else {gM.setLatLng([la,lo]);gR.setLatLng([la,lo]);gR.setRadius(ac)}
+    b.textContent='GPS aan';
+    document.getElementById('gi').textContent=la.toFixed(5)+', '+lo.toFixed(5)+'  +/-'+Math.round(ac)+'m';
+  },function(e){stopGPS();alert('GPS: '+e.message)},{enableHighAccuracy:true,maximumAge:4000,timeout:15000});
 }
-
-function startGPS() {
-  if (!navigator.geolocation) { alert('Geolocatie niet beschikbaar.'); return; }
-  const btn = document.getElementById('btn-gps');
-  btn.textContent = '⏳ Zoeken...';
-  btn.classList.add('active');
-  gpsActive = true;
-
-  watchId = navigator.geolocation.watchPosition(
-    pos => {
-      const { latitude: lat, longitude: lng, accuracy: acc } = pos.coords;
-
-      if (!gpsMarker) {
-        gpsRing = L.circle([lat, lng], {
-          radius: acc,
-          color: '#2ea84f', fillColor: '#2ea84f',
-          fillOpacity: 0.12, weight: 1
-        }).addTo(map);
-
-        gpsMarker = L.circleMarker([lat, lng], {
-          radius: 8, color: '#fff', weight: 2.5,
-          fillColor: '#1a7a3c', fillOpacity: 1
-        }).bindPopup('<b>Jouw positie</b>').addTo(map);
-
-        map.setView([lat, lng], 14);
-      } else {
-        gpsMarker.setLatLng([lat, lng]);
-        gpsRing.setLatLng([lat, lng]);
-        gpsRing.setRadius(acc);
-      }
-
-      btn.textContent = '📡 GPS aan';
-      document.getElementById('gps-info').textContent =
-        `📍 ${lat.toFixed(5)}, ${lng.toFixed(5)}  ±${Math.round(acc)}m`;
-    },
-    err => {
-      stopGPS();
-      alert('GPS fout: ' + err.message);
-    },
-    { enableHighAccuracy: true, maximumAge: 4000, timeout: 15000 }
-  );
-}
-
-function stopGPS() {
-  if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; }
-  if (gpsMarker) { map.removeLayer(gpsMarker); gpsMarker = null; }
-  if (gpsRing)   { map.removeLayer(gpsRing);   gpsRing = null; }
-  gpsActive = false;
-  document.getElementById('btn-gps').textContent = '📍 GPS';
-  document.getElementById('btn-gps').classList.remove('active');
-  document.getElementById('gps-info').textContent = '';
+function stopGPS(){
+  if(wid!==null){navigator.geolocation.clearWatch(wid);wid=null}
+  if(gM){map.removeLayer(gM);gM=null}if(gR){map.removeLayer(gR);gR=null}
+  gpsOn=false;var b=document.getElementById('b-gps');b.textContent='GPS';b.classList.remove('on');
+  document.getElementById('gi').textContent='';
 }
 </script>
 </body>
