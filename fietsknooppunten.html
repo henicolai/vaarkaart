@@ -60,6 +60,7 @@ h1 span{color:var(--gl)}
     <button class="btn on" id="b-v" onclick="setBase('v')">Voyager</button>
     <button class="btn" id="b-t" onclick="setBase('t')">Topo</button>
     <button class="btn" id="b-s" onclick="setBase('s')">Satelliet</button>
+    <button class="btn on" id="b-ov" onclick="toggleOv()">&#x1F6B2; Fiets overlay</button>
     <button class="btn" id="b-gps" onclick="toggleGPS()">&#x1F4CD; GPS</button>
     <button class="btn" onclick="location.href='index.html'">&#x26F5; VaarKaart</button>
   </div>
@@ -99,7 +100,8 @@ var layers={
   s:L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{attribution:'&copy; Esri',maxZoom:19})
 };
 // Fiets overlay (knooppunten zichtbaar op hoog zoom)
-var fietsOverlay=L.tileLayer('https://tile.waymarkedtrails.org/cycling/{z}/{x}/{y}.png',{maxZoom:19,opacity:0.7});
+var fietsOverlay=L.tileLayer('https://tile.waymarkedtrails.org/cycling/{z}/{x}/{y}.png',{maxZoom:19,opacity:0.9});
+var ovOn=true;
 layers.v.addTo(map);
 fietsOverlay.addTo(map);
 L.control.scale({imperial:false,metric:true,position:'bottomright'}).addTo(map);
@@ -107,8 +109,14 @@ L.control.scale({imperial:false,metric:true,position:'bottomright'}).addTo(map);
 function setBase(n){
   Object.keys(layers).forEach(function(k){map.removeLayer(layers[k]);document.getElementById('b-'+k).classList.remove('on')});
   layers[n].addTo(map);
-  fietsOverlay.addTo(map); // overlay altijd bovenop
+  if(ovOn){fietsOverlay.addTo(map)} // overlay altijd bovenop
   document.getElementById('b-'+n).classList.add('on');
+}
+
+function toggleOv(){
+  ovOn=!ovOn;
+  document.getElementById('b-ov').classList.toggle('on',ovOn);
+  if(ovOn){fietsOverlay.addTo(map)}else{map.removeLayer(fietsOverlay)}
 }
 
 // Knooppunten via Overpass
