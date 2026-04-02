@@ -3595,12 +3595,30 @@ async function verwerkGeoTIFF(file, statusEl) {
           if (sy1 <= sy0) continue;
           statusEl.textContent = `⏳ ${renderW}×${renderH}px — ${Math.round(dy/renderH*100)}%…`;
           await new Promise(r => setTimeout(r, 0));
-          const strook = await image.readRGB({ interleave: true, width: renderW, height: dh, window: [0, sy0, width, sy1] });
+
+          // readRasters geeft losse kanalen terug — werkt in v1 én v2
+          const rasters = await image.readRasters({
+            interleave: false,
+            width:  renderW,
+            height: dh,
+            window: [0, sy0, width, sy1]
+          });
+
           const imgData = ctx.createImageData(renderW, dh);
+          const nSamples = rasters.length;
+          // Bepaal R/G/B kanalen — bij 1 kanaal grijswaarden, bij 3+ RGB
+          const isGrey = nSamples === 1;
+          const R = rasters[0];
+          const G = isGrey ? rasters[0] : rasters[1];
+          const B = isGrey ? rasters[0] : rasters[2];
+          // Detecteer 16-bit data (Uint16Array)
+          const is16 = R instanceof Uint16Array || R instanceof Int16Array;
           for (let i = 0; i < renderW * dh; i++) {
-            imgData.data[i*4]   = strook[i*3];
-            imgData.data[i*4+1] = strook[i*3+1];
-            imgData.data[i*4+2] = strook[i*3+2];
+            let r = R[i], g = G[i], b = B[i];
+            if (is16) { r = r >> 8; g = g >> 8; b = b >> 8; }
+            imgData.data[i*4]   = r;
+            imgData.data[i*4+1] = g;
+            imgData.data[i*4+2] = b;
             imgData.data[i*4+3] = 255;
           }
           ctx.putImageData(imgData, 0, dy);
