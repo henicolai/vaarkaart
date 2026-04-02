@@ -20,8 +20,8 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
   <!-- Leaflet-rotate voor Koers omhoog -->
   <script src="https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate-src.js"></script>
-  <!-- GeoTIFF parser -->
-  <script src="https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.js"></script>
+  <!-- GeoTIFF parser (v1 UMD — zet window.GeoTIFF) -->
+  <script src="https://cdn.jsdelivr.net/npm/geotiff@1.0.0-beta.6/dist/geotiff.bundle.min.js"></script>
 
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Teko:wght@300;400;500;600&family=Source+Sans+3:wght@300;400;600&display=swap');
@@ -3527,18 +3527,38 @@ function wisGpx() {
 async function verwerkGeoTIFF(file, statusEl) {
   statusEl.textContent = '⏳ GeoTIFF lezen…';
   await new Promise(r => setTimeout(r, 50));
+
+  // Controleer of GeoTIFF library geladen is
+  if (typeof GeoTIFF === 'undefined') {
+    statusEl.style.color = 'var(--danger)';
+    statusEl.textContent = '⚠ GeoTIFF library niet beschikbaar — herlaad de pagina';
+    return;
+  }
+
   try {
     statusEl.textContent = `⏳ Bestand laden (${(file.size/1024/1024).toFixed(0)}MB)…`;
     await new Promise(r => setTimeout(r, 50));
     const arrayBuffer = await file.arrayBuffer();
     statusEl.textContent = '⏳ GeoTIFF parsen…';
     await new Promise(r => setTimeout(r, 50));
-    const tiff  = await GeoTIFF.fromArrayBuffer(arrayBuffer);
-    const image = await tiff.getImage();
+
+    // Ondersteuning v1 en v2 API
+    let tiff, image;
+    if (typeof GeoTIFF.fromArrayBuffer === 'function') {
+      tiff  = await GeoTIFF.fromArrayBuffer(arrayBuffer);
+      image = await tiff.getImage();
+    } else if (typeof GeoTIFF.parse === 'function') {
+      tiff  = GeoTIFF.parse(arrayBuffer);
+      image = tiff.getImage();
+    } else {
+      throw new Error('Onbekende GeoTIFF API versie');
+    }
+
     const width  = image.getWidth();
     const height = image.getHeight();
     statusEl.textContent = `⏳ ${width}×${height}px — georeferentie…`;
     await new Promise(r => setTimeout(r, 50));
+
     const bbox = geoTIFFBerekenBounds(image);
     if (!bbox) {
       statusEl.style.color = 'var(--amber)';
@@ -3552,6 +3572,7 @@ async function verwerkGeoTIFF(file, statusEl) {
     document.getElementById('coord-sectie').style.display = 'block';
     window._geoTiffOrigW = width;
     window._geoTiffOrigH = height;
+
     const maatOpties = [4000, 2000, 1500, 1000];
     let renderW, renderH, gelukt = false;
     for (const maxDim of maatOpties) {
@@ -3597,7 +3618,17 @@ async function verwerkGeoTIFF(file, statusEl) {
     if (!gelukt) throw new Error('Rendering mislukt op alle groottes');
     klaarMetBestand(file.name, statusEl);
     if (bbox) statusEl.textContent = `✓ GeoTIFF geladen — georeferentie ingesteld`;
-  } catch(err) { statusEl.style.color='var(--danger)'; statusEl.textContent='⚠ '+err.message; console.error(err); }
+  } catch(err) {
+    statusEl.style.color = 'var(--danger)';
+    const msg = err.message || String(err);
+    if (msg.includes('not defined') || msg.includes('undefined')) {
+      statusEl.textContent = '⚠ GeoTIFF library niet geladen — herlaad de pagina';
+    } else {
+      statusEl.textContent = '⚠ ' + msg;
+    }
+    console.error('GeoTIFF fout:', err);
+  }
+
 }
 
 function geoTIFFBerekenBounds(image) {
@@ -3699,6 +3730,179 @@ function handleKaartDrop(event) {
   const file = event.dataTransfer.files[0];
   if (file) verwerkKaartBestand(file);
 }
+
+// ── EIGEN KAARTEN BEHEER ──────────────────────────────────
+function klaarMetBestand(naam, statusEl) {
+  statusEl.style.color = 'var(--teal)';
+  statusEl.textContent = `✓ ${naam} geladen — vul coördinaten in`;
+  const bestandsnaam = document.getElementById('kaart-bestandsnaam');
+  if (bestandsnaam) { bestandsnaam.textContent = naam; bestandsnaam.style.display = 'block'; }
+  document.getElementById('btn-kaart-laden').disabled = false;
+}
+
+function verwerkBMP(bytes, naam, statusEl) {
+  // BMP naar canvas → dataURL
+  const dataView = new DataView(bytes.buffer);
+  const offset = dataView.getUint32(10, true);
+  const w = dataView.getInt32(18, true);
+  const h = Math.abs(dataView.getInt32(22, true));
+  const canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  const imgData = ctx.createImageData(w, h);
+  const topDown = dataView.getInt32(22, true) < 0;
+  const rowSize = Math.floor((24 * w + 31) / 32) * 4;
+  for (let y = 0; y < h; y++) {
+    const srcY = topDown ? y : h - 1 - y;
+    for (let x = 0; x < w; x++) {
+      const srcOff = offset + srcY * rowSize + x * 3;
+      const dstOff = (y * w + x) * 4;
+      imgData.data[dstOff]   = bytes[srcOff + 2];
+      imgData.data[dstOff+1] = bytes[srcOff + 1];
+      imgData.data[dstOff+2] = bytes[srcOff];
+      imgData.data[dstOff+3] = 255;
+    }
+  }
+  ctx.putImageData(imgData, 0, h > 0 ? 0 : h);
+  eigenKaartDataUrl = canvas.toDataURL('image/png');
+  _origKaartBreedte = w;
+  _origKaartHoogte  = h;
+  window._geoTiffOrigW = w;
+  window._geoTiffOrigH = h;
+  window._geoTiffSchaalX = 1;
+  window._geoTiffSchaalY = 1;
+  document.getElementById('coord-sectie').style.display = 'block';
+  klaarMetBestand(naam, statusEl);
+}
+
+let _origKaartBreedte = 0, _origKaartHoogte = 0;
+
+function laadEigenKaart() {
+  if (!eigenKaartDataUrl) return;
+  const nwLat = parseFloat(document.getElementById('coord-nw-lat').value);
+  const nwLon = parseFloat(document.getElementById('coord-nw-lon').value);
+  const zoLat = parseFloat(document.getElementById('coord-zo-lat').value);
+  const zoLon = parseFloat(document.getElementById('coord-zo-lon').value);
+  if ([nwLat,nwLon,zoLat,zoLon].some(isNaN)) {
+    alert('Vul alle vier de coördinaten in'); return;
+  }
+  const naam = document.getElementById('kaart-bestandsnaam')?.textContent || 'Kaart';
+  const opacity = parseInt(document.getElementById('kaart-opacity')?.value || 90) / 100;
+  const id = Date.now();
+  const bounds = [[zoLat, nwLon], [nwLat, zoLon]];
+  const overlay = L.imageOverlay(eigenKaartDataUrl, bounds, { opacity, zIndex: 200 }).addTo(map);
+  eigenKaarten.push({ id, naam, dataUrl: eigenKaartDataUrl, bounds, overlay, opacity, zichtbaar: true });
+  slaKaartenOp();
+  renderKaartenLijst();
+  map.fitBounds(bounds, { padding: [20,20] });
+  notify(`✓ ${naam} geladen`);
+  eigenKaartDataUrl = null;
+  document.getElementById('btn-kaart-laden').disabled = true;
+  document.getElementById('kaart-bestandsnaam').style.display = 'none';
+  document.getElementById('coord-sectie').style.display = 'none';
+  ['coord-nw-lat','coord-nw-lon','coord-zo-lat','coord-zo-lon'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+}
+
+function renderKaartenLijst() {
+  const lijst = document.getElementById('kaarten-lijst');
+  if (!lijst) return;
+  if (!eigenKaarten.length) { lijst.innerHTML = ''; return; }
+  lijst.innerHTML = eigenKaarten.map((k,i) => `
+    <div style="background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:6px;padding:8px 10px;margin-bottom:5px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+        <span style="font-size:12px;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;">${k.naam}</span>
+        <div style="display:flex;gap:4px;flex-shrink:0;">
+          <button onclick="toggleKaart(${k.id})" style="font-size:11px;padding:2px 7px;background:${k.zichtbaar?'rgba(0,200,200,0.2)':'rgba(255,255,255,0.06)'};border:1px solid var(--border);border-radius:4px;color:var(--teal);cursor:pointer;">${k.zichtbaar?'Aan':'Uit'}</button>
+          <button onclick="zoomNaarKaart(${k.id})" style="font-size:11px;padding:2px 7px;background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:4px;color:var(--muted);cursor:pointer;">🔍</button>
+          <button onclick="verwijderKaart(${k.id})" style="font-size:11px;padding:2px 7px;background:rgba(232,69,69,0.1);border:1px solid rgba(232,69,69,0.3);border-radius:4px;color:var(--danger);cursor:pointer;">✕</button>
+        </div>
+      </div>
+      <input type="range" min="0" max="100" value="${Math.round(k.opacity*100)}"
+        oninput="opacityKaart(${k.id},this.value)"
+        style="width:100%;accent-color:var(--teal);height:3px;">
+    </div>`).join('');
+}
+
+function toggleKaart(id) {
+  const k = eigenKaarten.find(k => k.id===id); if (!k) return;
+  k.zichtbaar = !k.zichtbaar;
+  k.zichtbaar ? k.overlay.addTo(map) : map.removeLayer(k.overlay);
+  renderKaartenLijst();
+}
+
+function zoomNaarKaart(id) {
+  const k = eigenKaarten.find(k => k.id===id); if (!k) return;
+  map.fitBounds(k.bounds, { padding:[20,20] });
+}
+
+function verwijderKaart(id) {
+  const idx = eigenKaarten.findIndex(k => k.id===id); if (idx<0) return;
+  map.removeLayer(eigenKaarten[idx].overlay);
+  eigenKaarten.splice(idx,1);
+  slaKaartenOp();
+  renderKaartenLijst();
+}
+
+function opacityKaart(id, val) {
+  const k = eigenKaarten.find(k => k.id===id); if (!k) return;
+  k.opacity = parseInt(val)/100;
+  k.overlay.setOpacity(k.opacity);
+}
+
+function slaKaartenOp() {
+  const opslaan = eigenKaarten.map(k => ({
+    id: k.id, naam: k.naam, dataUrl: k.dataUrl, bounds: k.bounds, opacity: k.opacity
+  }));
+  try { localStorage.setItem('vaarkaart_kaarten', JSON.stringify(opslaan)); } catch(e) {}
+}
+
+function laadOpgeslagenKaarten() {
+  try {
+    const opgeslagen = JSON.parse(localStorage.getItem('vaarkaart_kaarten') || '[]');
+    opgeslagen.forEach(k => {
+      if (!k.dataUrl || !k.bounds) return;
+      const overlay = L.imageOverlay(k.dataUrl, k.bounds, { opacity: k.opacity||0.9, zIndex: 200 }).addTo(map);
+      eigenKaarten.push({ ...k, overlay, zichtbaar: true });
+    });
+    if (eigenKaarten.length) renderKaartenLijst();
+  } catch(e) {}
+}
+
+function exporteerKaarten() {
+  const data = eigenKaarten.map(k => ({ id: k.id, naam: k.naam, bounds: k.bounds, opacity: k.opacity }));
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'vaarkaart_kaarten.json';
+  a.click();
+}
+
+function importeerKaarten(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const kaarten = JSON.parse(e.target.result);
+      const bestaand = JSON.parse(localStorage.getItem('vaarkaart_kaarten') || '[]');
+      const bestaandeIds = new Set(bestaand.map(k => k.id));
+      let toegevoegd = 0;
+      for (const k of kaarten) {
+        if (!k.naam || !k.bounds) continue;
+        if (!bestaandeIds.has(k.id)) { bestaand.push(k); toegevoegd++; }
+      }
+      localStorage.setItem('vaarkaart_kaarten', JSON.stringify(bestaand));
+      laadOpgeslagenKaarten();
+      notify(`✓ ${toegevoegd} kaart(en) geïmporteerd`);
+      document.getElementById('kaart-import-bestand').value = '';
+    } catch(err) { notify('⚠ Ongeldig JSON bestand'); }
+  };
+  reader.readAsText(file);
+}
+
+// Laad opgeslagen kaarten bij start
+setTimeout(() => laadOpgeslagenKaarten(), 100);
 
 function verwerkKaartBestand(file) {
   if (!file) return;
