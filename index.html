@@ -3573,12 +3573,12 @@ async function verwerkGeoTIFF(file, statusEl) {
     window._geoTiffOrigW = width;
     window._geoTiffOrigH = height;
 
-    const maatOpties = [null, 8000, 6000, 4000, 2000]; // null = originele resolutie
+    const maatOpties = [4000, 2000, 1500]; // null verwijderd — te traag op tablet
     let renderW, renderH, gelukt = false;
     for (const maxDim of maatOpties) {
-      const schaal = maxDim === null ? 1 : Math.min(1, maxDim / Math.max(width, height));
-      renderW = maxDim === null ? width  : Math.floor(width  * schaal);
-      renderH = maxDim === null ? height : Math.floor(height * schaal);
+      const schaal = Math.min(1, maxDim / Math.max(width, height));
+      renderW = Math.floor(width  * schaal);
+      renderH = Math.floor(height * schaal);
       window._geoTiffSchaalX = renderW / width;
       window._geoTiffSchaalY = renderH / height;
       statusEl.textContent = `⏳ Renderen ${renderW}×${renderH}px in stroken…`;
@@ -3587,7 +3587,7 @@ async function verwerkGeoTIFF(file, statusEl) {
         canvas.width  = renderW;
         canvas.height = renderH;
         const ctx = canvas.getContext('2d');
-        const STROOK = 300;
+        const STROOK = 1000; // grotere stroken = sneller
         for (let dy = 0; dy < renderH; dy += STROOK) {
           const dh  = Math.min(STROOK, renderH - dy);
           const sy0 = Math.round(dy      / renderH * height);
@@ -3623,7 +3623,7 @@ async function verwerkGeoTIFF(file, statusEl) {
           }
           ctx.putImageData(imgData, 0, dy);
         }
-        eigenKaartDataUrl = canvas.toDataURL('image/png');
+        eigenKaartDataUrl = canvas.toDataURL('image/jpeg', 0.95);
         _origKaartBreedte = renderW;
         _origKaartHoogte  = renderH;
         gelukt = true;
