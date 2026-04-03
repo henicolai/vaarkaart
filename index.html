@@ -3913,18 +3913,29 @@ function importeerKaarten(file) {
   reader.onload = e => {
     try {
       const kaarten = JSON.parse(e.target.result);
-      const bestaand = JSON.parse(localStorage.getItem('vaarkaart_kaarten') || '[]');
-      const bestaandeIds = new Set(bestaand.map(k => k.id));
-      let toegevoegd = 0;
-      for (const k of kaarten) {
-        if (!k.naam || !k.bounds) continue;
-        if (!bestaandeIds.has(k.id)) { bestaand.push(k); toegevoegd++; }
+      if (!Array.isArray(kaarten) || !kaarten.length) {
+        notify('⚠ Geen kaarten gevonden in bestand'); return;
       }
-      localStorage.setItem('vaarkaart_kaarten', JSON.stringify(bestaand));
-      laadOpgeslagenKaarten();
-      notify(`✓ ${toegevoegd} kaart(en) geïmporteerd`);
+      // Vul coördinaten van eerste kaart in de velden
+      const k = kaarten[0];
+      if (k.bounds) {
+        // bounds = [[zoLat, nwLon], [nwLat, zoLon]]
+        const zoLat = k.bounds[0][0], nwLon = k.bounds[0][1];
+        const nwLat = k.bounds[1][0], zoLon = k.bounds[1][1];
+        document.getElementById('coord-nw-lat').value = nwLat.toFixed(6);
+        document.getElementById('coord-nw-lon').value = nwLon.toFixed(6);
+        document.getElementById('coord-zo-lat').value = zoLat.toFixed(6);
+        document.getElementById('coord-zo-lon').value = zoLon.toFixed(6);
+        document.getElementById('coord-sectie').style.display = 'block';
+        // Naam tonen
+        const bestandsnaam = document.getElementById('kaart-bestandsnaam');
+        if (bestandsnaam && k.naam) { bestandsnaam.textContent = k.naam; bestandsnaam.style.display = 'block'; }
+        // Als er een afbeelding geladen is, activeer de laad-knop
+        if (eigenKaartDataUrl) document.getElementById('btn-kaart-laden').disabled = false;
+        notify(`✓ Coördinaten geladen${kaarten.length > 1 ? ' (' + kaarten.length + ' kaarten — eerste ingevuld)' : ''}`);
+      }
       document.getElementById('kaart-import-bestand').value = '';
-    } catch(err) { notify('⚠ Ongeldig JSON bestand'); }
+    } catch(err) { notify('⚠ Ongeldig JSON bestand: ' + err.message); }
   };
   reader.readAsText(file);
 }
