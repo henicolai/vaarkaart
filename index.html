@@ -1216,6 +1216,32 @@
   </div>
 </div>
 
+<!-- Kalibratie modal -->
+<div id="kalibratie-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:9000;align-items:center;justify-content:center;">
+  <div style="background:var(--deep);border:1px solid var(--teal);border-radius:10px;padding:20px;width:320px;max-width:95vw;">
+    <div style="font-family:'Teko',sans-serif;font-size:20px;letter-spacing:2px;color:var(--teal);margin-bottom:12px;">⊕ KALIBRATIE</div>
+    <div id="kal-uitleg" style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;"></div>
+    <div id="kal-punt-info" style="font-size:12px;color:var(--white);background:rgba(0,200,200,0.08);border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:10px;display:none;">
+      <div style="color:var(--teal);margin-bottom:4px;" id="kal-punt-label"></div>
+      <div id="kal-punt-coords" style="font-family:monospace;font-size:11px;"></div>
+    </div>
+    <div id="kal-coord-invoer" style="display:none;margin-bottom:10px;">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Echte coördinaten van dit punt:</div>
+      <div style="display:flex;gap:6px;">
+        <input id="kal-lat" type="number" step="0.00001" placeholder="Breedte (52.xxx)"
+          style="flex:1;padding:5px 8px;background:rgba(255,255,255,0.07);border:1px solid var(--border);border-radius:5px;color:var(--white);font-size:12px;">
+        <input id="kal-lon" type="number" step="0.00001" placeholder="Lengte (5.xxx)"
+          style="flex:1;padding:5px 8px;background:rgba(255,255,255,0.07);border:1px solid var(--border);border-radius:5px;color:var(--white);font-size:12px;">
+      </div>
+    </div>
+    <div id="kal-resultaat" style="display:none;font-size:12px;color:var(--teal);background:rgba(0,200,200,0.08);border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:10px;"></div>
+    <div style="display:flex;gap:8px;">
+      <button id="kal-btn-ok" class="btn btn-primary" style="flex:1;display:none;" onclick="kalibratieStap()">Volgende</button>
+      <button class="btn btn-ghost" style="flex:1;" onclick="sluitKalibratie()">Sluiten</button>
+    </div>
+  </div>
+</div>
+
 <div class="notify" id="notify"></div>
 
 <script>
@@ -4037,6 +4063,7 @@ function renderKaartenLijst() {
         <div style="display:flex;gap:4px;flex-shrink:0;">
           <button onclick="toggleKaart(${k.id})" style="font-size:11px;padding:2px 7px;background:${k.zichtbaar?'rgba(0,200,200,0.2)':'rgba(255,255,255,0.06)'};border:1px solid var(--border);border-radius:4px;color:var(--teal);cursor:pointer;">${k.zichtbaar?'Aan':'Uit'}</button>
           <button onclick="zoomNaarKaart(${k.id})" style="font-size:11px;padding:2px 7px;background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:4px;color:var(--muted);cursor:pointer;">🔍</button>
+          <button onclick="startKalibratie(${k.id})" style="font-size:11px;padding:2px 7px;background:rgba(245,166,35,0.1);border:1px solid rgba(245,166,35,0.3);border-radius:4px;color:var(--amber);cursor:pointer;">⊕</button>
           <button onclick="verwijderKaart(${k.id})" style="font-size:11px;padding:2px 7px;background:rgba(232,69,69,0.1);border:1px solid rgba(232,69,69,0.3);border-radius:4px;color:var(--danger);cursor:pointer;">✕</button>
         </div>
       </div>
@@ -4056,6 +4083,125 @@ function toggleKaart(id) {
 function zoomNaarKaart(id) {
   const k = eigenKaarten.find(k => k.id===id); if (!k) return;
   map.fitBounds(k.bounds, { padding:[20,20] });
+}
+
+// ── KALIBRATIE ────────────────────────────────────────────
+let _kalId = null;
+let _kalStap = 0;
+let _kalPunten = []; // [{kaartLat, kaartLon, echt: {lat, lon}}]
+let _kalMapClickHandler = null;
+
+function startKalibratie(id) {
+  _kalId = id;
+  _kalStap = 0;
+  _kalPunten = [];
+  const k = eigenKaarten.find(k => k.id === id);
+  if (!k) return;
+  map.fitBounds(k.bounds, { padding: [20,20] });
+
+  document.getElementById('kalibratie-modal').style.display = 'flex';
+  document.getElementById('kal-uitleg').textContent =
+    `Stap 1 van 2: Klik op een herkenbaar punt op de kaart (bijv. een boei of havenhoek) waarvan je de exacte coördinaten kent.`;
+  document.getElementById('kal-punt-info').style.display = 'none';
+  document.getElementById('kal-coord-invoer').style.display = 'none';
+  document.getElementById('kal-resultaat').style.display = 'none';
+  document.getElementById('kal-btn-ok').style.display = 'none';
+  document.getElementById('kal-btn-ok').textContent = 'Volgende';
+
+  // Cursor aanpassen
+  document.getElementById('map').style.cursor = 'crosshair';
+
+  // Klik handler
+  _kalMapClickHandler = (e) => kalibratieKlik(e.latlng.lat, e.latlng.lng);
+  map.once('click', _kalMapClickHandler);
+}
+
+function kalibratieKlik(lat, lon) {
+  _kalPunten.push({ kaartLat: lat, kaartLon: lon, echt: null });
+  const nr = _kalPunten.length;
+
+  document.getElementById('kal-punt-info').style.display = 'block';
+  document.getElementById('kal-punt-label').textContent = `Punt ${nr} aangeklikt op kaart:`;
+  document.getElementById('kal-punt-coords').textContent = `${lat.toFixed(5)}° N  ${lon.toFixed(5)}° O`;
+  document.getElementById('kal-coord-invoer').style.display = 'block';
+  document.getElementById('kal-lat').value = '';
+  document.getElementById('kal-lon').value = '';
+  document.getElementById('kal-btn-ok').style.display = 'block';
+  document.getElementById('kal-btn-ok').textContent = nr === 1 ? 'Punt 2 instellen' : 'Kalibreer';
+  document.getElementById('kal-uitleg').textContent =
+    `Voer de echte coördinaten in van het punt dat je net aanklikte.`;
+
+  // Markeer punt op kaart
+  L.circleMarker([lat, lon], { radius: 8, color: '#f5a623', weight: 2, fillColor: '#f5a623', fillOpacity: 0.5 })
+    .addTo(map).bindPopup(`Kalibratiepunt ${nr}`).openPopup();
+}
+
+function kalibratieStap() {
+  const lat = parseFloat(document.getElementById('kal-lat').value);
+  const lon = parseFloat(document.getElementById('kal-lon').value);
+  if (isNaN(lat) || isNaN(lon)) { notify('⚠ Vul geldige coördinaten in'); return; }
+
+  _kalPunten[_kalPunten.length - 1].echt = { lat, lon };
+
+  if (_kalPunten.length === 1) {
+    // Stap 2
+    document.getElementById('kal-punt-info').style.display = 'none';
+    document.getElementById('kal-coord-invoer').style.display = 'none';
+    document.getElementById('kal-btn-ok').style.display = 'none';
+    document.getElementById('kal-uitleg').textContent =
+      'Stap 2 van 2: Klik op een tweede herkenbaar punt op de kaart.';
+    map.once('click', _kalMapClickHandler = (e) => kalibratieKlik(e.latlng.lat, e.latlng.lng));
+  } else {
+    // Bereken correctie op basis van 2 punten
+    pasKalibratieToePasToe();
+  }
+}
+
+function pasKalibratieToePasToe() {
+  const k = eigenKaarten.find(k => k.id === _kalId);
+  if (!k || _kalPunten.length < 2) return;
+
+  const p1 = _kalPunten[0], p2 = _kalPunten[1];
+
+  // Bereken schaal en offset via lineaire transformatie
+  // kaartLat → echtLat: echtLat = a * kaartLat + b
+  const dKaartLat = p2.kaartLat - p1.kaartLat;
+  const dKaartLon = p2.kaartLon - p1.kaartLon;
+  const dEchtLat  = p2.echt.lat - p1.echt.lat;
+  const dEchtLon  = p2.echt.lon - p1.echt.lon;
+
+  const schaalLat = dKaartLat !== 0 ? dEchtLat / dKaartLat : 1;
+  const schaalLon = dKaartLon !== 0 ? dEchtLon / dKaartLon : 1;
+  const offsetLat = p1.echt.lat - schaalLat * p1.kaartLat;
+  const offsetLon = p1.echt.lon - schaalLon * p1.kaartLon;
+
+  // Pas bounds aan
+  const oldBounds = k.bounds;
+  const newBounds = [
+    [schaalLat * oldBounds[0][0] + offsetLat, schaalLon * oldBounds[0][1] + offsetLon],
+    [schaalLat * oldBounds[1][0] + offsetLat, schaalLon * oldBounds[1][1] + offsetLon]
+  ];
+
+  k.bounds = newBounds;
+  map.removeLayer(k.overlay);
+  k.overlay = L.imageOverlay(k.dataUrl, newBounds, { opacity: k.opacity, zIndex: 200 }).addTo(map);
+  slaKaartenOp();
+  renderKaartenLijst();
+
+  const dLat = (offsetLat * 111000).toFixed(0);
+  const dLon = (offsetLon * 111000 * Math.cos(p1.echt.lat * Math.PI/180)).toFixed(0);
+  document.getElementById('kal-resultaat').style.display = 'block';
+  document.getElementById('kal-resultaat').textContent =
+    `✓ Gecalibreerd — verschuiving: ${dLat}m N/Z, ${dLon}m O/W`;
+  document.getElementById('kal-btn-ok').style.display = 'none';
+  document.getElementById('kal-uitleg').textContent = 'Kalibratie toegepast. Controleer of de kaart nu klopt.';
+  document.getElementById('map').style.cursor = '';
+}
+
+function sluitKalibratie() {
+  document.getElementById('kalibratie-modal').style.display = 'none';
+  document.getElementById('map').style.cursor = '';
+  if (_kalMapClickHandler) map.off('click', _kalMapClickHandler);
 }
 
 function verwijderKaart(id) {
