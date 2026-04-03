@@ -1005,7 +1005,7 @@
         <button class="btn btn-ghost" onclick="document.getElementById('kaart-import-bestand').click()" style="flex:1;font-size:12px;">
           📂 Importeer
         </button>
-        <input type="file" id="kaart-import-bestand" accept=".json" style="display:none" onchange="importeerKaarten(this.files[0])">
+        <input type="file" id="kaart-import-bestand" accept=".json,.JSON,application/json,*/*" style="display:none" onchange="importeerKaarten(this.files[0])">
       </div>
 
       <!-- Lijst van geladen kaarten -->
