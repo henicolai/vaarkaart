@@ -3799,7 +3799,7 @@ function verwerkBMP(bytes, naam, statusEl) {
   const bpp     = dv.getUint16(28, true);
   const compress= dv.getUint32(30, true);
 
-  if (compress !== 0 && compress !== 3) {
+  if (compress !== 0 && compress !== 1 && compress !== 3) {
     statusEl.style.color = 'var(--danger)';
     statusEl.textContent = `⚠ BMP compressie ${compress} niet ondersteund — sla op als ongecomprimeerd BMP`;
     return;
@@ -3811,24 +3811,58 @@ function verwerkBMP(bytes, naam, statusEl) {
   const imgData = ctx.createImageData(w, h);
 
   if (bpp === 8) {
-    // 8bpp met kleurenpalet (256 kleuren × 4 bytes na DIB header)
+    // Lees kleurenpalet (256 kleuren × 4 bytes na DIB header)
     const dibSize  = dv.getUint32(14, true);
     const palStart = 14 + dibSize;
-    const rowSize  = Math.floor((w + 3) / 4) * 4;
-    for (let y = 0; y < h; y++) {
-      const srcY = topDown ? y : h - 1 - y;
-      for (let x = 0; x < w; x++) {
-        const palIdx = bytes[palStart - 14 + 14 + dibSize - dibSize + palStart - 14 + srcY * rowSize + x];
-        // Eenvoudiger: lees pixel direct uit bestand
-        const pixelOff = offset + srcY * rowSize + x;
-        const idx = bytes[pixelOff];
-        const palOff = palStart + idx * 4;
-        const dstOff = (y * w + x) * 4;
-        imgData.data[dstOff]   = bytes[palOff + 2]; // R
-        imgData.data[dstOff+1] = bytes[palOff + 1]; // G
-        imgData.data[dstOff+2] = bytes[palOff + 0]; // B
-        imgData.data[dstOff+3] = 255;
+
+    // Maak pixel-array: w × h indices
+    const pixels = new Uint8Array(w * h);
+
+    if (compress === 1) {
+      // RLE8 decodering
+      let src = offset, x = 0, y = h - 1; // BMP bottom-up
+      while (src < bytes.length) {
+        const b0 = bytes[src++];
+        const b1 = bytes[src++];
+        if (b0 === 0) {
+          if (b1 === 0) { // Einde rij
+            x = 0; y--;
+          } else if (b1 === 1) { // Einde bitmap
+            break;
+          } else if (b1 === 2) { // Delta
+            x += bytes[src++]; y -= bytes[src++];
+          } else { // Absolute modus: b1 letterlijke pixels
+            for (let i = 0; i < b1; i++) {
+              if (x < w && y >= 0 && y < h) pixels[y * w + x] = bytes[src];
+              src++; x++;
+            }
+            if (b1 % 2 !== 0) src++; // padding naar even
+          }
+        } else { // Herhaalmodus: b0 × kleur b1
+          for (let i = 0; i < b0; i++) {
+            if (x < w && y >= 0 && y < h) pixels[y * w + x] = b1;
+            x++;
+          }
+        }
       }
+    } else {
+      // Ongecomprimeerd 8bpp
+      const rowSize = Math.floor((w + 3) / 4) * 4;
+      for (let y2 = 0; y2 < h; y2++) {
+        const srcY = topDown ? y2 : h - 1 - y2;
+        for (let x2 = 0; x2 < w; x2++) {
+          pixels[y2 * w + x2] = bytes[offset + srcY * rowSize + x2];
+        }
+      }
+    }
+
+    // Zet pixels om via palet naar RGBA
+    for (let i = 0; i < w * h; i++) {
+      const palOff = palStart + pixels[i] * 4;
+      imgData.data[i*4]   = bytes[palOff + 2]; // R
+      imgData.data[i*4+1] = bytes[palOff + 1]; // G
+      imgData.data[i*4+2] = bytes[palOff + 0]; // B
+      imgData.data[i*4+3] = 255;
     }
   } else if (bpp === 24) {
     const rowSize = Math.floor((24 * w + 31) / 32) * 4;
