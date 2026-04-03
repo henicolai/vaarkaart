@@ -3922,7 +3922,7 @@ function laadEigenKaart() {
   const naam = document.getElementById('kaart-bestandsnaam')?.textContent || 'Kaart';
   const opacity = parseInt(document.getElementById('kaart-opacity')?.value || 90) / 100;
   const id = Date.now();
-  const bounds = [[zoLat, nwLon], [nwLat, zoLon]];
+  const bounds = [[Math.min(zoLat,nwLat), Math.min(nwLon,zoLon)], [Math.max(zoLat,nwLat), Math.max(nwLon,zoLon)]];
   const overlay = L.imageOverlay(eigenKaartDataUrl, bounds, { opacity, zIndex: 200 }).addTo(map);
   // Zorg voor vloeiende rendering bij inzoomen
   const el = overlay.getElement();
