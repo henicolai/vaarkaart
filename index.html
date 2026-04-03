@@ -3505,11 +3505,67 @@ function zoomNaarWaypoint(i) {
   wp.marker.openPopup();
 }
 
+function getCoordFormaat() {
+  const el = document.querySelector('input[name="coordformaat"]:checked');
+  return el ? el.value : 'dd';
+}
+
 function formatCoord(lat, lon) {
+  const fmt = getCoordFormaat();
   const latDir = lat >= 0 ? 'N' : 'Z';
   const lonDir = lon >= 0 ? 'O' : 'W';
-  return `${Math.abs(lat).toFixed(4)}° ${latDir} ${Math.abs(lon).toFixed(4)}° ${lonDir}`;
+  const absLat = Math.abs(lat);
+  const absLon = Math.abs(lon);
+
+  if (fmt === 'ddm') {
+    const latD = Math.floor(absLat);
+    const latM = ((absLat - latD) * 60).toFixed(3);
+    const lonD = Math.floor(absLon);
+    const lonM = ((absLon - lonD) * 60).toFixed(3);
+    return `${latD}° ${latM}' ${latDir}  ${lonD}° ${lonM}' ${lonDir}`;
+  } else if (fmt === 'dms') {
+    const latD = Math.floor(absLat);
+    const latMraw = (absLat - latD) * 60;
+    const latM = Math.floor(latMraw);
+    const latS = ((latMraw - latM) * 60).toFixed(1);
+    const lonD = Math.floor(absLon);
+    const lonMraw = (absLon - lonD) * 60;
+    const lonM = Math.floor(lonMraw);
+    const lonS = ((lonMraw - lonM) * 60).toFixed(1);
+    return `${latD}° ${latM}' ${latS}" ${latDir}  ${lonD}° ${lonM}' ${lonS}" ${lonDir}`;
+  } else {
+    return `${absLat.toFixed(5)}° ${latDir}  ${absLon.toFixed(5)}° ${lonDir}`;
+  }
 }
+
+function slaInstellingenOp() {
+  const inst = {
+    snelheid:     document.querySelector('input[name="snelheid"]:checked')?.value || 'kn',
+    coordformaat: document.querySelector('input[name="coordformaat"]:checked')?.value || 'dd',
+    afstand:      document.querySelector('input[name="afstand"]:checked')?.value || 'nm',
+  };
+  localStorage.setItem('vaarkaart_instellingen', JSON.stringify(inst));
+}
+
+function laadInstellingen() {
+  try {
+    const inst = JSON.parse(localStorage.getItem('vaarkaart_instellingen') || '{}');
+    if (inst.snelheid) {
+      const el = document.querySelector(`input[name="snelheid"][value="${inst.snelheid}"]`);
+      if (el) el.checked = true;
+    }
+    if (inst.coordformaat) {
+      const el = document.querySelector(`input[name="coordformaat"][value="${inst.coordformaat}"]`);
+      if (el) el.checked = true;
+    }
+    if (inst.afstand) {
+      const el = document.querySelector(`input[name="afstand"][value="${inst.afstand}"]`);
+      if (el) el.checked = true;
+    }
+  } catch(e) {}
+}
+
+setTimeout(() => laadInstellingen(), 0);
 
 function wisGpx() {
   gpxLaag.clearLayers();
