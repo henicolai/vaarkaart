@@ -4090,86 +4090,81 @@ let _kalPunten = []; // [{kaartLat, kaartLon, echt: {lat, lon}}]
 let _kalMapClickHandler = null;
 
 function startKalibratie(id) {
-  // Zorg voor juist type (localStorage geeft strings terug)
   id = typeof id === 'string' ? parseInt(id) : id;
   _kalId = id;
-  _kalStap = 0;
   _kalPunten = [];
-
-  const k = eigenKaarten.find(k => k.id == id); // == voor type-onafhankelijke vergelijking
-  if (!k) {
-    notify('⚠ Kaart niet gevonden — herlaad de pagina en voeg de kaart opnieuw toe');
-    return;
-  }
-
+  const k = eigenKaarten.find(k => k.id == id);
+  if (!k) { notify('⚠ Kaart niet gevonden'); return; }
   map.fitBounds(k.bounds, { padding: [20,20] });
-
-  const modal = document.getElementById('kalibratie-modal');
-  modal.classList.add('open');
-  modal.style.display = 'flex'; // extra zekerheid
-
-  document.getElementById('kal-uitleg').textContent =
-    'Stap 1 van 2: Klik op een herkenbaar punt op de kaart (bijv. een boei of havenhoek) waarvan je de exacte coördinaten kent.';
-  document.getElementById('kal-punt-info').style.display = 'none';
-  document.getElementById('kal-coord-invoer').style.display = 'none';
-  document.getElementById('kal-resultaat').style.display = 'none';
-  document.getElementById('kal-btn-ok').style.display = 'none';
-  document.getElementById('kal-btn-ok').textContent = 'Volgende';
-  document.getElementById('map').style.cursor = 'crosshair';
-
-  _kalMapClickHandler = (e) => kalibratieKlik(e.latlng.lat, e.latlng.lng);
-  map.once('click', _kalMapClickHandler);
+  kalibratieWachtOpKlik(1);
 }
 
-function kalibratieKlik(lat, lon) {
-  _kalPunten.push({ kaartLat: lat, kaartLon: lon, echt: null });
-  const nr = _kalPunten.length;
+function kalibratieWachtOpKlik(nr) {
+  // Verberg modal zodat kaart klikbaar is
+  const modal = document.getElementById('kalibratie-modal');
+  modal.classList.remove('open');
+  modal.style.display = 'none';
 
-  document.getElementById('kal-punt-info').style.display = 'block';
-  document.getElementById('kal-punt-label').textContent = `Punt ${nr} aangeklikt op kaart:`;
-  document.getElementById('kal-punt-coords').textContent = `${lat.toFixed(5)}° N  ${lon.toFixed(5)}° O`;
-  document.getElementById('kal-coord-invoer').style.display = 'block';
-  document.getElementById('kal-lat').value = '';
-  document.getElementById('kal-lon').value = '';
-  document.getElementById('kal-btn-ok').style.display = 'block';
-  document.getElementById('kal-btn-ok').textContent = nr === 1 ? 'Punt 2 instellen' : 'Kalibreer';
-  document.getElementById('kal-uitleg').textContent =
-    `Voer de echte coördinaten in van het punt dat je net aanklikte.`;
+  // Toon instructiebanner boven kaart
+  let banner = document.getElementById('kal-banner');
+  if (!banner) {
+    banner = document.createElement('div');
+    banner.id = 'kal-banner';
+    banner.style.cssText = 'position:fixed;top:70px;left:50%;transform:translateX(-50%);' +
+      'background:rgba(245,166,35,0.97);color:#0a1628;padding:10px 24px;border-radius:8px;' +
+      'font-family:Teko,sans-serif;font-size:17px;letter-spacing:1px;z-index:50000;' +
+      'box-shadow:0 4px 16px rgba(0,0,0,0.5);text-align:center;pointer-events:none;';
+    document.body.appendChild(banner);
+  }
+  banner.textContent = '⊕ Klik punt ' + nr + ' op de kaart';
+  banner.style.display = 'block';
+  document.getElementById('map').style.cursor = 'crosshair';
 
-  // Markeer punt op kaart
-  L.circleMarker([lat, lon], { radius: 8, color: '#f5a623', weight: 2, fillColor: '#f5a623', fillOpacity: 0.5 })
-    .addTo(map).bindPopup(`Kalibratiepunt ${nr}`).openPopup();
+  map.once('click', function(e) {
+    banner.style.display = 'none';
+    document.getElementById('map').style.cursor = '';
+    _kalPunten.push({ kaartLat: e.latlng.lat, kaartLon: e.latlng.lng });
+
+    // Markeer op kaart
+    L.circleMarker([e.latlng.lat, e.latlng.lng], {
+      radius: 9, color: '#f5a623', weight: 2, fillColor: '#f5a623', fillOpacity: 0.6
+    }).addTo(map);
+
+    // Toon modal voor coördinaat invoer
+    const modal = document.getElementById('kalibratie-modal');
+    modal.classList.add('open');
+    modal.style.display = 'flex';
+    document.getElementById('kal-uitleg').textContent =
+      'Punt ' + nr + ' aangeklikt (' + e.latlng.lat.toFixed(5) + '° N  ' + e.latlng.lng.toFixed(5) + '° O). ' +
+      'Voer de echte coördinaten in:';
+    document.getElementById('kal-punt-info').style.display = 'none';
+    document.getElementById('kal-coord-invoer').style.display = 'block';
+    document.getElementById('kal-lat').value = '';
+    document.getElementById('kal-lon').value = '';
+    document.getElementById('kal-resultaat').style.display = 'none';
+    document.getElementById('kal-btn-ok').style.display = 'block';
+    document.getElementById('kal-btn-ok').textContent = nr === 1 ? 'Naar punt 2' : 'Kalibreer';
+  });
 }
 
 function kalibratieStap() {
   const lat = parseFloat(document.getElementById('kal-lat').value);
   const lon = parseFloat(document.getElementById('kal-lon').value);
   if (isNaN(lat) || isNaN(lon)) { notify('⚠ Vul geldige coördinaten in'); return; }
-
   _kalPunten[_kalPunten.length - 1].echt = { lat, lon };
 
   if (_kalPunten.length === 1) {
-    // Stap 2
-    document.getElementById('kal-punt-info').style.display = 'none';
-    document.getElementById('kal-coord-invoer').style.display = 'none';
-    document.getElementById('kal-btn-ok').style.display = 'none';
-    document.getElementById('kal-uitleg').textContent =
-      'Stap 2 van 2: Klik op een tweede herkenbaar punt op de kaart.';
-    map.once('click', _kalMapClickHandler = (e) => kalibratieKlik(e.latlng.lat, e.latlng.lng));
+    kalibratieWachtOpKlik(2);
   } else {
-    // Bereken correctie op basis van 2 punten
     pasKalibratieToePasToe();
   }
 }
 
 function pasKalibratieToePasToe() {
-  const k = eigenKaarten.find(k => k.id === _kalId);
+  const k = eigenKaarten.find(k => k.id == _kalId);
   if (!k || _kalPunten.length < 2) return;
 
   const p1 = _kalPunten[0], p2 = _kalPunten[1];
-
-  // Bereken schaal en offset via lineaire transformatie
-  // kaartLat → echtLat: echtLat = a * kaartLat + b
   const dKaartLat = p2.kaartLat - p1.kaartLat;
   const dKaartLon = p2.kaartLon - p1.kaartLon;
   const dEchtLat  = p2.echt.lat - p1.echt.lat;
@@ -4180,11 +4175,10 @@ function pasKalibratieToePasToe() {
   const offsetLat = p1.echt.lat - schaalLat * p1.kaartLat;
   const offsetLon = p1.echt.lon - schaalLon * p1.kaartLon;
 
-  // Pas bounds aan
-  const oldBounds = k.bounds;
+  const ob = k.bounds;
   const newBounds = [
-    [schaalLat * oldBounds[0][0] + offsetLat, schaalLon * oldBounds[0][1] + offsetLon],
-    [schaalLat * oldBounds[1][0] + offsetLat, schaalLon * oldBounds[1][1] + offsetLon]
+    [schaalLat * ob[0][0] + offsetLat, schaalLon * ob[0][1] + offsetLon],
+    [schaalLat * ob[1][0] + offsetLat, schaalLon * ob[1][1] + offsetLon]
   ];
 
   k.bounds = newBounds;
@@ -4193,20 +4187,22 @@ function pasKalibratieToePasToe() {
   slaKaartenOp();
   renderKaartenLijst();
 
-  const dLat = (offsetLat * 111000).toFixed(0);
-  const dLon = (offsetLon * 111000 * Math.cos(p1.echt.lat * Math.PI/180)).toFixed(0);
+  const dLat = Math.round(offsetLat * 111000);
+  const dLon = Math.round(offsetLon * 111000 * Math.cos(p1.echt.lat * Math.PI/180));
   document.getElementById('kal-resultaat').style.display = 'block';
   document.getElementById('kal-resultaat').textContent =
-    `✓ Gecalibreerd — verschuiving: ${dLat}m N/Z, ${dLon}m O/W`;
+    '✓ Gecalibreerd — verschuiving: ' + dLat + 'm N/Z, ' + dLon + 'm O/W';
   document.getElementById('kal-btn-ok').style.display = 'none';
-  document.getElementById('kal-uitleg').textContent = 'Kalibratie toegepast. Controleer of de kaart nu klopt.';
-  document.getElementById('map').style.cursor = '';
+  document.getElementById('kal-uitleg').textContent = 'Kalibratie toegepast. Sluit en controleer.';
 }
 
 function sluitKalibratie() {
-  document.getElementById('kalibratie-modal').classList.remove('open');
+  const modal = document.getElementById('kalibratie-modal');
+  modal.classList.remove('open');
+  modal.style.display = 'none';
   document.getElementById('map').style.cursor = '';
-  if (_kalMapClickHandler) map.off('click', _kalMapClickHandler);
+  const banner = document.getElementById('kal-banner');
+  if (banner) banner.style.display = 'none';
 }
 
 function verwijderKaart(id) {
