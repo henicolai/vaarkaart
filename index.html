@@ -4058,14 +4058,12 @@ function renderKaartenLijst() {
   if (!eigenKaarten.length) { lijst.innerHTML = ''; return; }
   lijst.innerHTML = eigenKaarten.map((k,i) => `
     <div style="background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:6px;padding:8px 10px;margin-bottom:5px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-        <span style="font-size:12px;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;">${k.naam}</span>
-        <div style="display:flex;gap:4px;flex-shrink:0;">
-          <button onclick="toggleKaart(${k.id})" style="font-size:11px;padding:2px 7px;background:${k.zichtbaar?'rgba(0,200,200,0.2)':'rgba(255,255,255,0.06)'};border:1px solid var(--border);border-radius:4px;color:var(--teal);cursor:pointer;">${k.zichtbaar?'Aan':'Uit'}</button>
-          <button onclick="zoomNaarKaart(${k.id})" style="font-size:11px;padding:2px 7px;background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:4px;color:var(--muted);cursor:pointer;">🔍</button>
-          <button onclick="startKalibratie(${k.id})" style="font-size:11px;padding:2px 7px;background:rgba(245,166,35,0.1);border:1px solid rgba(245,166,35,0.3);border-radius:4px;color:var(--amber);cursor:pointer;">⊕</button>
-          <button onclick="verwijderKaart(${k.id})" style="font-size:11px;padding:2px 7px;background:rgba(232,69,69,0.1);border:1px solid rgba(232,69,69,0.3);border-radius:4px;color:var(--danger);cursor:pointer;">✕</button>
-        </div>
+      <div style="font-size:12px;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:5px;">${k.naam}</div>
+      <div style="display:flex;gap:4px;margin-bottom:5px;">
+        <button onclick="toggleKaart(${k.id})" style="flex:1;font-size:11px;padding:3px 4px;background:${k.zichtbaar?'rgba(0,200,200,0.2)':'rgba(255,255,255,0.06)'};border:1px solid var(--border);border-radius:4px;color:var(--teal);cursor:pointer;">${k.zichtbaar?'Aan':'Uit'}</button>
+        <button onclick="zoomNaarKaart(${k.id})" style="flex:1;font-size:11px;padding:3px 4px;background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:4px;color:var(--muted);cursor:pointer;">🔍 Zoom</button>
+        <button onclick="startKalibratie(${k.id})" style="flex:1;font-size:11px;padding:3px 4px;background:rgba(245,166,35,0.1);border:1px solid rgba(245,166,35,0.3);border-radius:4px;color:var(--amber);cursor:pointer;">⊕ Kalibreer</button>
+        <button onclick="verwijderKaart(${k.id})" style="flex:1;font-size:11px;padding:3px 4px;background:rgba(232,69,69,0.1);border:1px solid rgba(232,69,69,0.3);border-radius:4px;color:var(--danger);cursor:pointer;">✕</button>
       </div>
       <input type="range" min="0" max="100" value="${Math.round(k.opacity*100)}"
         oninput="opacityKaart(${k.id},this.value)"
