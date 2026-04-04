@@ -4090,26 +4090,33 @@ let _kalPunten = []; // [{kaartLat, kaartLon, echt: {lat, lon}}]
 let _kalMapClickHandler = null;
 
 function startKalibratie(id) {
+  // Zorg voor juist type (localStorage geeft strings terug)
+  id = typeof id === 'string' ? parseInt(id) : id;
   _kalId = id;
   _kalStap = 0;
   _kalPunten = [];
-  const k = eigenKaarten.find(k => k.id === id);
-  if (!k) return;
+
+  const k = eigenKaarten.find(k => k.id == id); // == voor type-onafhankelijke vergelijking
+  if (!k) {
+    notify('⚠ Kaart niet gevonden — herlaad de pagina en voeg de kaart opnieuw toe');
+    return;
+  }
+
   map.fitBounds(k.bounds, { padding: [20,20] });
 
-  document.getElementById('kalibratie-modal').classList.add('open');
+  const modal = document.getElementById('kalibratie-modal');
+  modal.classList.add('open');
+  modal.style.display = 'flex'; // extra zekerheid
+
   document.getElementById('kal-uitleg').textContent =
-    `Stap 1 van 2: Klik op een herkenbaar punt op de kaart (bijv. een boei of havenhoek) waarvan je de exacte coördinaten kent.`;
+    'Stap 1 van 2: Klik op een herkenbaar punt op de kaart (bijv. een boei of havenhoek) waarvan je de exacte coördinaten kent.';
   document.getElementById('kal-punt-info').style.display = 'none';
   document.getElementById('kal-coord-invoer').style.display = 'none';
   document.getElementById('kal-resultaat').style.display = 'none';
   document.getElementById('kal-btn-ok').style.display = 'none';
   document.getElementById('kal-btn-ok').textContent = 'Volgende';
-
-  // Cursor aanpassen
   document.getElementById('map').style.cursor = 'crosshair';
 
-  // Klik handler
   _kalMapClickHandler = (e) => kalibratieKlik(e.latlng.lat, e.latlng.lng);
   map.once('click', _kalMapClickHandler);
 }
