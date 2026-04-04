@@ -1217,7 +1217,7 @@
 </div>
 
 <!-- Kalibratie modal -->
-<div id="kalibratie-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:9000;align-items:center;justify-content:center;">
+<div id="kalibratie-modal" class="modal-overlay" style="z-index:200000;">
   <div style="background:var(--deep);border:1px solid var(--teal);border-radius:10px;padding:20px;width:320px;max-width:95vw;">
     <div style="font-family:'Teko',sans-serif;font-size:20px;letter-spacing:2px;color:var(--teal);margin-bottom:12px;">⊕ KALIBRATIE</div>
     <div id="kal-uitleg" style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;"></div>
@@ -4097,7 +4097,7 @@ function startKalibratie(id) {
   if (!k) return;
   map.fitBounds(k.bounds, { padding: [20,20] });
 
-  document.getElementById('kalibratie-modal').style.display = 'flex';
+  document.getElementById('kalibratie-modal').classList.add('open');
   document.getElementById('kal-uitleg').textContent =
     `Stap 1 van 2: Klik op een herkenbaar punt op de kaart (bijv. een boei of havenhoek) waarvan je de exacte coördinaten kent.`;
   document.getElementById('kal-punt-info').style.display = 'none';
@@ -4197,7 +4197,7 @@ function pasKalibratieToePasToe() {
 }
 
 function sluitKalibratie() {
-  document.getElementById('kalibratie-modal').style.display = 'none';
+  document.getElementById('kalibratie-modal').classList.remove('open');
   document.getElementById('map').style.cursor = '';
   if (_kalMapClickHandler) map.off('click', _kalMapClickHandler);
 }
