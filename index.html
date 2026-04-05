@@ -3661,21 +3661,55 @@ async function verwerkGeoTIFF(file, statusEl) {
     }
     document.getElementById('coord-sectie').style.display = 'block';
 
-    // Sla image object op voor tiling
-    window._geoTiffImage  = image;
+    // Lees volledige raster data eenmalig — v1 API ondersteunt geen windowed reads
+    statusEl.textContent = `⏳ Pixels lezen (${width}×${height})…`;
+    await new Promise(r => setTimeout(r, 30));
+
+    const rasters = await image.readRasters({ interleave: false });
+    const nS = rasters.length;
+    let R, G, B, A = null;
+    if (nS >= 3) { R = rasters[0]; G = rasters[1]; B = rasters[2]; if (nS >= 4) A = rasters[3]; }
+    else { R = G = B = rasters[0]; if (nS === 2) A = rasters[1]; }
+    const is16 = R instanceof Uint16Array || R instanceof Int16Array;
+
+    // Render naar canvas in stroken
+    const canvas = document.createElement('canvas');
+    canvas.width = width; canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    const STROOK = 500;
+    for (let dy = 0; dy < height; dy += STROOK) {
+      const dh = Math.min(STROOK, height - dy);
+      const imgData = ctx.createImageData(width, dh);
+      for (let y = 0; y < dh; y++) {
+        for (let x = 0; x < width; x++) {
+          const i = (dy + y) * width + x;
+          const j = (y * width + x) * 4;
+          let r = R[i], g = G[i], b = B[i];
+          if (is16) { r >>= 8; g >>= 8; b >>= 8; }
+          imgData.data[j]   = Math.max(0, Math.min(255, r));
+          imgData.data[j+1] = Math.max(0, Math.min(255, g));
+          imgData.data[j+2] = Math.max(0, Math.min(255, b));
+          imgData.data[j+3] = A ? (is16 ? A[i] >> 8 : A[i]) : 255;
+        }
+      }
+      ctx.putImageData(imgData, 0, dy);
+      statusEl.textContent = `⏳ Renderen ${Math.round(dy/height*100)}%…`;
+      await new Promise(r => setTimeout(r, 0));
+    }
+
+    // Sla canvas op voor tiling
+    window._geoTiffCanvas = canvas;
     window._geoTiffWidth  = width;
     window._geoTiffHeight = height;
-    window._geoTiffBbox   = bbox;
     window._geoTiffOrigW  = width;
     window._geoTiffOrigH  = height;
     window._geoTiffSchaalX = 1;
     window._geoTiffSchaalY = 1;
+    eigenKaartDataUrl = null; // markeer als tiled GeoTIFF
 
-    // Render preview (kleine thumbnail voor coördinaat-check)
-    statusEl.textContent = `✓ GeoTIFF gereed (${width}×${height}px) — tiling actief`;
     statusEl.style.color = 'var(--teal)';
     klaarMetBestand(file.name, statusEl);
-    statusEl.textContent = `✓ GeoTIFF ${width}×${height}px — voeg toe voor tiled weergave`;
+    statusEl.textContent = `✓ GeoTIFF ${width}×${height}px geladen — tiling actief`;
 
   } catch(err) {
     statusEl.style.color = 'var(--danger)';
@@ -3950,8 +3984,8 @@ async function laadEigenKaart() {
   let overlay;
 
   // GeoTIFF met tiling?
-  if (window._geoTiffImage && !eigenKaartDataUrl) {
-    overlay = maakGeoTiffTileLayer(window._geoTiffImage, bounds, opacity);
+  if (window._geoTiffCanvas && !eigenKaartDataUrl) {
+    overlay = maakGeoTiffTileLayer(window._geoTiffCanvas, bounds, opacity);
     overlay.addTo(map);
     eigenKaarten.push({ id, naam, dataUrl: null, isTiled: true, bounds, overlay, opacity, zichtbaar: true });
   } else {
@@ -3982,6 +4016,7 @@ async function laadEigenKaart() {
 
   eigenKaartDataUrl = null;
   window._geoTiffImage = null;
+  window._geoTiffCanvas = null;
   document.getElementById('btn-kaart-laden').disabled = true;
   document.getElementById('kaart-bestandsnaam').style.display = 'none';
   document.getElementById('coord-sectie').style.display = 'none';
@@ -3990,85 +4025,51 @@ async function laadEigenKaart() {
   });
 }
 
-function maakGeoTiffTileLayer(image, bounds, opacity) {
-  const imgW = image.getWidth();
-  const imgH = image.getHeight();
+function maakGeoTiffTileLayer(canvas, bounds, opacity) {
+  const imgW = canvas.width;
+  const imgH = canvas.height;
   const [[southLat, westLon], [northLat, eastLon]] = bounds;
   const latRange = northLat - southLat;
   const lonRange = eastLon - westLon;
 
+  // Source canvas context voor snelle pixel reads
+  const srcCtx = canvas.getContext('2d');
+
   const GeoTiffLayer = L.GridLayer.extend({
     createTile: function(coords, done) {
-      const canvas = document.createElement('canvas');
-      canvas.width = canvas.height = this.options.tileSize;
       const tileSize = this.options.tileSize;
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = tileSize;
+      const ctx = canvas.getContext('2d');
 
-      // Bereken geografische bounds van deze tegel
+      // Geografische bounds van deze tegel
       const tileBounds = this._tileCoordsToBounds(coords);
       const tNorth = tileBounds.getNorth();
       const tSouth = tileBounds.getSouth();
       const tWest  = tileBounds.getWest();
       const tEast  = tileBounds.getEast();
 
-      // Bereken pixel-window in de GeoTIFF
-      const px0 = Math.floor((tWest  - westLon)  / lonRange * imgW);
-      const px1 = Math.ceil( (tEast  - westLon)  / lonRange * imgW);
-      const py0 = Math.floor((northLat - tNorth)  / latRange * imgH);
-      const py1 = Math.ceil( (northLat - tSouth)  / latRange * imgH);
-
-      // Buiten bereik: lege tegel
-      if (px1 <= 0 || px0 >= imgW || py1 <= 0 || py0 >= imgH) {
+      // Overlap met kaart?
+      if (tEast <= westLon || tWest >= eastLon || tNorth <= southLat || tSouth >= northLat) {
         done(null, canvas); return canvas;
       }
 
-      // Clip naar GeoTIFF afmetingen
-      const wx0 = Math.max(0, px0), wx1 = Math.min(imgW, px1);
-      const wy0 = Math.max(0, py0), wy1 = Math.min(imgH, py1);
-      if (wx1 <= wx0 || wy1 <= wy0) { done(null, canvas); return canvas; }
+      // Pixel-coördinaten in de source canvas
+      const sx0 = Math.max(0, Math.floor((tWest  - westLon)  / lonRange * imgW));
+      const sx1 = Math.min(imgW, Math.ceil((tEast  - westLon)  / lonRange * imgW));
+      const sy0 = Math.max(0, Math.floor((northLat - tNorth)  / latRange * imgH));
+      const sy1 = Math.min(imgH, Math.ceil((northLat - tSouth) / latRange * imgH));
 
-      const readW = wx1 - wx0, readH = wy1 - wy0;
+      if (sx1 <= sx0 || sy1 <= sy0) { done(null, canvas); return canvas; }
 
-      image.readRasters({
-        interleave: false,
-        window: [wx0, wy0, wx1, wy1],
-        width: readW, height: readH
-      }).then(rasters => {
-        const nS = rasters.length;
-        let R, G, B, A = null;
-        if (nS >= 3) { R = rasters[0]; G = rasters[1]; B = rasters[2]; if (nS >= 4) A = rasters[3]; }
-        else { R = G = B = rasters[0]; if (nS === 2) A = rasters[1]; }
-        const is16 = R instanceof Uint16Array || R instanceof Int16Array;
+      // Bestemming in tegel
+      const dx0 = Math.floor((Math.max(tWest,  westLon)  - tWest)  / (tEast - tWest)   * tileSize);
+      const dy0 = Math.floor((tNorth - Math.min(tNorth, northLat)) / (tNorth - tSouth)  * tileSize);
+      const dw  = Math.max(1, Math.ceil((Math.min(tEast,  eastLon)  - Math.max(tWest,  westLon))  / (tEast - tWest)   * tileSize));
+      const dh  = Math.max(1, Math.ceil((Math.min(tNorth, northLat) - Math.max(tSouth, southLat)) / (tNorth - tSouth)  * tileSize));
 
-        // Render in tijdelijk canvas op werkelijke pixelgrootte
-        const tmp = document.createElement('canvas');
-        tmp.width = readW; tmp.height = readH;
-        const tmpCtx = tmp.getContext('2d');
-        const imgData = tmpCtx.createImageData(readW, readH);
-        for (let i = 0; i < readW * readH; i++) {
-          let r = R[i], g = G[i], b = B[i];
-          if (is16) { r >>= 8; g >>= 8; b >>= 8; }
-          imgData.data[i*4]   = Math.max(0, Math.min(255, r));
-          imgData.data[i*4+1] = Math.max(0, Math.min(255, g));
-          imgData.data[i*4+2] = Math.max(0, Math.min(255, b));
-          imgData.data[i*4+3] = A ? (is16 ? A[i] >> 8 : A[i]) : 255;
-        }
-        tmpCtx.putImageData(imgData, 0, 0);
-
-        // Schaal naar tileSize en positioneer correct
-        const ctx = canvas.getContext('2d');
-
-        // Bereken positie binnen tegel
-        const dstX = Math.floor((Math.max(tWest,  westLon)  - tWest)  / (tEast - tWest)  * tileSize);
-        const dstY = Math.floor((tNorth - Math.min(tNorth, northLat)) / (tNorth - tSouth) * tileSize);
-        const dstW = Math.floor(readW / imgW * lonRange / (tEast - tWest) * tileSize);
-        const dstH = Math.floor(readH / imgH * latRange / (tNorth - tSouth) * tileSize);
-
-        ctx.drawImage(tmp, 0, 0, readW, readH, dstX, dstY, Math.max(1,dstW), Math.max(1,dstH));
-        done(null, canvas);
-      }).catch(err => {
-        done(err, canvas);
-      });
-
+      ctx.drawImage(srcCtx.canvas, sx0, sy0, sx1 - sx0, sy1 - sy0, dx0, dy0, dw, dh);
+      done(null, canvas);
       return canvas;
     }
   });
