@@ -3707,9 +3707,12 @@ async function verwerkGeoTIFF(file, statusEl) {
     window._geoTiffSchaalY = 1;
     eigenKaartDataUrl = null; // markeer als tiled GeoTIFF
 
+    // Zorg dat coord-sectie zichtbaar is
+    document.getElementById('coord-sectie').style.display = 'block';
+
     statusEl.style.color = 'var(--teal)';
     klaarMetBestand(file.name, statusEl);
-    statusEl.textContent = `✓ GeoTIFF ${width}×${height}px geladen — tiling actief`;
+    statusEl.textContent = `✓ GeoTIFF ${width}×${height}px — klik "Kaart toevoegen"`;
 
   } catch(err) {
     statusEl.style.color = 'var(--danger)';
@@ -3974,6 +3977,16 @@ async function laadEigenKaart() {
   const zoLat = parseFloat(document.getElementById('coord-zo-lat').value);
   const zoLon = parseFloat(document.getElementById('coord-zo-lon').value);
   if ([nwLat,nwLon,zoLat,zoLon].some(isNaN)) {
+    // Geen coördinaten — check of het een GeoTIFF is met bbox
+    if (window._geoTiffCanvas && window._geoTiffBbox) {
+      const b = window._geoTiffBbox;
+      document.getElementById('coord-nw-lat').value = b.nwLat.toFixed(6);
+      document.getElementById('coord-nw-lon').value = b.nwLon.toFixed(6);
+      document.getElementById('coord-zo-lat').value = b.zoLat.toFixed(6);
+      document.getElementById('coord-zo-lon').value = b.zoLon.toFixed(6);
+      // Herstart
+      laadEigenKaart(); return;
+    }
     alert('Vul alle vier de coördinaten in'); return;
   }
   const naam = document.getElementById('kaart-bestandsnaam')?.textContent || 'Kaart';
