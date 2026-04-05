@@ -3986,7 +3986,21 @@ function verwerkBMP(bytes, naam, statusEl) {
   }
 
   ctx.putImageData(imgData, 0, 0);
-  eigenKaartDataUrl = canvas.toDataURL('image/jpeg', 0.95);
+
+  // Controleer of canvas gespiegeld moet worden
+  // Standaard BMP (bottom-up, hRaw > 0): canvas is al correct (y=0=noord)
+  // Top-down BMP (hRaw < 0): ook correct want srcY = y
+  // Als kaart toch ondersteboven staat: flip via canvas
+  const finalCanvas = document.createElement('canvas');
+  finalCanvas.width = w; finalCanvas.height = h;
+  const fCtx = finalCanvas.getContext('2d');
+  // Flip verticaal — BMP bottom-up is al correct, maar topDown BMP moet geflipt
+  if (topDown) {
+    fCtx.translate(0, h); fCtx.scale(1, -1);
+  }
+  fCtx.drawImage(canvas, 0, 0);
+
+  eigenKaartDataUrl = finalCanvas.toDataURL('image/jpeg', 0.95);
   _origKaartBreedte = w;
   _origKaartHoogte  = h;
   window._geoTiffOrigW = w;
