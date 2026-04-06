@@ -3671,31 +3671,37 @@ async function verwerkGeoTIFF(file, statusEl) {
     if (nS >= 3) { R = rasters[0]; G = rasters[1]; B = rasters[2]; if (nS >= 4) A = rasters[3]; }
     else { R = G = B = rasters[0]; if (nS === 2) A = rasters[1]; }
     const is16 = R instanceof Uint16Array || R instanceof Int16Array;
+    const n = width * height;
 
-    // Render naar canvas in stroken
+    statusEl.textContent = `⏳ Renderen ${width}×${height}px…`;
+    await new Promise(r => setTimeout(r, 30));
+
+    // Bouw RGBA array in één keer — veel sneller dan putImageData per strook
+    const rgba = new Uint8ClampedArray(n * 4);
+    const BATCH = 50000; // pixels per batch voor UI-adempauzes
+    for (let start = 0; start < n; start += BATCH) {
+      const end = Math.min(start + BATCH, n);
+      for (let i = start; i < end; i++) {
+        let r = R[i], g = G[i], b = B[i];
+        if (is16) { r >>= 8; g >>= 8; b >>= 8; }
+        const j = i * 4;
+        rgba[j]   = r < 0 ? 0 : r > 255 ? 255 : r;
+        rgba[j+1] = g < 0 ? 0 : g > 255 ? 255 : g;
+        rgba[j+2] = b < 0 ? 0 : b > 255 ? 255 : b;
+        rgba[j+3] = A ? (is16 ? A[i] >> 8 : A[i]) : 255;
+      }
+      if (start % (BATCH * 10) === 0) {
+        statusEl.textContent = `⏳ Renderen ${Math.round(start/n*100)}%…`;
+        await new Promise(r => setTimeout(r, 0));
+      }
+    }
+
+    // Render naar canvas in één keer
     const canvas = document.createElement('canvas');
     canvas.width = width; canvas.height = height;
     const ctx = canvas.getContext('2d');
-    const STROOK = 500;
-    for (let dy = 0; dy < height; dy += STROOK) {
-      const dh = Math.min(STROOK, height - dy);
-      const imgData = ctx.createImageData(width, dh);
-      for (let y = 0; y < dh; y++) {
-        for (let x = 0; x < width; x++) {
-          const i = (dy + y) * width + x;
-          const j = (y * width + x) * 4;
-          let r = R[i], g = G[i], b = B[i];
-          if (is16) { r >>= 8; g >>= 8; b >>= 8; }
-          imgData.data[j]   = Math.max(0, Math.min(255, r));
-          imgData.data[j+1] = Math.max(0, Math.min(255, g));
-          imgData.data[j+2] = Math.max(0, Math.min(255, b));
-          imgData.data[j+3] = A ? (is16 ? A[i] >> 8 : A[i]) : 255;
-        }
-      }
-      ctx.putImageData(imgData, 0, dy);
-      statusEl.textContent = `⏳ Renderen ${Math.round(dy/height*100)}%…`;
-      await new Promise(r => setTimeout(r, 0));
-    }
+    const imgData = new ImageData(rgba, width, height);
+    ctx.putImageData(imgData, 0, 0);
 
     // Sla canvas op voor tiling
     window._geoTiffCanvas = canvas;
