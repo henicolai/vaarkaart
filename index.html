@@ -3699,6 +3699,7 @@ async function verwerkGeoTIFF(file, statusEl) {
 
     // Sla canvas op voor tiling
     window._geoTiffCanvas = canvas;
+    window._geoTiffBbox   = bbox;
     window._geoTiffWidth  = width;
     window._geoTiffHeight = height;
     window._geoTiffOrigW  = width;
@@ -3713,6 +3714,11 @@ async function verwerkGeoTIFF(file, statusEl) {
     statusEl.style.color = 'var(--teal)';
     klaarMetBestand(file.name, statusEl);
     statusEl.textContent = `✓ GeoTIFF ${width}×${height}px — klik "Kaart toevoegen"`;
+
+    // Als bbox beschikbaar: automatisch toevoegen
+    if (bbox) {
+      setTimeout(() => laadEigenKaart(), 100);
+    }
 
   } catch(err) {
     statusEl.style.color = 'var(--danger)';
