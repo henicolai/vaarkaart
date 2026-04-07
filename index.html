@@ -4057,9 +4057,11 @@ async function laadEigenKaart() {
 
   // GeoTIFF met tiling?
   if (window._geoTiffCanvas && !eigenKaartDataUrl) {
+    notify(`⏳ Tiling kaart aanmaken…`);
     overlay = maakGeoTiffTileLayer(window._geoTiffCanvas, bounds, opacity);
     overlay.addTo(map);
     eigenKaarten.push({ id, naam, dataUrl: null, isTiled: true, bounds, overlay, opacity, zichtbaar: true });
+    notify(`✓ Tiled kaart toegevoegd`);
   } else {
     // BMP/PNG/JPG — gewone imageOverlay
     if (!eigenKaartDataUrl) return;
@@ -4114,12 +4116,16 @@ function maakGeoTiffTileLayer(canvas, bounds, opacity) {
       canvas.width = canvas.height = tileSize;
       const ctx = canvas.getContext('2d');
 
-      // Geografische bounds van deze tegel
-      const tileBounds = this._tileCoordsToBounds(coords);
-      const tNorth = tileBounds.getNorth();
-      const tSouth = tileBounds.getSouth();
-      const tWest  = tileBounds.getWest();
-      const tEast  = tileBounds.getEast();
+      // Geografische bounds van deze tegel via Leaflet CRS
+      const tileSize2 = this.options.tileSize;
+      const nwPoint = coords.scaleBy(L.point(tileSize2, tileSize2));
+      const sePoint = nwPoint.add(L.point(tileSize2, tileSize2));
+      const nw = map.unproject(nwPoint, coords.z);
+      const se = map.unproject(sePoint, coords.z);
+      const tNorth = nw.lat;
+      const tSouth = se.lat;
+      const tWest  = nw.lng;
+      const tEast  = se.lng;
 
       // Overlap met kaart?
       if (tEast <= westLon || tWest >= eastLon || tNorth <= southLat || tSouth >= northLat) {
