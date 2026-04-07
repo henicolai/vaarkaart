@@ -3661,8 +3661,8 @@ async function verwerkGeoTIFF(file, statusEl) {
     }
     document.getElementById('coord-sectie').style.display = 'block';
 
-    // Lees volledige raster data eenmalig — v1 API ondersteunt geen windowed reads
-    statusEl.textContent = `⏳ Pixels lezen (${width}×${height})…`;
+    // Lees volledige raster data eenmalig
+    statusEl.textContent = `⏳ Pixels lezen…`;
     await new Promise(r => setTimeout(r, 30));
 
     const rasters = await image.readRasters({ interleave: false });
@@ -3671,37 +3671,75 @@ async function verwerkGeoTIFF(file, statusEl) {
     if (nS >= 3) { R = rasters[0]; G = rasters[1]; B = rasters[2]; if (nS >= 4) A = rasters[3]; }
     else { R = G = B = rasters[0]; if (nS === 2) A = rasters[1]; }
     const is16 = R instanceof Uint16Array || R instanceof Int16Array;
-    const n = width * height;
 
-    statusEl.textContent = `⏳ Renderen ${width}×${height}px…`;
+    statusEl.textContent = `⏳ Omzetten (${width}×${height}px)…`;
     await new Promise(r => setTimeout(r, 30));
 
-    // Bouw RGBA array in één keer — veel sneller dan putImageData per strook
-    const rgba = new Uint8ClampedArray(n * 4);
-    const BATCH = 50000; // pixels per batch voor UI-adempauzes
-    for (let start = 0; start < n; start += BATCH) {
-      const end = Math.min(start + BATCH, n);
-      for (let i = start; i < end; i++) {
-        let r = R[i], g = G[i], b = B[i];
-        if (is16) { r >>= 8; g >>= 8; b >>= 8; }
-        const j = i * 4;
-        rgba[j]   = r < 0 ? 0 : r > 255 ? 255 : r;
-        rgba[j+1] = g < 0 ? 0 : g > 255 ? 255 : g;
-        rgba[j+2] = b < 0 ? 0 : b > 255 ? 255 : b;
-        rgba[j+3] = A ? (is16 ? A[i] >> 8 : A[i]) : 255;
-      }
-      if (start % (BATCH * 10) === 0) {
-        statusEl.textContent = `⏳ Renderen ${Math.round(start/n*100)}%…`;
-        await new Promise(r => setTimeout(r, 0));
-      }
-    }
+    // Web Worker voor pixel conversie — blokkeert main thread niet
+    const rgba = await new Promise((resolve, reject) => {
+      const workerCode = `
+        self.onmessage = function(e) {
+          const { R, G, B, A, n, is16 } = e.data;
+          const rgba = new Uint8ClampedArray(n * 4);
+          if (is16) {
+            for (let i = 0; i < n; i++) {
+              rgba[i*4]   = R[i] >> 8;
+              rgba[i*4+1] = G[i] >> 8;
+              rgba[i*4+2] = B[i] >> 8;
+              rgba[i*4+3] = A ? A[i] >> 8 : 255;
+            }
+          } else {
+            for (let i = 0; i < n; i++) {
+              rgba[i*4]   = R[i];
+              rgba[i*4+1] = G[i];
+              rgba[i*4+2] = B[i];
+              rgba[i*4+3] = A ? A[i] : 255;
+            }
+          }
+          self.postMessage({ rgba: rgba.buffer }, [rgba.buffer]);
+        };
+      `;
+      const blob = new Blob([workerCode], { type: 'application/javascript' });
+      const worker = new Worker(URL.createObjectURL(blob));
+      const n = width * height;
 
-    // Render naar canvas in één keer
+      // Transferable arrays voor snelle overdracht
+      const Rc = new (R.constructor)(R);
+      const Gc = G === R ? Rc : new (G.constructor)(G);
+      const Bc = B === R ? Rc : new (B.constructor)(B);
+      const Ac = A ? new (A.constructor)(A) : null;
+
+      worker.onmessage = e => {
+        worker.terminate();
+        resolve(new Uint8ClampedArray(e.data.rgba));
+      };
+      worker.onerror = err => {
+        worker.terminate();
+        // Fallback zonder worker
+        const rgba = new Uint8ClampedArray(n * 4);
+        for (let i = 0; i < n; i++) {
+          rgba[i*4]   = is16 ? R[i] >> 8 : R[i];
+          rgba[i*4+1] = is16 ? G[i] >> 8 : G[i];
+          rgba[i*4+2] = is16 ? B[i] >> 8 : B[i];
+          rgba[i*4+3] = A ? (is16 ? A[i] >> 8 : A[i]) : 255;
+        }
+        resolve(rgba);
+      };
+
+      const transfers = [Rc.buffer];
+      if (Gc !== Rc) transfers.push(Gc.buffer);
+      if (Bc !== Rc && Bc !== Gc) transfers.push(Bc.buffer);
+      if (Ac) transfers.push(Ac.buffer);
+
+      worker.postMessage({ R: Rc, G: Gc, B: Bc, A: Ac, n, is16 }, transfers);
+    });
+
+    statusEl.textContent = `⏳ Canvas opbouwen…`;
+    await new Promise(r => setTimeout(r, 30));
+
     const canvas = document.createElement('canvas');
     canvas.width = width; canvas.height = height;
-    const ctx = canvas.getContext('2d');
-    const imgData = new ImageData(rgba, width, height);
-    ctx.putImageData(imgData, 0, 0);
+    canvas.getContext('2d').putImageData(new ImageData(rgba, width, height), 0, 0);
 
     // Sla canvas op voor tiling
     window._geoTiffCanvas = canvas;
