@@ -4027,17 +4027,10 @@ async function laadEigenKaart() {
   const opacity = parseInt(document.getElementById('kaart-opacity')?.value || 90) / 100;
   const id      = Date.now();
 
-  // ── GeoTIFF tiling ──
+  // ── GeoTIFF ──
   if (window._geoTiffCanvas) {
-    // Vul bbox in als velden leeg zijn
     if (window._geoTiffBbox) {
       const b = window._geoTiffBbox;
-      const fill = id => { const el = document.getElementById(id); return el && el.value === '' ? el : null; };
-      if (fill('coord-nw-lat')) fill('coord-nw-lat').value = b.nwLat.toFixed(6);
-      if (fill('coord-nw-lon')) fill('coord-nw-lon').value = b.nwLon.toFixed(6);
-      if (fill('coord-zo-lat')) fill('coord-zo-lat').value = b.zoLat.toFixed(6);
-      if (fill('coord-zo-lon')) fill('coord-zo-lon').value = b.zoLon.toFixed(6);
-      // Altijd overschrijven met bbox
       document.getElementById('coord-nw-lat').value = b.nwLat.toFixed(6);
       document.getElementById('coord-nw-lon').value = b.nwLon.toFixed(6);
       document.getElementById('coord-zo-lat').value = b.zoLat.toFixed(6);
@@ -4049,9 +4042,12 @@ async function laadEigenKaart() {
     const zoLon = parseFloat(document.getElementById('coord-zo-lon').value);
     if ([nwLat,nwLon,zoLat,zoLon].some(isNaN)) { alert('Vul alle vier de coördinaten in'); return; }
     const bounds = [[Math.min(zoLat,nwLat), Math.min(nwLon,zoLon)], [Math.max(zoLat,nwLat), Math.max(nwLon,zoLon)]];
-    const overlay = maakGeoTiffTileLayer(window._geoTiffCanvas, bounds, opacity);
-    overlay.addTo(map);
-    eigenKaarten.push({ id, naam, dataUrl: null, isTiled: true, bounds, overlay, opacity, zichtbaar: true });
+    // Gebruik canvas direct als imageOverlay — betrouwbaar op alle apparaten
+    const dataUrl = window._geoTiffCanvas.toDataURL('image/jpeg', 0.92);
+    const overlay = L.imageOverlay(dataUrl, bounds, { opacity, zIndex: 200 }).addTo(map);
+    const el = overlay.getElement();
+    if (el) el.style.imageRendering = 'auto';
+    eigenKaarten.push({ id, naam, dataUrl, bounds, overlay, opacity, zichtbaar: true });
     slaKaartenOp();
     renderKaartenLijst();
     map.fitBounds(bounds, { padding: [20,20] });
