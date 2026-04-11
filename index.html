@@ -3664,8 +3664,8 @@ async function verwerkGeoTIFF(file, statusEl) {
     const origW = image.getWidth();
     const origH = image.getHeight();
 
-    // Beperk resolutie bij inlezen — tablet kan max ~2000px aan
-    const MAX_DIM = 2000;
+    // Beperk resolutie bij inlezen
+    const MAX_DIM = 4000;
     const schaal = Math.min(1, MAX_DIM / Math.max(origW, origH));
     const readW  = Math.floor(origW * schaal);
     const readH  = Math.floor(origH * schaal);
@@ -3988,9 +3988,30 @@ function verwerkBMP(bytes, naam, statusEl) {
         imgData.data[dstOff+3] = bytes[srcOff + 3] || 255;
       }
     }
+  } else if (bpp === 4) {
+    // 4bpp geïndexeerd (16 kleuren)
+    const dibSize  = dv.getUint32(14, true);
+    const palStart = 14 + dibSize;
+    const rowSize  = Math.floor((4 * w + 31) / 32) * 4;
+    const pixels   = new Uint8Array(w * h);
+    for (let y = 0; y < h; y++) {
+      const srcY = topDown ? y : h - 1 - y;
+      for (let x = 0; x < w; x++) {
+        const byteOff = offset + srcY * rowSize + Math.floor(x / 2);
+        const nibble  = x % 2 === 0 ? (bytes[byteOff] >> 4) & 0xF : bytes[byteOff] & 0xF;
+        pixels[y * w + x] = nibble;
+      }
+    }
+    for (let i = 0; i < w * h; i++) {
+      const palOff = palStart + pixels[i] * 4;
+      imgData.data[i*4]   = bytes[palOff + 2];
+      imgData.data[i*4+1] = bytes[palOff + 1];
+      imgData.data[i*4+2] = bytes[palOff + 0];
+      imgData.data[i*4+3] = 255;
+    }
   } else {
     statusEl.style.color = 'var(--danger)';
-    statusEl.textContent = `⚠ ${bpp}bpp BMP niet ondersteund — gebruik 8, 24 of 32bpp`;
+    statusEl.textContent = `⚠ ${bpp}bpp BMP niet ondersteund — sla op als 24bpp BMP`;
     return;
   }
 
@@ -4043,7 +4064,7 @@ async function laadEigenKaart() {
     if ([nwLat,nwLon,zoLat,zoLon].some(isNaN)) { alert('Vul alle vier de coördinaten in'); return; }
     const bounds = [[Math.min(zoLat,nwLat), Math.min(nwLon,zoLon)], [Math.max(zoLat,nwLat), Math.max(nwLon,zoLon)]];
     // Gebruik canvas direct als imageOverlay — betrouwbaar op alle apparaten
-    const dataUrl = window._geoTiffCanvas.toDataURL('image/jpeg', 0.92);
+    const dataUrl = window._geoTiffCanvas.toDataURL('image/png');
     const overlay = L.imageOverlay(dataUrl, bounds, { opacity, zIndex: 200 }).addTo(map);
     const el = overlay.getElement();
     if (el) el.style.imageRendering = 'auto';
