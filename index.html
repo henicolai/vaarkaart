@@ -4115,6 +4115,10 @@ function maakGeoTiffTileLayer(canvas, bounds, opacity) {
       tile.width = tile.height = sz;
       const ctx = tile.getContext('2d');
 
+      // Debug: teken rode rand om tegel
+      ctx.strokeStyle = 'rgba(255,0,0,0.3)';
+      ctx.strokeRect(0, 0, sz, sz);
+
       // Gebruik Leaflet's ingebouwde methode als die beschikbaar is
       let tBounds;
       if (this._tileCoordsToBounds) {
