@@ -3677,41 +3677,18 @@ async function verwerkGeoTIFF(file, statusEl) {
     canvas.width = readW; canvas.height = readH;
     const ctx = canvas.getContext('2d');
 
-    // Lees in stroken om geheugen te sparen
-    const STROOK_H = Math.max(1, Math.floor(200 * readW / readW)); // ~200 rijen
-    const STROKEN  = Math.ceil(readH / STROOK_H);
-
-    for (let s = 0; s < STROKEN; s++) {
-      const sy0 = Math.floor(s * origH / STROKEN);
-      const sy1 = Math.floor((s + 1) * origH / STROKEN);
-      const dh  = Math.floor((sy1 - sy0) / origH * readH);
-      const dy  = Math.floor(s * readH / STROKEN);
-      if (dh < 1 || sy1 <= sy0) continue;
-
-      statusEl.textContent = `⏳ Lezen ${Math.round(s/STROKEN*100)}%…`;
+    // Probeer eerst volledig lezen (sneller)
+    try {
+      statusEl.textContent = `⏳ Pixels lezen…`;
       await new Promise(r => setTimeout(r, 0));
-
-      let rasters;
-      try {
-        rasters = await image.readRasters({
-          interleave: false,
-          window: [0, sy0, origW, sy1],
-          width: readW, height: dh
-        });
-      } catch(e) {
-        // Fallback: probeer zonder window
-        if (s === 0) rasters = await image.readRasters({ interleave: false, width: readW, height: readH });
-        else break;
-      }
-
+      const rasters = await image.readRasters({ interleave: false, width: readW, height: readH });
       const nS = rasters.length;
       let R, G, B, A = null;
       if (nS >= 3) { R = rasters[0]; G = rasters[1]; B = rasters[2]; if (nS >= 4) A = rasters[3]; }
       else { R = G = B = rasters[0]; }
       const is16 = R instanceof Uint16Array || R instanceof Int16Array;
-      const n = readW * dh;
-      const imgData = ctx.createImageData(readW, dh);
-      for (let i = 0; i < n; i++) {
+      const imgData = ctx.createImageData(readW, readH);
+      for (let i = 0; i < readW * readH; i++) {
         let r = R[i], g = G[i], b = B[i];
         if (is16) { r >>= 8; g >>= 8; b >>= 8; }
         imgData.data[i*4]   = r < 0 ? 0 : r > 255 ? 255 : r;
@@ -3719,10 +3696,40 @@ async function verwerkGeoTIFF(file, statusEl) {
         imgData.data[i*4+2] = b < 0 ? 0 : b > 255 ? 255 : b;
         imgData.data[i*4+3] = A ? (is16 ? A[i] >> 8 : A[i]) : 255;
       }
-      ctx.putImageData(imgData, 0, dy);
-
-      // Geef geheugen vrij
-      rasters = null;
+      ctx.putImageData(imgData, 0, 0);
+    } catch(e) {
+      // Fallback: lees in stroken
+      statusEl.textContent = `⏳ Lezen in stroken…`;
+      const STROKEN = 10;
+      for (let s = 0; s < STROKEN; s++) {
+        const sy0 = Math.floor(s * origH / STROKEN);
+        const sy1 = Math.floor((s + 1) * origH / STROKEN);
+        const dh  = Math.max(1, Math.floor((sy1 - sy0) / origH * readH));
+        const dy  = Math.floor(s * readH / STROKEN);
+        if (sy1 <= sy0) continue;
+        statusEl.textContent = `⏳ Strook ${s+1}/${STROKEN}…`;
+        await new Promise(r => setTimeout(r, 0));
+        try {
+          const rasters = await image.readRasters({
+            interleave: false, window: [0, sy0, origW, sy1], width: readW, height: dh
+          });
+          const nS = rasters.length;
+          let R, G, B, A = null;
+          if (nS >= 3) { R = rasters[0]; G = rasters[1]; B = rasters[2]; if (nS >= 4) A = rasters[3]; }
+          else { R = G = B = rasters[0]; }
+          const is16 = R instanceof Uint16Array || R instanceof Int16Array;
+          const imgData = ctx.createImageData(readW, dh);
+          for (let i = 0; i < readW * dh; i++) {
+            let r = R[i], g = G[i], b = B[i];
+            if (is16) { r >>= 8; g >>= 8; b >>= 8; }
+            imgData.data[i*4]   = r < 0 ? 0 : r > 255 ? 255 : r;
+            imgData.data[i*4+1] = g < 0 ? 0 : g > 255 ? 255 : g;
+            imgData.data[i*4+2] = b < 0 ? 0 : b > 255 ? 255 : b;
+            imgData.data[i*4+3] = A ? (is16 ? A[i] >> 8 : A[i]) : 255;
+          }
+          ctx.putImageData(imgData, 0, dy);
+        } catch(e2) { console.warn('Strook', s, 'mislukt:', e2.message); }
+      }
     }
 
     // Sla canvas én image object op voor tiling
