@@ -4148,9 +4148,9 @@ function maakGeoTiffTileLayer(canvas, bounds, opacity) {
 
       if (px1 <= px0 || py1 <= py0) { done(null, tile); return tile; }
 
-      // Windowed read bij hoge zoom (klein venster)
+      // Windowed read alleen bij hoge zoom (klein venster ≤ 300px)
       const pixW = px1 - px0, pixH = py1 - py0;
-      if (geoImg && pixW <= 2000 && pixH <= 2000) {
+      if (geoImg && pixW <= 300 && pixH <= 300) {
         geoImg.readRasters({
           interleave: false,
           window: [px0, py0, px1, py1],
@@ -4193,7 +4193,7 @@ function maakGeoTiffTileLayer(canvas, bounds, opacity) {
       return tile;
     }
   });
-  return new Layer({ tileSize: 256, opacity, zIndex: 200, pane: 'overlayPane' });
+  return new Layer({ tileSize: 256, opacity, zIndex: 200, pane: 'overlayPane', keepBuffer: 1, updateWhenZooming: false });
 }
 
 function renderKaartenLijst() {
