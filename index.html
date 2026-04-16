@@ -4148,9 +4148,9 @@ function maakGeoTiffTileLayer(canvas, bounds, opacity) {
 
       if (px1 <= px0 || py1 <= py0) { done(null, tile); return tile; }
 
-      // Windowed read alleen bij hoge zoom (klein venster ≤ 300px)
+      // Windowed read bij hoge zoom (klein venster ≤ 800px)
       const pixW = px1 - px0, pixH = py1 - py0;
-      if (geoImg && pixW <= 300 && pixH <= 300) {
+      if (geoImg && pixW <= 800 && pixH <= 800) {
         geoImg.readRasters({
           interleave: false,
           window: [px0, py0, px1, py1],
