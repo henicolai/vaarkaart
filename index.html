@@ -3888,35 +3888,39 @@ function updateCropPreview() {
   document.getElementById('crop-lft-val').textContent = lft;
   document.getElementById('crop-rgt-val').textContent = rgt;
 
-  // Teken preview
-  const src = window._geoTiffCanvas || (eigenKaartDataUrl ? (() => {
-    const img = new window.Image(); img.src = eigenKaartDataUrl; return img;
-  })() : null);
-  if (!src) return;
+  const src = window._geoTiffCanvas || null;
+  let imgSrc = null;
+  if (!src && eigenKaartDataUrl) {
+    imgSrc = eigenKaartDataUrl;
+  }
+  if (!src && !imgSrc) return;
 
   const preview = document.getElementById('crop-preview');
-  const pw = preview.clientWidth || 220;
-  preview.width = pw; preview.height = Math.round(pw * 0.6);
+  // Gebruik vaste breedte als clientWidth nog 0 is
+  const pw = Math.max(preview.clientWidth, preview.parentElement?.clientWidth || 220, 180);
+  const ph = Math.round(pw * 0.55);
+  preview.width = pw;
+  preview.height = ph;
   const pCtx = preview.getContext('2d');
-  pCtx.clearRect(0, 0, pw, preview.height);
 
   const draw = (img) => {
-    const sw = img.width  * (1 - (lft + rgt) / 100);
-    const sh = img.height * (1 - (top + bot) / 100);
+    const sw = Math.max(1, img.width  * (1 - (lft + rgt) / 100));
+    const sh = Math.max(1, img.height * (1 - (top + bot) / 100));
     const sx = img.width  * lft / 100;
     const sy = img.height * top / 100;
-    pCtx.drawImage(img, sx, sy, sw, sh, 0, 0, pw, preview.height);
-    // Toon crop lijnen
-    pCtx.strokeStyle = 'rgba(0,200,200,0.8)';
-    pCtx.lineWidth = 1;
-    pCtx.strokeRect(0.5, 0.5, pw - 1, preview.height - 1);
+    pCtx.clearRect(0, 0, pw, ph);
+    pCtx.drawImage(img, sx, sy, sw, sh, 0, 0, pw, ph);
+    pCtx.strokeStyle = 'rgba(0,200,200,0.9)';
+    pCtx.lineWidth = 2;
+    pCtx.strokeRect(1, 1, pw - 2, ph - 2);
   };
 
   if (src instanceof HTMLCanvasElement) {
     draw(src);
   } else {
-    src.onload = () => draw(src);
-    if (src.complete) draw(src);
+    const img = new window.Image();
+    img.onload = () => draw(img);
+    img.src = imgSrc;
   }
 }
 
@@ -4362,10 +4366,75 @@ function renderKaartenLijst() {
         <button onclick="startKalibratie(${k.id})" style="flex:1;font-size:11px;padding:3px 4px;background:rgba(245,166,35,0.1);border:1px solid rgba(245,166,35,0.3);border-radius:4px;color:var(--amber);cursor:pointer;">⊕ Kalibreer</button>
         <button onclick="verwijderKaart(${k.id})" style="flex:1;font-size:11px;padding:3px 4px;background:rgba(232,69,69,0.1);border:1px solid rgba(232,69,69,0.3);border-radius:4px;color:var(--danger);cursor:pointer;">✕</button>
       </div>
+      <button onclick="toggleBijsnijden(${k.id})" style="width:100%;font-size:11px;padding:3px 4px;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:4px;color:var(--muted);cursor:pointer;margin-bottom:4px;">✂ Bijsnijden</button>
+      <div id="bijsnijden-${k.id}" style="display:none;padding:6px;background:rgba(0,0,0,0.2);border-radius:4px;margin-bottom:4px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:11px;color:var(--muted);">
+          <label>Boven <span id="bs-top-val-${k.id}">0</span>%<input type="range" min="0" max="45" value="0" oninput="bijsnijdenPreview(${k.id})" id="bs-top-${k.id}" style="width:100%;accent-color:var(--teal);height:3px;display:block;"></label>
+          <label>Onder <span id="bs-bot-val-${k.id}">0</span>%<input type="range" min="0" max="45" value="0" oninput="bijsnijdenPreview(${k.id})" id="bs-bot-${k.id}" style="width:100%;accent-color:var(--teal);height:3px;display:block;"></label>
+          <label>Links <span id="bs-lft-val-${k.id}">0</span>%<input type="range" min="0" max="45" value="0" oninput="bijsnijdenPreview(${k.id})" id="bs-lft-${k.id}" style="width:100%;accent-color:var(--teal);height:3px;display:block;"></label>
+          <label>Rechts <span id="bs-rgt-val-${k.id}">0</span>%<input type="range" min="0" max="45" value="0" oninput="bijsnijdenPreview(${k.id})" id="bs-rgt-${k.id}" style="width:100%;accent-color:var(--teal);height:3px;display:block;"></label>
+        </div>
+        <button onclick="passBijsnijdenToe(${k.id})" style="width:100%;margin-top:6px;font-size:12px;padding:4px;background:rgba(0,200,200,0.15);border:1px solid var(--teal);border-radius:4px;color:var(--teal);cursor:pointer;">✂ Toepassen</button>
+      </div>
       <input type="range" min="0" max="100" value="${Math.round(k.opacity*100)}"
         oninput="opacityKaart(${k.id},this.value)"
         style="width:100%;accent-color:var(--teal);height:3px;">
     </div>`).join('');
+}
+
+function toggleBijsnijden(id) {
+  const el = document.getElementById(`bijsnijden-${id}`);
+  if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+function bijsnijdenPreview(id) {
+  document.getElementById(`bs-top-val-${id}`).textContent = document.getElementById(`bs-top-${id}`).value;
+  document.getElementById(`bs-bot-val-${id}`).textContent = document.getElementById(`bs-bot-${id}`).value;
+  document.getElementById(`bs-lft-val-${id}`).textContent = document.getElementById(`bs-lft-${id}`).value;
+  document.getElementById(`bs-rgt-val-${id}`).textContent = document.getElementById(`bs-rgt-${id}`).value;
+}
+
+function passBijsnijdenToe(id) {
+  const k = eigenKaarten.find(k => k.id == id);
+  if (!k || !k.dataUrl) { notify('⚠ Bijsnijden werkt alleen bij afbeeldingskaarten'); return; }
+
+  const top = parseInt(document.getElementById(`bs-top-${id}`).value) / 100;
+  const bot = parseInt(document.getElementById(`bs-bot-${id}`).value) / 100;
+  const lft = parseInt(document.getElementById(`bs-lft-${id}`).value) / 100;
+  const rgt = parseInt(document.getElementById(`bs-rgt-${id}`).value) / 100;
+  if (top + bot >= 1 || lft + rgt >= 1) { notify('⚠ Bijsnijding te groot'); return; }
+
+  const img = new window.Image();
+  img.onload = () => {
+    // Snijd bij
+    const sw = Math.floor(img.width  * (1 - lft - rgt));
+    const sh = Math.floor(img.height * (1 - top - bot));
+    const sx = Math.floor(img.width  * lft);
+    const sy = Math.floor(img.height * top);
+    const cv = document.createElement('canvas');
+    cv.width = sw; cv.height = sh;
+    cv.getContext('2d').drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+    const newDataUrl = cv.toDataURL('image/jpeg', 0.95);
+
+    // Pas bounds aan
+    const [[s, w], [n, e]] = k.bounds;
+    const latSpan = n - s, lonSpan = e - w;
+    const newBounds = [
+      [s + latSpan * bot, w + lonSpan * lft],
+      [n - latSpan * top, e - lonSpan * rgt]
+    ];
+
+    // Update overlay
+    map.removeLayer(k.overlay);
+    k.overlay = L.imageOverlay(newDataUrl, newBounds, { opacity: k.opacity, zIndex: 200 }).addTo(map);
+    k.dataUrl = newDataUrl;
+    k.bounds  = newBounds;
+    slaKaartenOp();
+    renderKaartenLijst();
+    map.fitBounds(newBounds, { padding: [20,20] });
+    notify('✓ Bijgesneden');
+  };
+  img.src = k.dataUrl;
 }
 
 function toggleKaart(id) {
