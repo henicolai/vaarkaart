@@ -4396,31 +4396,32 @@ function bijsnijdenPreview(id) {
 
 async function passBijsnijdenToe(id) {
   const k = eigenKaarten.find(k => k.id == id);
-  if (!k || !k.dataUrl) { notify('⚠ Bijsnijden werkt alleen bij afbeeldingskaarten'); return; }
+  if (!k) { notify(`⚠ Kaart ${id} niet gevonden (${eigenKaarten.length} kaarten)`); return; }
+  if (!k.dataUrl) { notify('⚠ Geen afbeeldingsdata — bijsnijden niet mogelijk'); return; }
 
-  const top = parseInt(document.getElementById(`bs-top-${id}`).value) / 100;
-  const bot = parseInt(document.getElementById(`bs-bot-${id}`).value) / 100;
-  const lft = parseInt(document.getElementById(`bs-lft-${id}`).value) / 100;
-  const rgt = parseInt(document.getElementById(`bs-rgt-${id}`).value) / 100;
-  if (top + bot >= 1 || lft + rgt >= 1) { notify('⚠ Bijsnijding te groot'); return; }
+  const top = parseInt(document.getElementById(`bs-top-${id}`)?.value || 0) / 100;
+  const bot = parseInt(document.getElementById(`bs-bot-${id}`)?.value || 0) / 100;
+  const lft = parseInt(document.getElementById(`bs-lft-${id}`)?.value || 0) / 100;
+  const rgt = parseInt(document.getElementById(`bs-rgt-${id}`)?.value || 0) / 100;
 
-  // Direct via fetch → blob → ImageBitmap → canvas (omzeilt CORS issues)
-  try {
-    const resp  = await fetch(k.dataUrl);
-    const blob  = await resp.blob();
-    const bmp   = await createImageBitmap(blob);
+  notify(`⏳ Bijsnijden: T${Math.round(top*100)} B${Math.round(bot*100)} L${Math.round(lft*100)} R${Math.round(rgt*100)}%`);
 
-    const sw = Math.max(1, Math.floor(bmp.width  * (1 - lft - rgt)));
-    const sh = Math.max(1, Math.floor(bmp.height * (1 - top - bot)));
-    const sx = Math.floor(bmp.width  * lft);
-    const sy = Math.floor(bmp.height * top);
+  if (top + bot >= 0.95 || lft + rgt >= 0.95) { notify('⚠ Bijsnijding te groot'); return; }
+  if (top === 0 && bot === 0 && lft === 0 && rgt === 0) { notify('⚠ Stel eerst sliders in'); return; }
+
+  // Laad via Image element
+  const img = new window.Image();
+  img.onload = function() {
+    const sw = Math.max(1, Math.floor(img.naturalWidth  * (1 - lft - rgt)));
+    const sh = Math.max(1, Math.floor(img.naturalHeight * (1 - top - bot)));
+    const sx = Math.floor(img.naturalWidth  * lft);
+    const sy = Math.floor(img.naturalHeight * top);
 
     const cv = document.createElement('canvas');
     cv.width = sw; cv.height = sh;
-    cv.getContext('2d').drawImage(bmp, sx, sy, sw, sh, 0, 0, sw, sh);
-    bmp.close();
-
+    cv.getContext('2d').drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
     const newDataUrl = cv.toDataURL('image/jpeg', 0.95);
+
     const [[s, w], [n, e]] = k.bounds;
     const latSpan = n - s, lonSpan = e - w;
     const newBounds = [
@@ -4438,10 +4439,10 @@ async function passBijsnijdenToe(id) {
     slaKaartenOp();
     renderKaartenLijst();
     map.fitBounds(newBounds, { padding: [20,20] });
-    notify('✓ Bijgesneden');
-  } catch(err) {
-    notify('⚠ Bijsnijden mislukt: ' + err.message);
-  }
+    notify(`✓ Bijgesneden (${sw}×${sh}px)`);
+  };
+  img.onerror = () => notify('⚠ Afbeelding laden mislukt');
+  img.src = k.dataUrl;
 }
 
 function toggleKaart(id) {
