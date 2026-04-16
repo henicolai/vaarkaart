@@ -4366,15 +4366,15 @@ function renderKaartenLijst() {
         <button onclick="startKalibratie(${k.id})" style="flex:1;font-size:11px;padding:3px 4px;background:rgba(245,166,35,0.1);border:1px solid rgba(245,166,35,0.3);border-radius:4px;color:var(--amber);cursor:pointer;">⊕ Kalibreer</button>
         <button onclick="verwijderKaart(${k.id})" style="flex:1;font-size:11px;padding:3px 4px;background:rgba(232,69,69,0.1);border:1px solid rgba(232,69,69,0.3);border-radius:4px;color:var(--danger);cursor:pointer;">✕</button>
       </div>
-      <button onclick="toggleBijsnijden(${k.id})" style="width:100%;font-size:11px;padding:3px 4px;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:4px;color:var(--muted);cursor:pointer;margin-bottom:4px;">✂ Bijsnijden</button>
-      <div id="bijsnijden-${k.id}" style="display:none;padding:6px;background:rgba(0,0,0,0.2);border-radius:4px;margin-bottom:4px;">
+      <button onclick="toggleBijsnijden(this)" style="width:100%;font-size:11px;padding:3px 4px;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:4px;color:var(--muted);cursor:pointer;margin-bottom:4px;">✂ Bijsnijden</button>
+      <div class="bs-panel" data-id="${k.id}" style="display:none;padding:6px;background:rgba(0,0,0,0.2);border-radius:4px;margin-bottom:4px;">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:11px;color:var(--muted);">
-          <label>Boven <span id="bs-top-val-${k.id}">0</span>%<input type="range" min="0" max="45" value="0" oninput="bijsnijdenPreview(${k.id})" id="bs-top-${k.id}" style="width:100%;accent-color:var(--teal);height:3px;display:block;"></label>
-          <label>Onder <span id="bs-bot-val-${k.id}">0</span>%<input type="range" min="0" max="45" value="0" oninput="bijsnijdenPreview(${k.id})" id="bs-bot-${k.id}" style="width:100%;accent-color:var(--teal);height:3px;display:block;"></label>
-          <label>Links <span id="bs-lft-val-${k.id}">0</span>%<input type="range" min="0" max="45" value="0" oninput="bijsnijdenPreview(${k.id})" id="bs-lft-${k.id}" style="width:100%;accent-color:var(--teal);height:3px;display:block;"></label>
-          <label>Rechts <span id="bs-rgt-val-${k.id}">0</span>%<input type="range" min="0" max="45" value="0" oninput="bijsnijdenPreview(${k.id})" id="bs-rgt-${k.id}" style="width:100%;accent-color:var(--teal);height:3px;display:block;"></label>
+          <label>Boven <span class="bs-top-val">0</span>%<input type="range" class="bs-top" min="0" max="45" value="0" oninput="bijsnijdenPreviewEl(this)" style="width:100%;accent-color:var(--teal);height:3px;display:block;"></label>
+          <label>Onder <span class="bs-bot-val">0</span>%<input type="range" class="bs-bot" min="0" max="45" value="0" oninput="bijsnijdenPreviewEl(this)" style="width:100%;accent-color:var(--teal);height:3px;display:block;"></label>
+          <label>Links <span class="bs-lft-val">0</span>%<input type="range" class="bs-lft" min="0" max="45" value="0" oninput="bijsnijdenPreviewEl(this)" style="width:100%;accent-color:var(--teal);height:3px;display:block;"></label>
+          <label>Rechts <span class="bs-rgt-val">0</span>%<input type="range" class="bs-rgt" min="0" max="45" value="0" oninput="bijsnijdenPreviewEl(this)" style="width:100%;accent-color:var(--teal);height:3px;display:block;"></label>
         </div>
-        <button onclick="passBijsnijdenToe(${k.id})" style="width:100%;margin-top:6px;font-size:12px;padding:4px;background:rgba(0,200,200,0.15);border:1px solid var(--teal);border-radius:4px;color:var(--teal);cursor:pointer;">✂ Toepassen</button>
+        <button onclick="passBijsnijdenToeEl(this)" style="width:100%;margin-top:6px;font-size:12px;padding:4px;background:rgba(0,200,200,0.15);border:1px solid var(--teal);border-radius:4px;color:var(--teal);cursor:pointer;">✂ Toepassen</button>
       </div>
       <input type="range" min="0" max="100" value="${Math.round(k.opacity*100)}"
         oninput="opacityKaart(${k.id},this.value)"
@@ -4382,16 +4382,72 @@ function renderKaartenLijst() {
     </div>`).join('');
 }
 
-function toggleBijsnijden(id) {
-  const el = document.getElementById(`bijsnijden-${id}`);
-  if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+function toggleBijsnijden(btn) {
+  const panel = btn.nextElementSibling;
+  if (panel && panel.classList.contains('bs-panel')) {
+    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+  }
 }
 
-function bijsnijdenPreview(id) {
-  document.getElementById(`bs-top-val-${id}`).textContent = document.getElementById(`bs-top-${id}`).value;
-  document.getElementById(`bs-bot-val-${id}`).textContent = document.getElementById(`bs-bot-${id}`).value;
-  document.getElementById(`bs-lft-val-${id}`).textContent = document.getElementById(`bs-lft-${id}`).value;
-  document.getElementById(`bs-rgt-val-${id}`).textContent = document.getElementById(`bs-rgt-${id}`).value;
+function bijsnijdenPreviewEl(input) {
+  const panel = input.closest('.bs-panel');
+  if (!panel) return;
+  panel.querySelector('.bs-top-val').textContent = panel.querySelector('.bs-top').value;
+  panel.querySelector('.bs-bot-val').textContent = panel.querySelector('.bs-bot').value;
+  panel.querySelector('.bs-lft-val').textContent = panel.querySelector('.bs-lft').value;
+  panel.querySelector('.bs-rgt-val').textContent = panel.querySelector('.bs-rgt').value;
+}
+
+function passBijsnijdenToeEl(btn) {
+  const panel = btn.closest('.bs-panel');
+  if (!panel) { notify('⚠ Panel niet gevonden'); return; }
+  const id = parseInt(panel.dataset.id);
+  const k  = eigenKaarten.find(k => k.id == id);
+  if (!k)  { notify('⚠ Kaart niet gevonden'); return; }
+  if (!k.dataUrl) { notify('⚠ Geen afbeeldingsdata beschikbaar'); return; }
+
+  const top = parseInt(panel.querySelector('.bs-top').value) / 100;
+  const bot = parseInt(panel.querySelector('.bs-bot').value) / 100;
+  const lft = parseInt(panel.querySelector('.bs-lft').value) / 100;
+  const rgt = parseInt(panel.querySelector('.bs-rgt').value) / 100;
+
+  if (top + bot >= 0.95 || lft + rgt >= 0.95) { notify('⚠ Bijsnijding te groot'); return; }
+  if (top === 0 && bot === 0 && lft === 0 && rgt === 0) { notify('⚠ Stel sliders in'); return; }
+
+  notify(`⏳ Bijsnijden…`);
+
+  const img = new window.Image();
+  img.onload = function() {
+    const w = img.naturalWidth, h = img.naturalHeight;
+    const sx = Math.floor(w * lft), sy = Math.floor(h * top);
+    const sw = Math.max(1, Math.floor(w * (1 - lft - rgt)));
+    const sh = Math.max(1, Math.floor(h * (1 - top - bot)));
+    const cv = document.createElement('canvas');
+    cv.width = sw; cv.height = sh;
+    cv.getContext('2d').drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+    const newDataUrl = cv.toDataURL('image/jpeg', 0.95);
+
+    const [[s, ww], [n, e]] = k.bounds;
+    const latSpan = n - s, lonSpan = e - ww;
+    const newBounds = [
+      [s + latSpan * bot, ww + lonSpan * lft],
+      [n - latSpan * top, e  - lonSpan * rgt]
+    ];
+
+    map.removeLayer(k.overlay);
+    const newOverlay = L.imageOverlay(newDataUrl, newBounds, { opacity: k.opacity, zIndex: 200 }).addTo(map);
+    const el = newOverlay.getElement();
+    if (el) el.style.imageRendering = 'auto';
+    k.overlay = newOverlay;
+    k.dataUrl  = newDataUrl;
+    k.bounds   = newBounds;
+    slaKaartenOp();
+    renderKaartenLijst();
+    map.fitBounds(newBounds, { padding: [20,20] });
+    notify(`✓ Bijgesneden (${sw}×${sh}px)`);
+  };
+  img.onerror = () => notify('⚠ Afbeelding laden mislukt');
+  img.src = k.dataUrl;
 }
 
 async function passBijsnijdenToe(id) {
