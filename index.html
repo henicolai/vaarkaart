@@ -3665,7 +3665,7 @@ async function verwerkGeoTIFF(file, statusEl) {
     const origH = image.getHeight();
 
     // Beperk resolutie — verlaag bij geheugenprobleem
-    const MAX_DIM = 3000;
+    const MAX_DIM = 6000;
     const schaal = Math.min(1, MAX_DIM / Math.max(origW, origH));
     const readW  = Math.floor(origW * schaal);
     const readH  = Math.floor(origH * schaal);
@@ -4045,10 +4045,12 @@ async function laadEigenKaart() {
     const zoLon = parseFloat(document.getElementById('coord-zo-lon').value);
     if ([nwLat,nwLon,zoLat,zoLon].some(isNaN)) { alert('Vul alle vier de coördinaten in'); return; }
     const bounds = [[Math.min(zoLat,nwLat), Math.min(nwLon,zoLon)], [Math.max(zoLat,nwLat), Math.max(nwLon,zoLon)]];
-    // GeoTIFF: gebruik tiling voor scherpte
-    const overlay = maakGeoTiffTileLayer(window._geoTiffCanvas, bounds, opacity);
-    overlay.addTo(map);
-    eigenKaarten.push({ id, naam, dataUrl: null, isTiled: true, bounds, overlay, opacity, zichtbaar: true });
+    // GeoTIFF: imageOverlay — betrouwbaar op alle apparaten
+    const dataUrl = window._geoTiffCanvas.toDataURL('image/jpeg', 0.92);
+    const overlay = L.imageOverlay(dataUrl, bounds, { opacity, zIndex: 200 }).addTo(map);
+    const el = overlay.getElement();
+    if (el) el.style.imageRendering = 'auto';
+    eigenKaarten.push({ id, naam, dataUrl, bounds, overlay, opacity, zichtbaar: true });
     slaKaartenOp();
     renderKaartenLijst();
     map.fitBounds(bounds, { padding: [20,20] });
