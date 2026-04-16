@@ -4405,10 +4405,15 @@ function passBijsnijdenToe(id) {
   if (top + bot >= 1 || lft + rgt >= 1) { notify('⚠ Bijsnijding te groot'); return; }
 
   const img = new window.Image();
-  img.onload = () => {
+  img.crossOrigin = 'anonymous';
+
+  const doCrop = () => {
+    if (img.width === 0 || img.height === 0) {
+      notify('⚠ Afbeelding kon niet worden geladen'); return;
+    }
     // Snijd bij
-    const sw = Math.floor(img.width  * (1 - lft - rgt));
-    const sh = Math.floor(img.height * (1 - top - bot));
+    const sw = Math.max(1, Math.floor(img.width  * (1 - lft - rgt)));
+    const sh = Math.max(1, Math.floor(img.height * (1 - top - bot)));
     const sx = Math.floor(img.width  * lft);
     const sy = Math.floor(img.height * top);
     const cv = document.createElement('canvas');
@@ -4416,7 +4421,7 @@ function passBijsnijdenToe(id) {
     cv.getContext('2d').drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
     const newDataUrl = cv.toDataURL('image/jpeg', 0.95);
 
-    // Pas bounds aan
+    // Pas bounds aan — bounds krimpen mee zodat witte randen verdwijnen
     const [[s, w], [n, e]] = k.bounds;
     const latSpan = n - s, lonSpan = e - w;
     const newBounds = [
@@ -4426,15 +4431,24 @@ function passBijsnijdenToe(id) {
 
     // Update overlay
     map.removeLayer(k.overlay);
-    k.overlay = L.imageOverlay(newDataUrl, newBounds, { opacity: k.opacity, zIndex: 200 }).addTo(map);
-    k.dataUrl = newDataUrl;
-    k.bounds  = newBounds;
+    const newOverlay = L.imageOverlay(newDataUrl, newBounds, { opacity: k.opacity, zIndex: 200 });
+    newOverlay.addTo(map);
+    const el = newOverlay.getElement();
+    if (el) el.style.imageRendering = 'auto';
+    k.overlay = newOverlay;
+    k.dataUrl  = newDataUrl;
+    k.bounds   = newBounds;
     slaKaartenOp();
     renderKaartenLijst();
     map.fitBounds(newBounds, { padding: [20,20] });
     notify('✓ Bijgesneden');
   };
+
+  img.onload = doCrop;
+  img.onerror = () => notify('⚠ Kan afbeelding niet laden');
   img.src = k.dataUrl;
+  // Als al geladen (cached)
+  if (img.complete && img.naturalWidth > 0) doCrop();
 }
 
 function toggleKaart(id) {
