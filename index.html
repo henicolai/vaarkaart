@@ -996,6 +996,22 @@
       <!-- Randen bijsnijden (handmatig) -->
       
 
+      <!-- Bijsnijden -->
+      <div id="kaart-crop-sectie" style="display:none;margin-bottom:10px;">
+        <div style="font-size:11px;color:var(--teal);margin-bottom:6px;">✂ Bijsnijden (% van rand)</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+          <label style="font-size:11px;color:var(--muted);">Boven <span id="crop-top-val">0</span>%
+            <input type="range" id="crop-top" min="0" max="45" value="0" oninput="updateCropPreview()" style="width:100%;accent-color:var(--teal);height:3px;display:block;"></label>
+          <label style="font-size:11px;color:var(--muted);">Onder <span id="crop-bot-val">0</span>%
+            <input type="range" id="crop-bot" min="0" max="45" value="0" oninput="updateCropPreview()" style="width:100%;accent-color:var(--teal);height:3px;display:block;"></label>
+          <label style="font-size:11px;color:var(--muted);">Links <span id="crop-lft-val">0</span>%
+            <input type="range" id="crop-lft" min="0" max="45" value="0" oninput="updateCropPreview()" style="width:100%;accent-color:var(--teal);height:3px;display:block;"></label>
+          <label style="font-size:11px;color:var(--muted);">Rechts <span id="crop-rgt-val">0</span>%
+            <input type="range" id="crop-rgt" min="0" max="45" value="0" oninput="updateCropPreview()" style="width:100%;accent-color:var(--teal);height:3px;display:block;"></label>
+        </div>
+        <canvas id="crop-preview" style="width:100%;margin-top:6px;border:1px solid var(--border);border-radius:4px;display:block;max-height:120px;object-fit:contain;"></canvas>
+      </div>
+
       <!-- Flip optie voor gespiegelde kaarten -->
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
         <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--muted);">
@@ -3861,12 +3877,95 @@ function handleKaartDrop(event) {
 }
 
 // ── EIGEN KAARTEN BEHEER ──────────────────────────────────
+// ── BIJSNIJDEN ────────────────────────────────────────────
+function updateCropPreview() {
+  const top = parseInt(document.getElementById('crop-top').value);
+  const bot = parseInt(document.getElementById('crop-bot').value);
+  const lft = parseInt(document.getElementById('crop-lft').value);
+  const rgt = parseInt(document.getElementById('crop-rgt').value);
+  document.getElementById('crop-top-val').textContent = top;
+  document.getElementById('crop-bot-val').textContent = bot;
+  document.getElementById('crop-lft-val').textContent = lft;
+  document.getElementById('crop-rgt-val').textContent = rgt;
+
+  // Teken preview
+  const src = window._geoTiffCanvas || (eigenKaartDataUrl ? (() => {
+    const img = new window.Image(); img.src = eigenKaartDataUrl; return img;
+  })() : null);
+  if (!src) return;
+
+  const preview = document.getElementById('crop-preview');
+  const pw = preview.clientWidth || 220;
+  preview.width = pw; preview.height = Math.round(pw * 0.6);
+  const pCtx = preview.getContext('2d');
+  pCtx.clearRect(0, 0, pw, preview.height);
+
+  const draw = (img) => {
+    const sw = img.width  * (1 - (lft + rgt) / 100);
+    const sh = img.height * (1 - (top + bot) / 100);
+    const sx = img.width  * lft / 100;
+    const sy = img.height * top / 100;
+    pCtx.drawImage(img, sx, sy, sw, sh, 0, 0, pw, preview.height);
+    // Toon crop lijnen
+    pCtx.strokeStyle = 'rgba(0,200,200,0.8)';
+    pCtx.lineWidth = 1;
+    pCtx.strokeRect(0.5, 0.5, pw - 1, preview.height - 1);
+  };
+
+  if (src instanceof HTMLCanvasElement) {
+    draw(src);
+  } else {
+    src.onload = () => draw(src);
+    if (src.complete) draw(src);
+  }
+}
+
+function getCropDataUrl(sourceCanvas, sourceDataUrl) {
+  const top = parseInt(document.getElementById('crop-top')?.value || 0);
+  const bot = parseInt(document.getElementById('crop-bot')?.value || 0);
+  const lft = parseInt(document.getElementById('crop-lft')?.value || 0);
+  const rgt = parseInt(document.getElementById('crop-rgt')?.value || 0);
+  if (top === 0 && bot === 0 && lft === 0 && rgt === 0) return null; // geen crop
+
+  const src = sourceCanvas || (() => {
+    const img = new window.Image();
+    img.src = sourceDataUrl;
+    return img;
+  })();
+
+  const w = src.width || src.naturalWidth;
+  const h = src.height || src.naturalHeight;
+  const sx = Math.floor(w * lft / 100);
+  const sy = Math.floor(h * top / 100);
+  const sw = Math.floor(w * (1 - (lft + rgt) / 100));
+  const sh = Math.floor(h * (1 - (top + bot) / 100));
+  if (sw < 1 || sh < 1) return null;
+
+  const cv = document.createElement('canvas');
+  cv.width = sw; cv.height = sh;
+  cv.getContext('2d').drawImage(src, sx, sy, sw, sh, 0, 0, sw, sh);
+  return { canvas: cv, dataUrl: cv.toDataURL('image/jpeg', 0.92), sx, sy, sw, sh, origW: w, origH: h };
+}
+
+function resetCropSliders() {
+  ['crop-top','crop-bot','crop-lft','crop-rgt'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = 0;
+  });
+  ['crop-top-val','crop-bot-val','crop-lft-val','crop-rgt-val'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.textContent = '0';
+  });
+}
+
 function klaarMetBestand(naam, statusEl) {
   statusEl.style.color = 'var(--teal)';
   statusEl.textContent = `✓ ${naam} geladen — vul coördinaten in`;
   const bestandsnaam = document.getElementById('kaart-bestandsnaam');
   if (bestandsnaam) { bestandsnaam.textContent = naam; bestandsnaam.style.display = 'block'; }
   document.getElementById('btn-kaart-laden').disabled = false;
+  // Toon bijsnijden sectie en reset sliders
+  resetCropSliders();
+  document.getElementById('kaart-crop-sectie').style.display = 'block';
+  setTimeout(() => updateCropPreview(), 100);
 }
 
 function verwerkBMP(bytes, naam, statusEl) {
@@ -4030,6 +4129,32 @@ async function laadEigenKaart() {
   const opacity = parseInt(document.getElementById('kaart-opacity')?.value || 90) / 100;
   const id      = Date.now();
 
+  // Haal crop percentages op
+  const cropTop = parseInt(document.getElementById('crop-top')?.value || 0) / 100;
+  const cropBot = parseInt(document.getElementById('crop-bot')?.value || 0) / 100;
+  const cropLft = parseInt(document.getElementById('crop-lft')?.value || 0) / 100;
+  const cropRgt = parseInt(document.getElementById('crop-rgt')?.value || 0) / 100;
+  const hasCrop = cropTop > 0 || cropBot > 0 || cropLft > 0 || cropRgt > 0;
+
+  // Helper: pas bounds aan voor crop
+  function cropBounds(bounds, cT, cB, cL, cR) {
+    const [[s, w], [n, e]] = bounds;
+    const latSpan = n - s, lonSpan = e - w;
+    return [[s + latSpan * cB, w + lonSpan * cL], [n - latSpan * cT, e - lonSpan * cR]];
+  }
+
+  // Helper: snijd canvas bij
+  function cropCanvas(src) {
+    const sw = Math.floor(src.width  * (1 - cropLft - cropRgt));
+    const sh = Math.floor(src.height * (1 - cropTop - cropBot));
+    const sx = Math.floor(src.width  * cropLft);
+    const sy = Math.floor(src.height * cropTop);
+    const cv = document.createElement('canvas');
+    cv.width = sw; cv.height = sh;
+    cv.getContext('2d').drawImage(src, sx, sy, sw, sh, 0, 0, sw, sh);
+    return cv;
+  }
+
   // ── GeoTIFF ──
   if (window._geoTiffCanvas) {
     if (window._geoTiffBbox) {
@@ -4044,9 +4169,14 @@ async function laadEigenKaart() {
     const zoLat = parseFloat(document.getElementById('coord-zo-lat').value);
     const zoLon = parseFloat(document.getElementById('coord-zo-lon').value);
     if ([nwLat,nwLon,zoLat,zoLon].some(isNaN)) { alert('Vul alle vier de coördinaten in'); return; }
-    const bounds = [[Math.min(zoLat,nwLat), Math.min(nwLon,zoLon)], [Math.max(zoLat,nwLat), Math.max(nwLon,zoLon)]];
-    // GeoTIFF: imageOverlay — betrouwbaar op alle apparaten
-    const dataUrl = window._geoTiffCanvas.toDataURL('image/jpeg', 0.92);
+    let bounds = [[Math.min(zoLat,nwLat), Math.min(nwLon,zoLon)], [Math.max(zoLat,nwLat), Math.max(nwLon,zoLon)]];
+    let srcCanvas = window._geoTiffCanvas;
+    if (hasCrop) {
+      srcCanvas = cropCanvas(window._geoTiffCanvas);
+      bounds = cropBounds(bounds, cropTop, cropBot, cropLft, cropRgt);
+    }
+    // GeoTIFF: imageOverlay
+    const dataUrl = srcCanvas.toDataURL('image/jpeg', 0.92);
     const overlay = L.imageOverlay(dataUrl, bounds, { opacity, zIndex: 200 }).addTo(map);
     const el = overlay.getElement();
     if (el) el.style.imageRendering = 'auto';
@@ -4071,19 +4201,28 @@ async function laadEigenKaart() {
   const zoLat = parseFloat(document.getElementById('coord-zo-lat').value);
   const zoLon = parseFloat(document.getElementById('coord-zo-lon').value);
   if ([nwLat,nwLon,zoLat,zoLon].some(isNaN)) { alert('Vul alle vier de coördinaten in'); return; }
-  const bounds = [[Math.min(zoLat,nwLat), Math.min(nwLon,zoLon)], [Math.max(zoLat,nwLat), Math.max(nwLon,zoLon)]];
+  let bounds = [[Math.min(zoLat,nwLat), Math.min(nwLon,zoLon)], [Math.max(zoLat,nwLat), Math.max(nwLon,zoLon)]];
   const flipV = document.getElementById('kaart-flip-v')?.checked || false;
-  let dataUrl = eigenKaartDataUrl;
+
+  // Laad als Image voor flip/crop
+  const img = new window.Image();
+  await new Promise(resolve => { img.onload = resolve; img.src = eigenKaartDataUrl; });
+
+  const cv = document.createElement('canvas');
+  cv.width = img.width; cv.height = img.height;
+  const cx = cv.getContext('2d');
   if (flipV) {
-    const img = new window.Image();
-    await new Promise(resolve => { img.onload = resolve; img.src = dataUrl; });
-    const cv = document.createElement('canvas');
-    cv.width = img.width; cv.height = img.height;
-    const cx = cv.getContext('2d');
     cx.translate(0, img.height); cx.scale(1, -1);
-    cx.drawImage(img, 0, 0);
-    dataUrl = cv.toDataURL('image/jpeg', 0.95);
   }
+  cx.drawImage(img, 0, 0);
+
+  let finalCv = cv;
+  if (hasCrop) {
+    finalCv = cropCanvas(cv);
+    bounds = cropBounds(bounds, cropTop, cropBot, cropLft, cropRgt);
+  }
+
+  const dataUrl = finalCv.toDataURL('image/jpeg', 0.95);
   const overlay = L.imageOverlay(dataUrl, bounds, { opacity, zIndex: 200 }).addTo(map);
   const el = overlay.getElement();
   if (el) el.style.imageRendering = 'auto';
@@ -4096,6 +4235,7 @@ async function laadEigenKaart() {
   document.getElementById('btn-kaart-laden').disabled = true;
   document.getElementById('kaart-bestandsnaam').style.display = 'none';
   document.getElementById('coord-sectie').style.display = 'none';
+  document.getElementById('kaart-crop-sectie').style.display = 'none';
   ['coord-nw-lat','coord-nw-lon','coord-zo-lat','coord-zo-lon'].forEach(fid => {
     const el = document.getElementById(fid); if (el) el.value = '';
   });
