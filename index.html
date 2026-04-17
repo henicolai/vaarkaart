@@ -3680,55 +3680,53 @@ async function verwerkGeoTIFF(file, statusEl) {
     const origW = image.getWidth();
     const origH = image.getHeight();
 
-    // Beperk resolutie — verlaag bij geheugenprobleem
-    // Kies resolutie op basis van bestandsgrootte
+    // Kies resolutie — klein genoeg voor tablet geheugen
     const mb = file.size / 1024 / 1024;
-    const MAX_DIM = mb < 5 ? 4000 : mb < 15 ? 2500 : 1500;
+    const MAX_DIM = mb < 5 ? 2000 : mb < 15 ? 1000 : 600;
     const schaal = Math.min(1, MAX_DIM / Math.max(origW, origH));
     const readW  = Math.floor(origW * schaal);
     const readH  = Math.floor(origH * schaal);
 
-    statusEl.textContent = `⏳ Canvas aanmaken (${readW}×${readH}px)…`;
+    statusEl.textContent = `⏳ Lezen ${readW}×${readH}px…`;
     await new Promise(r => setTimeout(r, 30));
 
-    const canvas = document.createElement('canvas');
-    canvas.width = readW; canvas.height = readH;
-    const ctx = canvas.getContext('2d');
-
-    // Lees altijd in stroken — vermijdt invalid array length
-    const STROKEN = mb < 5 ? 5 : mb < 15 ? 10 : 20;
-    statusEl.textContent = `⏳ Lezen in ${STROKEN} stroken…`;
-    for (let s = 0; s < STROKEN; s++) {
-      const sy0 = Math.floor(s * origH / STROKEN);
-      const sy1 = Math.floor((s + 1) * origH / STROKEN);
-      const dh  = Math.max(1, Math.floor((sy1 - sy0) / origH * readH));
-      const dy  = Math.floor(s * readH / STROKEN);
-      if (sy1 <= sy0) continue;
-      statusEl.textContent = `⏳ Strook ${s+1}/${STROKEN}…`;
+    // Lees zonder window — geotiff v2 subsamplet intern zonder grote tussentijdse arrays
+    let rasters;
+    try {
+      rasters = await image.readRasters({ interleave: false, width: readW, height: readH });
+    } catch(e) {
+      // Nog kleiner proberen
+      const readW2 = Math.floor(readW * 0.5);
+      const readH2 = Math.floor(readH * 0.5);
+      statusEl.textContent = `⏳ Opnieuw ${readW2}×${readH2}px…`;
       await new Promise(r => setTimeout(r, 0));
-      try {
-        const rasters = await image.readRasters({
-          interleave: false, window: [0, sy0, origW, sy1], width: readW, height: dh
-        });
-        const nS = rasters.length;
-        let R, G, B, A = null;
-        if (nS >= 3) { R = rasters[0]; G = rasters[1]; B = rasters[2]; if (nS >= 4) A = rasters[3]; }
-        else { R = G = B = rasters[0]; }
-        const is16 = R instanceof Uint16Array || R instanceof Int16Array;
-        const imgData = ctx.createImageData(readW, dh);
-        for (let i = 0; i < readW * dh; i++) {
-          let r = R[i], g = G[i], b = B[i];
-          if (is16) { r >>= 8; g >>= 8; b >>= 8; }
-          imgData.data[i*4]   = r < 0 ? 0 : r > 255 ? 255 : r;
-          imgData.data[i*4+1] = g < 0 ? 0 : g > 255 ? 255 : g;
-          imgData.data[i*4+2] = b < 0 ? 0 : b > 255 ? 255 : b;
-          imgData.data[i*4+3] = A ? (is16 ? A[i] >> 8 : A[i]) : 255;
-        }
-        ctx.putImageData(imgData, 0, dy);
-      } catch(e2) {
-        console.warn('Strook', s, 'mislukt:', e2.message);
-      }
+      rasters = await image.readRasters({ interleave: false, width: readW2, height: readH2 });
     }
+
+    const nS = rasters.length;
+    let R, G, B, A = null;
+    if (nS >= 3) { R = rasters[0]; G = rasters[1]; B = rasters[2]; if (nS >= 4) A = rasters[3]; }
+    else { R = G = B = rasters[0]; }
+    const is16 = R instanceof Uint16Array || R instanceof Int16Array;
+    const rW = rasters.width  || readW;
+    const rH = rasters.height || readH;
+
+    statusEl.textContent = `⏳ Canvas ${rW}×${rH}px…`;
+    await new Promise(r => setTimeout(r, 0));
+
+    const canvas = document.createElement('canvas');
+    canvas.width = rW; canvas.height = rH;
+    const ctx = canvas.getContext('2d');
+    const imgData = ctx.createImageData(rW, rH);
+    for (let i = 0; i < rW * rH; i++) {
+      let r = R[i], g = G[i], b = B[i];
+      if (is16) { r >>= 8; g >>= 8; b >>= 8; }
+      imgData.data[i*4]   = r < 0 ? 0 : r > 255 ? 255 : r;
+      imgData.data[i*4+1] = g < 0 ? 0 : g > 255 ? 255 : g;
+      imgData.data[i*4+2] = b < 0 ? 0 : b > 255 ? 255 : b;
+      imgData.data[i*4+3] = A ? (is16 ? A[i] >> 8 : A[i]) : 255;
+    }
+    ctx.putImageData(imgData, 0, 0);
 
     // Sla canvas én image object op voor tiling
     window._geoTiffCanvas = canvas;
