@@ -3683,6 +3683,12 @@ async function verwerkGeoTIFF(file, statusEl) {
     // Kies resolutie — klein genoeg voor tablet geheugen
     const mb = file.size / 1024 / 1024;
     const MAX_DIM = mb < 5 ? 2000 : mb < 15 ? 1000 : 600;
+    const totaalPixels = origW * origH;
+    if (totaalPixels > 100000000) { // > 100 megapixels
+      statusEl.style.color = 'var(--danger)';
+      statusEl.textContent = `⚠ Kaart te groot (${origW}×${origH}px). Verklein eerst via QGIS of gdal_translate -outsize 4000 0 input.tif output.tif`;
+      return;
+    }
     const schaal = Math.min(1, MAX_DIM / Math.max(origW, origH));
     const readW  = Math.floor(origW * schaal);
     const readH  = Math.floor(origH * schaal);
