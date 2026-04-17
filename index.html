@@ -4382,10 +4382,24 @@ function renderKaartenLijst() {
     </div>`).join('');
 }
 
+// ── VISUEEL BIJSNIJDEN ───────────────────────────────────
+let _bijsnijdKaartId = null;
+let _bijsnijdHandles  = {};
+let _bijsnijdBounds   = null;
+let _bijsnijdOrigBounds = null;
+
 function toggleBijsnijden(btn) {
   const panel = btn.nextElementSibling;
-  if (panel && panel.classList.contains('bs-panel')) {
+  if (!panel || !panel.classList.contains('bs-panel')) return;
+  const id = parseInt(panel.dataset.id);
+  if (_bijsnijdKaartId === id) {
+    // Sluit bijsnijden
+    sluitBijsnijden();
+    panel.style.display = 'none';
+  } else {
     panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+    if (panel.style.display === 'block') startVisueleBS(id);
+    else sluitBijsnijden();
   }
 }
 
@@ -4396,6 +4410,140 @@ function bijsnijdenPreviewEl(input) {
   panel.querySelector('.bs-bot-val').textContent = panel.querySelector('.bs-bot').value;
   panel.querySelector('.bs-lft-val').textContent = panel.querySelector('.bs-lft').value;
   panel.querySelector('.bs-rgt-val').textContent = panel.querySelector('.bs-rgt').value;
+  // Update visuele handles
+  if (_bijsnijdKaartId !== null) updateBijsnijdHandles(panel);
+}
+
+function startVisueleBS(id) {
+  sluitBijsnijden();
+  const k = eigenKaarten.find(k => k.id == id);
+  if (!k) return;
+  _bijsnijdKaartId    = id;
+  _bijsnijdOrigBounds = JSON.parse(JSON.stringify(k.bounds));
+  _bijsnijdBounds     = JSON.parse(JSON.stringify(k.bounds));
+
+  // Maak 4 sleepbare lijnen op de kaart
+  const [[s, w], [n, e]] = k.bounds;
+
+  _bijsnijdHandles = {
+    top: maakBSLijn([[n, w], [n, e]], 'top',    id),
+    bot: maakBSLijn([[s, w], [s, e]], 'bottom', id),
+    lft: maakBSLijn([[n, w], [s, w]], 'left',   id),
+    rgt: maakBSLijn([[n, e], [s, e]], 'right',  id),
+  };
+  notify('↔ Sleep de lijnen om bij te snijden');
+}
+
+function maakBSLijn(latLngs, kant, kaartId) {
+  const lijn = L.polyline(latLngs, {
+    color: '#00c8c8', weight: 3, opacity: 0.9, dashArray: '6,4'
+  }).addTo(map);
+
+  // Marker in het midden als sleeppunt
+  const mid = L.latLng(
+    (latLngs[0][0] + latLngs[1][0]) / 2,
+    (latLngs[0][1] + latLngs[1][1]) / 2
+  );
+  const marker = L.marker(mid, {
+    icon: L.divIcon({
+      html: `<div style="width:18px;height:18px;background:#00c8c8;border:2px solid white;border-radius:3px;cursor:${kant==='top'||kant==='bottom'?'ns-resize':'ew-resize'};"></div>`,
+      className: '', iconSize: [18,18], iconAnchor: [9,9]
+    }),
+    draggable: true, zIndexOffset: 1000
+  }).addTo(map);
+
+  marker.on('drag', function(ev) {
+    const k = eigenKaarten.find(k => k.id == kaartId);
+    if (!k) return;
+    const [[s, w], [n, ee]] = _bijsnijdBounds;
+    const pos = ev.target.getLatLng();
+
+    let newS = s, newN = n, newW = w, newE = ee;
+    if (kant === 'top')    newN = Math.max(pos.lat, s + 0.001);
+    if (kant === 'bottom') newS = Math.min(pos.lat, n - 0.001);
+    if (kant === 'left')   newW = Math.min(pos.lng, ee - 0.001);
+    if (kant === 'right')  newE = Math.max(pos.lng, w + 0.001);
+
+    _bijsnijdBounds = [[newS, newW], [newN, newE]];
+
+    if (kant === 'top')    lijn.setLatLngs([[newN, newW], [newN, newE]]);
+    if (kant === 'bottom') lijn.setLatLngs([[newS, newW], [newS, newE]]);
+    if (kant === 'left')   lijn.setLatLngs([[newN, newW], [newS, newW]]);
+    if (kant === 'right')  lijn.setLatLngs([[newN, newE], [newS, newE]]);
+
+    k.overlay.setBounds(L.latLngBounds(_bijsnijdBounds));
+    updateBSSlidersVanBounds(kaartId);
+  });
+
+  return { lijn, marker };
+}
+
+function updateBSSlidersVanBounds(kaartId) {
+  const panel = document.querySelector(`.bs-panel[data-id="${kaartId}"]`);
+  if (!panel || !_bijsnijdOrigBounds || !_bijsnijdBounds) return;
+  const [[os, ow], [on, oe]] = _bijsnijdOrigBounds;
+  const [[ns, nw], [nn, ne]] = _bijsnijdBounds;
+  const latSpan = on - os, lonSpan = oe - ow;
+
+  const topPct  = Math.round((on - nn) / latSpan * 100);
+  const botPct  = Math.round((ns - os) / latSpan * 100);
+  const lftPct  = Math.round((nw - ow) / lonSpan * 100);
+  const rgtPct  = Math.round((oe - ne) / lonSpan * 100);
+
+  panel.querySelector('.bs-top').value = Math.max(0, topPct);
+  panel.querySelector('.bs-bot').value = Math.max(0, botPct);
+  panel.querySelector('.bs-lft').value = Math.max(0, lftPct);
+  panel.querySelector('.bs-rgt').value = Math.max(0, rgtPct);
+  panel.querySelector('.bs-top-val').textContent = Math.max(0, topPct);
+  panel.querySelector('.bs-bot-val').textContent = Math.max(0, botPct);
+  panel.querySelector('.bs-lft-val').textContent = Math.max(0, lftPct);
+  panel.querySelector('.bs-rgt-val').textContent = Math.max(0, rgtPct);
+}
+
+function updateBijsnijdHandles(panel) {
+  if (!_bijsnijdBounds || !_bijsnijdHandles.top) return;
+  const [[s, w], [n, e]] = _bijsnijdBounds;
+  const orig = _bijsnijdOrigBounds;
+  if (!orig) return;
+  const [[os, ow], [on, oe]] = orig;
+  const latSpan = on - os, lonSpan = oe - ow;
+
+  const top = parseInt(panel.querySelector('.bs-top').value) / 100;
+  const bot = parseInt(panel.querySelector('.bs-bot').value) / 100;
+  const lft = parseInt(panel.querySelector('.bs-lft').value) / 100;
+  const rgt = parseInt(panel.querySelector('.bs-rgt').value) / 100;
+
+  const newN = on - latSpan * top;
+  const newS = os + latSpan * bot;
+  const newW = ow + lonSpan * lft;
+  const newE = oe - lonSpan * rgt;
+  _bijsnijdBounds = [[newS, newW], [newN, newE]];
+
+  _bijsnijdHandles.top.lijn.setLatLngs([[newN, newW], [newN, newE]]);
+  _bijsnijdHandles.bot.lijn.setLatLngs([[newS, newW], [newS, newE]]);
+  _bijsnijdHandles.lft.lijn.setLatLngs([[newN, newW], [newS, newW]]);
+  _bijsnijdHandles.rgt.lijn.setLatLngs([[newN, newE], [newS, newE]]);
+
+  _bijsnijdHandles.top.marker.setLatLng([(newN+newN)/2, (newW+newE)/2]);
+  _bijsnijdHandles.bot.marker.setLatLng([(newS+newS)/2, (newW+newE)/2]);
+  _bijsnijdHandles.lft.marker.setLatLng([(newN+newS)/2, newW]);
+  _bijsnijdHandles.rgt.marker.setLatLng([(newN+newS)/2, newE]);
+
+  const k = eigenKaarten.find(k => k.id == _bijsnijdKaartId);
+  if (k) k.overlay.setBounds(L.latLngBounds(_bijsnijdBounds));
+}
+
+function sluitBijsnijden() {
+  if (_bijsnijdHandles) {
+    Object.values(_bijsnijdHandles).forEach(h => {
+      if (h.lijn)   map.removeLayer(h.lijn);
+      if (h.marker) map.removeLayer(h.marker);
+    });
+  }
+  _bijsnijdHandles    = {};
+  _bijsnijdKaartId    = null;
+  _bijsnijdBounds     = null;
+  _bijsnijdOrigBounds = null;
 }
 
 function passBijsnijdenToeEl(btn) {
@@ -4412,101 +4560,46 @@ function passBijsnijdenToeEl(btn) {
   const rgt = parseInt(panel.querySelector('.bs-rgt').value) / 100;
 
   if (top + bot >= 0.95 || lft + rgt >= 0.95) { notify('⚠ Bijsnijding te groot'); return; }
-  if (top === 0 && bot === 0 && lft === 0 && rgt === 0) { notify('⚠ Stel sliders in'); return; }
+  if (top === 0 && bot === 0 && lft === 0 && rgt === 0) { notify('⚠ Stel sliders of sleep lijnen'); return; }
 
-  notify(`⏳ Bijsnijden…`);
+  notify('⏳ Bijsnijden…');
 
   const img = new window.Image();
   img.onload = function() {
     const w = img.naturalWidth, h = img.naturalHeight;
-
-    // Canvas crop: top=noorden, bot=zuiden
-    // Bounds crop: n=noorden (hoog getal), s=zuiden (laag getal)
-    const sx = Math.floor(w * lft);
-    const sy = Math.floor(h * top);
+    const sx = Math.floor(w * lft), sy = Math.floor(h * top);
     const sw = Math.max(1, Math.floor(w * (1 - lft - rgt)));
     const sh = Math.max(1, Math.floor(h * (1 - top - bot)));
-
     const cv = document.createElement('canvas');
     cv.width = sw; cv.height = sh;
     cv.getContext('2d').drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
     const newDataUrl = cv.toDataURL('image/jpeg', 0.95);
 
-    // Bounds aanpassen — s=zuidgrens, n=noordgrens
-    const [[s, ww], [n, e]] = k.bounds;
-    const latSpan = n - s;
-    const lonSpan = e - ww;
-    const newBounds = [
-      [s + latSpan * bot, ww + lonSpan * lft],
-      [n - latSpan * top, e  - lonSpan * rgt]
-    ];
+    // Gebruik bijgesneden bounds
+    const bounds = _bijsnijdBounds || (() => {
+      const [[s, ww], [n, e]] = k.bounds;
+      const latSpan = n - s, lonSpan = e - ww;
+      return [[s + latSpan * bot, ww + lonSpan * lft], [n - latSpan * top, e - lonSpan * rgt]];
+    })();
 
+    sluitBijsnijden();
     map.removeLayer(k.overlay);
-    const newOverlay = L.imageOverlay(newDataUrl, newBounds, { opacity: k.opacity, zIndex: 200 }).addTo(map);
+    const newOverlay = L.imageOverlay(newDataUrl, bounds, { opacity: k.opacity, zIndex: 200 }).addTo(map);
     const el = newOverlay.getElement();
     if (el) el.style.imageRendering = 'auto';
     k.overlay = newOverlay;
     k.dataUrl  = newDataUrl;
-    k.bounds   = newBounds;
+    k.bounds   = bounds;
     slaKaartenOp();
     renderKaartenLijst();
-    map.fitBounds(newBounds, { padding: [20,20] });
-    notify(`✓ Bijgesneden (${sw}×${sh}px)`);
+    map.fitBounds(bounds, { padding: [20,20] });
+    notify(`✓ Bijgesneden`);
   };
   img.onerror = () => notify('⚠ Afbeelding laden mislukt');
   img.src = k.dataUrl;
 }
 
-async function passBijsnijdenToe(id) {
-  const k = eigenKaarten.find(k => k.id == id);
-  if (!k) { notify(`⚠ Kaart ${id} niet gevonden (${eigenKaarten.length} kaarten)`); return; }
-  if (!k.dataUrl) { notify('⚠ Geen afbeeldingsdata — bijsnijden niet mogelijk'); return; }
-
-  const top = parseInt(document.getElementById(`bs-top-${id}`)?.value || 0) / 100;
-  const bot = parseInt(document.getElementById(`bs-bot-${id}`)?.value || 0) / 100;
-  const lft = parseInt(document.getElementById(`bs-lft-${id}`)?.value || 0) / 100;
-  const rgt = parseInt(document.getElementById(`bs-rgt-${id}`)?.value || 0) / 100;
-
-  notify(`⏳ Bijsnijden: T${Math.round(top*100)} B${Math.round(bot*100)} L${Math.round(lft*100)} R${Math.round(rgt*100)}%`);
-
-  if (top + bot >= 0.95 || lft + rgt >= 0.95) { notify('⚠ Bijsnijding te groot'); return; }
-  if (top === 0 && bot === 0 && lft === 0 && rgt === 0) { notify('⚠ Stel eerst sliders in'); return; }
-
-  // Laad via Image element
-  const img = new window.Image();
-  img.onload = function() {
-    const sw = Math.max(1, Math.floor(img.naturalWidth  * (1 - lft - rgt)));
-    const sh = Math.max(1, Math.floor(img.naturalHeight * (1 - top - bot)));
-    const sx = Math.floor(img.naturalWidth  * lft);
-    const sy = Math.floor(img.naturalHeight * top);
-
-    const cv = document.createElement('canvas');
-    cv.width = sw; cv.height = sh;
-    cv.getContext('2d').drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
-    const newDataUrl = cv.toDataURL('image/jpeg', 0.95);
-
-    const [[s, w], [n, e]] = k.bounds;
-    const latSpan = n - s, lonSpan = e - w;
-    const newBounds = [
-      [s + latSpan * bot, w + lonSpan * lft],
-      [n - latSpan * top, e - lonSpan * rgt]
-    ];
-
-    map.removeLayer(k.overlay);
-    const newOverlay = L.imageOverlay(newDataUrl, newBounds, { opacity: k.opacity, zIndex: 200 }).addTo(map);
-    const el = newOverlay.getElement();
-    if (el) el.style.imageRendering = 'auto';
-    k.overlay = newOverlay;
-    k.dataUrl  = newDataUrl;
-    k.bounds   = newBounds;
-    slaKaartenOp();
-    renderKaartenLijst();
-    map.fitBounds(newBounds, { padding: [20,20] });
-    notify(`✓ Bijgesneden (${sw}×${sh}px)`);
-  };
-  img.onerror = () => notify('⚠ Afbeelding laden mislukt');
-  img.src = k.dataUrl;
-}
+function passBijsnijdenToe(id) {} // legacy stub
 
 function toggleKaart(id) {
   const k = eigenKaarten.find(k => k.id===id); if (!k) return;
