@@ -4419,16 +4419,23 @@ function passBijsnijdenToeEl(btn) {
   const img = new window.Image();
   img.onload = function() {
     const w = img.naturalWidth, h = img.naturalHeight;
-    const sx = Math.floor(w * lft), sy = Math.floor(h * top);
+
+    // Canvas crop: top=noorden, bot=zuiden
+    // Bounds crop: n=noorden (hoog getal), s=zuiden (laag getal)
+    const sx = Math.floor(w * lft);
+    const sy = Math.floor(h * top);
     const sw = Math.max(1, Math.floor(w * (1 - lft - rgt)));
     const sh = Math.max(1, Math.floor(h * (1 - top - bot)));
+
     const cv = document.createElement('canvas');
     cv.width = sw; cv.height = sh;
     cv.getContext('2d').drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
     const newDataUrl = cv.toDataURL('image/jpeg', 0.95);
 
+    // Bounds aanpassen — s=zuidgrens, n=noordgrens
     const [[s, ww], [n, e]] = k.bounds;
-    const latSpan = n - s, lonSpan = e - ww;
+    const latSpan = n - s;
+    const lonSpan = e - ww;
     const newBounds = [
       [s + latSpan * bot, ww + lonSpan * lft],
       [n - latSpan * top, e  - lonSpan * rgt]
