@@ -141,6 +141,21 @@ body{background:var(--navy);font-family:'IBM Plex Sans',sans-serif;min-height:10
           <td><span class="in">OpenCPN S57 Kaarten</span><span class="id2">ENC vectorkaarten voor OpenCPN</span></td>
           <td class="ip">€ 89,00</td>
         </tr>
+        <tr class="or" onclick="toggleRow(this)">
+          <td><input type="checkbox" class="ic" onclick="event.stopPropagation();updateTotal()"></td>
+          <td><span class="in">1800 KAP Bestanden</span><span class="id2">Rasterkaarten in KAP formaat</span></td>
+          <td class="ip">€ 79,00</td>
+        </tr>
+        <tr class="or" onclick="toggleRow(this)">
+          <td><input type="checkbox" class="ic" onclick="event.stopPropagation();updateTotal()"></td>
+          <td><span class="in">GPX Bestanden Boeien</span><span class="id2">Waypoints boeien Nederland</span></td>
+          <td class="ip">€ 5,00</td>
+        </tr>
+        <tr class="or" onclick="toggleRow(this)">
+          <td><input type="checkbox" class="ic" onclick="event.stopPropagation();updateTotal()"></td>
+          <td><span class="in">GPX Bestanden Bruggen en Sluizen</span><span class="id2">Waypoints bruggen en sluizen RWS</span></td>
+          <td class="ip">€ 5,00</td>
+        </tr>
       </tbody>
     </table>
 
@@ -198,8 +213,8 @@ body{background:var(--navy);font-family:'IBM Plex Sans',sans-serif;min-height:10
 
 <script>
 const BUNQME = 'https://bunq.me/HendrikEeuwe';
-const prices = [25, 89, 89];
-const namen  = ['Programma', '1800 Kaarten', 'OpenCPN S57 Kaarten'];
+const prices = [25, 89, 89, 79, 5, 5];
+const namen  = ['Programma', '1800 Kaarten', 'OpenCPN S57 Kaarten', '1800 KAP Bestanden', 'GPX Bestanden Boeien', 'GPX Bestanden Bruggen en Sluizen'];
 
 document.getElementById('docNr').textContent =
   `BESTEL-${new Date().getFullYear()}-${String(Math.floor(Math.random()*900)+100)}`;
