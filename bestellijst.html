@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bestellijst – waypointsgps</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy:#0a1628; --sea:#1a3a5c; --horizon:#2c5f8a; --wake:#4a9abe;
+  --foam:#a8d4e8; --sand:#f0e6d3; --gold:#c9a84c; --paper:#faf7f2; --ink:#1a1a2e;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--navy);font-family:'IBM Plex Sans',sans-serif;min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:2rem 1rem;
+  background-image:radial-gradient(ellipse at 20% 80%,rgba(74,154,190,.12) 0%,transparent 50%),radial-gradient(ellipse at 80% 10%,rgba(201,168,76,.08) 0%,transparent 40%),repeating-linear-gradient(0deg,transparent,transparent 40px,rgba(255,255,255,.015) 40px,rgba(255,255,255,.015) 41px);}
+.card{background:var(--paper);width:100%;max-width:620px;border-radius:2px;overflow:hidden;box-shadow:0 40px 80px rgba(0,0,0,.6),0 0 0 1px rgba(201,168,76,.3);animation:rise .7s cubic-bezier(.16,1,.3,1) both;}
+@keyframes rise{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+
+/* HEADER */
+.header{background:var(--navy);padding:2.5rem 2.5rem 2rem;border-bottom:3px solid var(--gold);position:relative;overflow:hidden;}
+.header::before{content:'';position:absolute;bottom:0;left:0;right:0;height:60px;background:repeating-linear-gradient(90deg,transparent 0,transparent 18px,rgba(74,154,190,.08) 18px,rgba(74,154,190,.08) 36px);}
+.header-top{display:flex;align-items:flex-start;justify-content:space-between;}
+.brand{font-family:'Playfair Display',serif;color:var(--sand);font-size:.7rem;letter-spacing:.25em;text-transform:uppercase;opacity:.7;margin-bottom:.3rem;}
+.title{font-family:'Playfair Display',serif;color:var(--paper);font-size:1.9rem;line-height:1.1;font-weight:700;}
+.compass{font-size:2.4rem;filter:drop-shadow(0 0 12px rgba(201,168,76,.4));}
+.doc-nr{font-family:'IBM Plex Mono',monospace;color:var(--gold);font-size:.72rem;letter-spacing:.1em;margin-top:1rem;opacity:.85;}
+
+/* BODY */
+.body{padding:2rem 2.5rem;}
+.sl{font-family:'IBM Plex Mono',monospace;font-size:.62rem;letter-spacing:.22em;text-transform:uppercase;color:var(--horizon);margin-bottom:1rem;padding-bottom:.4rem;border-bottom:1px solid rgba(44,95,138,.2);}
+
+/* ORDER TABLE */
+.ot{width:100%;border-collapse:collapse;margin-bottom:1.5rem;}
+.ot th{font-family:'IBM Plex Mono',monospace;font-size:.6rem;letter-spacing:.18em;text-transform:uppercase;color:var(--horizon);padding:.4rem .5rem;text-align:left;border-bottom:2px solid rgba(44,95,138,.25);}
+.ot th:last-child{text-align:right;}
+.or{border-bottom:1px solid rgba(44,95,138,.1);cursor:pointer;transition:background .15s;}
+.or:hover{background:rgba(44,95,138,.05);}
+.or td{padding:.9rem .5rem;vertical-align:middle;}
+.ic{width:22px;height:22px;border:2px solid var(--horizon);border-radius:3px;cursor:pointer;appearance:none;-webkit-appearance:none;background:white;position:relative;flex-shrink:0;transition:all .15s;}
+.ic:checked{background:var(--sea);border-color:var(--sea);}
+.ic:checked::after{content:'✓';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:white;font-size:13px;font-weight:bold;}
+.in{font-weight:500;font-size:.95rem;color:var(--ink);display:block;}
+.id2{font-size:.75rem;color:var(--horizon);margin-top:.1rem;font-family:'IBM Plex Mono',monospace;}
+.ip{font-family:'IBM Plex Mono',monospace;font-size:.95rem;color:var(--ink);text-align:right;white-space:nowrap;}
+
+/* TOTAL */
+.tb{background:var(--navy);border-radius:2px;padding:1.1rem 1.2rem;display:flex;justify-content:space-between;align-items:center;margin-bottom:2rem;}
+.tl{font-family:'IBM Plex Mono',monospace;font-size:.65rem;letter-spacing:.2em;text-transform:uppercase;color:var(--foam);opacity:.8;}
+.ta{font-family:'Playfair Display',serif;font-size:1.7rem;color:var(--gold);font-weight:700;}
+
+/* BETAAL KNOP */
+.pay-btn{
+  display:flex;align-items:center;justify-content:space-between;
+  width:100%;padding:1.1rem 1.4rem;
+  background:linear-gradient(135deg,#1a5276 0%,#0a1628 100%);
+  border:2px solid var(--gold);border-radius:3px;
+  cursor:pointer;transition:all .2s;
+  text-decoration:none;
+  box-shadow:0 4px 16px rgba(0,0,0,.3);
+}
+.pay-btn:hover{background:linear-gradient(135deg,#1f618d 0%,#154360 100%);transform:translateY(-1px);box-shadow:0 8px 24px rgba(0,0,0,.4);}
+.pay-btn:active{transform:translateY(0);}
+.pay-left{display:flex;align-items:center;gap:.9rem;}
+.pay-icon{font-size:1.8rem;line-height:1;}
+.pay-text{text-align:left;}
+.pay-name{font-family:'Playfair Display',serif;color:white;font-size:1.05rem;font-weight:700;display:block;}
+.pay-sub{font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--foam);opacity:.75;letter-spacing:.05em;}
+.pay-amount{font-family:'Playfair Display',serif;font-size:1.4rem;color:var(--gold);font-weight:700;}
+
+/* DISABLED STATE */
+.pay-btn.disabled{opacity:.4;cursor:not-allowed;pointer-events:none;}
+
+/* HINT */
+.hint{font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--horizon);text-align:center;margin-top:.75rem;letter-spacing:.05em;}
+
+/* FOOTER */
+.footer{background:rgba(44,95,138,.06);border-top:1px solid rgba(44,95,138,.15);padding:1.2rem 2.5rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;}
+.fn{font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--horizon);opacity:.7;}
+.fl{font-family:'Playfair Display',serif;font-size:.85rem;color:var(--horizon);opacity:.5;}
+
+/* TOAST */
+.toast{position:fixed;bottom:2rem;left:50%;transform:translateX(-50%) translateY(20px);background:var(--sea);color:white;padding:.75rem 1.5rem;border-radius:4px;font-family:'IBM Plex Sans',sans-serif;font-size:.85rem;box-shadow:0 8px 24px rgba(0,0,0,.4);opacity:0;transition:all .3s;pointer-events:none;z-index:999;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+@media(max-width:480px){
+  .body,.header{padding-left:1.4rem;padding-right:1.4rem;}
+  .title{font-size:1.5rem;}
+  .footer{flex-direction:column;align-items:flex-start;}
+  .pay-amount{display:none;}
+}
+
+/* FORM */
+.sl2{font-family:'IBM Plex Mono',monospace;font-size:.62rem;letter-spacing:.22em;text-transform:uppercase;color:var(--horizon);margin-bottom:1rem;margin-top:1.5rem;padding-bottom:.4rem;border-bottom:1px solid rgba(44,95,138,.2);}
+.wgps-fr{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:1.25rem;}
+.wgps-fg{display:flex;flex-direction:column;gap:.3rem;}
+.wgps-fg label{font-family:'IBM Plex Mono',monospace;font-size:.6rem;letter-spacing:.18em;text-transform:uppercase;color:var(--horizon);}
+.wgps-fg input{border:1.5px solid rgba(44,95,138,.25);border-radius:3px;padding:.55rem .75rem;font-family:'IBM Plex Sans',sans-serif;font-size:.88rem;color:var(--ink);background:white;transition:border-color .15s,box-shadow .15s;outline:none;}
+.wgps-fg input:focus{border-color:var(--sea);box-shadow:0 0 0 3px rgba(26,58,92,.1);}
+.wgps-fg input.err{border-color:#c0392b;}
+@media(max-width:480px){.wgps-fr{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="card">
+
+  <div class="header">
+    <div class="header-top">
+      <div>
+        <div class="brand">waypointsgps</div>
+        <div class="title">Bestellijst</div>
+      </div>
+      <div class="compass">⚓</div>
+    </div>
+    <div class="doc-nr" id="docNr">BESTEL-2026-001</div>
+  </div>
+
+  <div class="body">
+    <div class="sl">Selecteer uw producten</div>
+
+    <table class="ot">
+      <thead>
+        <tr>
+          <th style="width:28px"></th>
+          <th>Product</th>
+          <th style="text-align:right">Prijs</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="or" onclick="toggleRow(this)">
+          <td><input type="checkbox" class="ic" onclick="event.stopPropagation();updateTotal()"></td>
+          <td><span class="in">Programma</span><span class="id2">Volledige softwarelicentie</span></td>
+          <td class="ip">€ 25,00</td>
+        </tr>
+        <tr class="or" onclick="toggleRow(this)">
+          <td><input type="checkbox" class="ic" onclick="event.stopPropagation();updateTotal()"></td>
+          <td><span class="in">1800 Kaarten</span><span class="id2">Uitgebreide kaartenset — vaarwater NL</span></td>
+          <td class="ip">€ 89,00</td>
+        </tr>
+        <tr class="or" onclick="toggleRow(this)">
+          <td><input type="checkbox" class="ic" onclick="event.stopPropagation();updateTotal()"></td>
+          <td><span class="in">OpenCPN S57 Kaarten</span><span class="id2">ENC vectorkaarten voor OpenCPN</span></td>
+          <td class="ip">€ 89,00</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="tb">
+      <span class="tl">Totaal te betalen</span>
+      <span class="ta" id="totalAmount">€ 0,00</span>
+    </div>
+
+
+    <div class="sl2">Uw gegevens</div>
+    <div class="wgps-fr">
+      <div class="wgps-fg">
+        <label>Naam</label>
+        <input type="text" id="klantNaam" placeholder="Volledige naam">
+      </div>
+      <div class="wgps-fg">
+        <label>E-mailadres</label>
+        <input type="email" id="klantEmail" placeholder="u@voorbeeld.nl">
+      </div>
+    </div>
+
+    <div class="sl2">Bestellen</div>
+    <p class="hint" style="text-align:left;margin-bottom:1rem;">Stap 1: stuur uw bestelling naar ons. Stap 2: betaal via bunq.</p>
+
+    <a id="mailLink" href="#" class="pay-btn disabled" onclick="return handleMail(event)" style="margin-bottom:.75rem;">
+      <div class="pay-left">
+        <span class="pay-icon">✉️</span>
+        <span class="pay-text">
+          <span class="pay-name">Stap 1 — Stuur bestelling</span>
+          <span class="pay-sub" id="mailSub">Selecteer eerst een product</span>
+        </span>
+      </div>
+      <span class="pay-amount" id="payAmount">€ 0,00</span>
+    </a>
+
+    <a id="betaalLink" href="#" class="pay-btn disabled" onclick="return handleBetaal(event)" style="background:linear-gradient(135deg,#1a5276 0%,#0a1628 100%);opacity:0.4;pointer-events:none;">
+      <div class="pay-left">
+        <span class="pay-icon">🐰</span>
+        <span class="pay-text">
+          <span class="pay-name">Stap 2 — Betaal via bunq</span>
+          <span class="pay-sub" id="paySub">Eerst stap 1 uitvoeren</span>
+        </span>
+      </div>
+    </a>
+    <p class="hint">Stap 2 wordt beschikbaar na het versturen van uw bestelling</p>
+  </div>
+
+  <div class="footer">
+    <span class="fn">Prijzen incl. BTW · Licentie per bestelling</span>
+    <span class="fl">waypointsgps ⚓</span>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const BUNQME = 'https://bunq.me/HendrikEeuwe';
+const prices = [25, 89, 89];
+const namen  = ['Programma', '1800 Kaarten', 'OpenCPN S57 Kaarten'];
+
+document.getElementById('docNr').textContent =
+  `BESTEL-${new Date().getFullYear()}-${String(Math.floor(Math.random()*900)+100)}`;
+
+function toggleRow(row) {
+  const cb = row.querySelector('.ic');
+  cb.checked = !cb.checked;
+  updateTotal();
+}
+
+function getSelectie() {
+  return [...document.querySelectorAll('.ic')]
+    .map((cb, i) => cb.checked ? namen[i] : null).filter(Boolean);
+}
+
+function getTotaal() {
+  return [...document.querySelectorAll('.ic')]
+    .reduce((s, cb, i) => s + (cb.checked ? prices[i] : 0), 0);
+}
+
+function fmt(n) { return n.toFixed(2).replace('.', ','); }
+
+function updateTotal() {
+  const tot = getTotaal();
+  const sel = getSelectie();
+  const btn = document.getElementById('betaalLink');
+
+  document.getElementById('totalAmount').textContent = '€ ' + fmt(tot);
+  document.getElementById('payAmount').textContent    = '€ ' + fmt(tot);
+
+  const mailBtn = document.getElementById('mailLink');
+  if (sel.length) {
+    mailBtn.classList.remove('disabled');
+    document.getElementById('mailSub').textContent = sel.join(' + ') + ' — € ' + fmt(tot);
+    document.getElementById('payAmount').textContent = '€ ' + fmt(tot);
+  } else {
+    mailBtn.classList.add('disabled');
+    document.getElementById('mailSub').textContent = 'Selecteer eerst een product';
+    document.getElementById('payAmount').textContent = '€ 0,00';
+    // Reset betaalknop
+    btn.href = '#';
+    btn.classList.add('disabled');
+    btn.style.opacity = '0.4';
+    btn.style.pointerEvents = 'none';
+    document.getElementById('paySub').textContent = 'Eerst stap 1 uitvoeren';
+  }
+}
+
+function valideer(e) {
+  const sel   = getSelectie();
+  const naam  = document.getElementById('klantNaam').value.trim();
+  const email = document.getElementById('klantEmail').value.trim();
+  document.getElementById('klantNaam').classList.remove('err');
+  document.getElementById('klantEmail').classList.remove('err');
+  if (!sel.length)  { e.preventDefault(); showToast('⚠️ Selecteer eerst een product'); return null; }
+  if (!naam)        { e.preventDefault(); document.getElementById('klantNaam').classList.add('err'); showToast('⚠️ Vul uw naam in'); return null; }
+  if (!email || !email.includes('@')) { e.preventDefault(); document.getElementById('klantEmail').classList.add('err'); showToast('⚠️ Vul een geldig e-mailadres in'); return null; }
+  return { sel, naam, email };
+}
+
+function handleMail(e) {
+  const v = valideer(e);
+  if (!v) return false;
+  const { sel, naam, email } = v;
+  const tot = getTotaal();
+
+  const onderwerp = encodeURIComponent('Bestelling waypointsgps');
+  const body = encodeURIComponent(
+    'Naam: ' + naam + '\n' +
+    'E-mail: ' + email + '\n' +
+    'Bestelling: ' + sel.join(', ') + '\n' +
+    'Bedrag: \u20ac ' + tot.toFixed(2).replace('.', ',')
+  );
+  document.getElementById('mailLink').href = `mailto:info@wpgps.com?subject=${onderwerp}&body=${body}`;
+
+  // Activeer betaalknop
+  const betaalBtn = document.getElementById('betaalLink');
+  betaalBtn.href = `${BUNQME}/${tot.toFixed(2)}`;
+  betaalBtn.style.opacity = '';
+  betaalBtn.style.pointerEvents = '';
+  betaalBtn.classList.remove('disabled');
+  document.getElementById('paySub').textContent = sel.join(' + ') + ' — \u20ac ' + tot.toFixed(2).replace('.', ',');
+  showToast('✅ Mail-app opent — daarna kunt u betalen');
+  return true;
+}
+
+function handleBetaal(e) {
+  return true;
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+</script>
+</body>
+</html>
