@@ -1359,6 +1359,9 @@ const pdokLayer = L.tileLayer(
   { attribution: '© PDOK / Kadaster', maxZoom: 19, opacity: 0.85, zIndex: 200 }
 );
 
+// Herstel toggle-staten uit localStorage — moet vóór PDOK herstel code staan
+const _lagenStaten = JSON.parse(localStorage.getItem('vaarkaart_lagen') || '{}');
+
 function togglePdok(aan) {
   if (aan) {
     pdokLayer.addTo(map);
@@ -1395,7 +1398,6 @@ const lightLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/vo
 lightLayer.addTo(map);
 
 // Herstel toggle-staten uit localStorage
-const _lagenStaten = JSON.parse(localStorage.getItem('vaarkaart_lagen') || '{}');
 function _slaLaagOp(id, aan) {
   const st = JSON.parse(localStorage.getItem('vaarkaart_lagen') || '{}');
   st[id] = aan;
