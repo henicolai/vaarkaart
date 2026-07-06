@@ -775,6 +775,14 @@
       </div>
 
       <div class="toggle-row">
+        <span class="toggle-label">PDOK topografische kaart</span>
+        <label class="toggle">
+          <input type="checkbox" id="toggle-pdok" onchange="togglePdok(this.checked)">
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-row">
         <span class="toggle-label">RWS boeien & bakens</span>
         <label class="toggle">
           <input type="checkbox" id="toggle-boeien" onchange="toggleBoeien(this.checked)">
@@ -1339,6 +1347,25 @@ const satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/servic
   attribution: '© Esri',
   maxZoom: 19
 });
+
+// PDOK topografische kaart (officiële NL overheidskaart)
+const pdokLayer = L.tileLayer(
+  'https://service.pdok.nl/brt/achtergrondkaart/wmts/v2_0/standaard/EPSG:3857/{z}/{x}/{y}.png',
+  { attribution: '© PDOK / Kadaster', maxZoom: 19, opacity: 0.9 }
+);
+
+function togglePdok(aan) {
+  if (aan) pdokLayer.addTo(map);
+  else if (map.hasLayer(pdokLayer)) map.removeLayer(pdokLayer);
+  _lagenStaten['toggle-pdok'] = aan;
+  slaLagenOp();
+}
+
+// PDOK herstel staat
+if (_lagenStaten['toggle-pdok']) {
+  pdokLayer.addTo(map);
+  document.getElementById('toggle-pdok') && (document.getElementById('toggle-pdok').checked = true);
+}
 
 // OpenSeaMap layer
 const seaLayer = L.tileLayer('https://t1.openseamap.org/seamark/{z}/{x}/{y}.png', {
@@ -4422,76 +4449,46 @@ function startVisueleBS(id) {
 
 function maakBSLijn(latLngs, kant, kaartId) {
   const lijn = L.polyline(latLngs, {
-    color: '#00c8c8', weight: 20, opacity: 0.5, dashArray: null
-  }).addTo(map);
-  // Dunne zichtbare lijn bovenop
-  const lijnVis = L.polyline(latLngs, {
     color: '#00c8c8', weight: 3, opacity: 0.9, dashArray: '6,4'
   }).addTo(map);
 
-  const updatePos = (lat, lng) => {
-    const k = eigenKaarten.find(k => k.id == kaartId);
-    if (!k) return;
-    const [[s, w], [n, ee]] = _bijsnijdBounds;
-    let newS = s, newN = n, newW = w, newE = ee;
-    if (kant === 'top')    newN = Math.max(lat, s + 0.001);
-    if (kant === 'bottom') newS = Math.min(lat, n - 0.001);
-    if (kant === 'left')   newW = Math.min(lng, ee - 0.001);
-    if (kant === 'right')  newE = Math.max(lng, w + 0.001);
-    _bijsnijdBounds = [[newS, newW], [newN, newE]];
-    const nl = [[newN, newW], [newN, newE]];
-    const sl = [[newS, newW], [newS, newE]];
-    const wl = [[newN, newW], [newS, newW]];
-    const el = [[newN, newE], [newS, newE]];
-    if (kant === 'top')    { lijn.setLatLngs(nl); lijnVis.setLatLngs(nl); }
-    if (kant === 'bottom') { lijn.setLatLngs(sl); lijnVis.setLatLngs(sl); }
-    if (kant === 'left')   { lijn.setLatLngs(wl); lijnVis.setLatLngs(wl); }
-    if (kant === 'right')  { lijn.setLatLngs(el); lijnVis.setLatLngs(el); }
-    k.overlay.setBounds(L.latLngBounds(_bijsnijdBounds));
-    updateBSSlidersVanBounds(kaartId);
-  };
-
-  // Touch events op de brede onzichtbare lijn
-  lijn.on('touchstart', function(e) {
-    L.DomEvent.stopPropagation(e);
-    map.dragging.disable();
-  });
-  lijn.on('touchmove', function(e) {
-    L.DomEvent.preventDefault(e);
-    L.DomEvent.stopPropagation(e);
-    const touch = e.originalEvent.touches[0];
-    const pos = map.containerPointToLatLng(
-      map.mouseEventToContainerPoint({ clientX: touch.clientX, clientY: touch.clientY })
-    );
-    updatePos(pos.lat, pos.lng);
-  });
-  lijn.on('touchend', function() {
-    map.dragging.enable();
-  });
-
-  // Mouse events als fallback
-  lijn.on('mousedown', function(e) {
-    L.DomEvent.stopPropagation(e);
-    map.dragging.disable();
-    map.on('mousemove', onMove);
-    map.once('mouseup', () => { map.dragging.enable(); map.off('mousemove', onMove); });
-  });
-  const onMove = (e) => updatePos(e.latlng.lat, e.latlng.lng);
-
-  // Marker voor visuele feedback
+  // Marker in het midden als sleeppunt
   const mid = L.latLng(
     (latLngs[0][0] + latLngs[1][0]) / 2,
     (latLngs[0][1] + latLngs[1][1]) / 2
   );
   const marker = L.marker(mid, {
     icon: L.divIcon({
-      html: `<div style="width:24px;height:24px;background:#00c8c8;border:2px solid white;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:14px;">${kant==='top'||kant==='bottom'?'↕':'↔'}</div>`,
-      className: '', iconSize: [24,24], iconAnchor: [12,12]
+      html: `<div style="width:18px;height:18px;background:#00c8c8;border:2px solid white;border-radius:3px;cursor:${kant==='top'||kant==='bottom'?'ns-resize':'ew-resize'};"></div>`,
+      className: '', iconSize: [18,18], iconAnchor: [9,9]
     }),
-    zIndexOffset: 1000
+    draggable: true, zIndexOffset: 1000
   }).addTo(map);
 
-  return { lijn, lijnVis, marker };
+  marker.on('drag', function(ev) {
+    const k = eigenKaarten.find(k => k.id == kaartId);
+    if (!k) return;
+    const [[s, w], [n, ee]] = _bijsnijdBounds;
+    const pos = ev.target.getLatLng();
+
+    let newS = s, newN = n, newW = w, newE = ee;
+    if (kant === 'top')    newN = Math.max(pos.lat, s + 0.001);
+    if (kant === 'bottom') newS = Math.min(pos.lat, n - 0.001);
+    if (kant === 'left')   newW = Math.min(pos.lng, ee - 0.001);
+    if (kant === 'right')  newE = Math.max(pos.lng, w + 0.001);
+
+    _bijsnijdBounds = [[newS, newW], [newN, newE]];
+
+    if (kant === 'top')    lijn.setLatLngs([[newN, newW], [newN, newE]]);
+    if (kant === 'bottom') lijn.setLatLngs([[newS, newW], [newS, newE]]);
+    if (kant === 'left')   lijn.setLatLngs([[newN, newW], [newS, newW]]);
+    if (kant === 'right')  lijn.setLatLngs([[newN, newE], [newS, newE]]);
+
+    k.overlay.setBounds(L.latLngBounds(_bijsnijdBounds));
+    updateBSSlidersVanBounds(kaartId);
+  });
+
+  return { lijn, marker };
 }
 
 function updateBSSlidersVanBounds(kaartId) {
@@ -4539,10 +4536,6 @@ function updateBijsnijdHandles(panel) {
   _bijsnijdHandles.bot.lijn.setLatLngs([[newS, newW], [newS, newE]]);
   _bijsnijdHandles.lft.lijn.setLatLngs([[newN, newW], [newS, newW]]);
   _bijsnijdHandles.rgt.lijn.setLatLngs([[newN, newE], [newS, newE]]);
-  if (_bijsnijdHandles.top.lijnVis) _bijsnijdHandles.top.lijnVis.setLatLngs([[newN, newW], [newN, newE]]);
-  if (_bijsnijdHandles.bot.lijnVis) _bijsnijdHandles.bot.lijnVis.setLatLngs([[newS, newW], [newS, newE]]);
-  if (_bijsnijdHandles.lft.lijnVis) _bijsnijdHandles.lft.lijnVis.setLatLngs([[newN, newW], [newS, newW]]);
-  if (_bijsnijdHandles.rgt.lijnVis) _bijsnijdHandles.rgt.lijnVis.setLatLngs([[newN, newE], [newS, newE]]);
 
   _bijsnijdHandles.top.marker.setLatLng([(newN+newN)/2, (newW+newE)/2]);
   _bijsnijdHandles.bot.marker.setLatLng([(newS+newS)/2, (newW+newE)/2]);
@@ -4556,9 +4549,8 @@ function updateBijsnijdHandles(panel) {
 function sluitBijsnijden() {
   if (_bijsnijdHandles) {
     Object.values(_bijsnijdHandles).forEach(h => {
-      if (h.lijn)    map.removeLayer(h.lijn);
-      if (h.lijnVis) map.removeLayer(h.lijnVis);
-      if (h.marker)  map.removeLayer(h.marker);
+      if (h.lijn)   map.removeLayer(h.lijn);
+      if (h.marker) map.removeLayer(h.marker);
     });
   }
   _bijsnijdHandles    = {};
