@@ -775,7 +775,7 @@
       </div>
 
       <div class="toggle-row">
-        <span class="toggle-label">PDOK topografische kaart</span>
+        <span class="toggle-label">PDOK waterkaart</span>
         <label class="toggle">
           <input type="checkbox" id="toggle-pdok" onchange="togglePdok(this.checked)">
           <span class="slider"></span>
@@ -1348,19 +1348,23 @@ const satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/servic
   maxZoom: 19
 });
 
-// PDOK topografische kaart (officiële NL overheidskaart)
+// PDOK waterkaart (toont vaarwegen, kanalen, waterdieptes)
 const pdokLayer = L.tileLayer(
-  'https://service.pdok.nl/brt/achtergrondkaart/wmts/v2_0/standaard/EPSG:3857/{z}/{x}/{y}.png',
-  { attribution: '© PDOK / Kadaster', maxZoom: 19, opacity: 0.9, zIndex: 150 }
+  'https://service.pdok.nl/brt/achtergrondkaart/wmts/v2_0/water/EPSG:3857/{z}/{x}/{y}.png',
+  { attribution: '© PDOK / Kadaster', maxZoom: 19, opacity: 1.0, zIndex: 150 }
 );
 
 function togglePdok(aan) {
   if (aan) {
+    // PDOK vervangt de basiskaart
+    if (map.hasLayer(lightLayer)) map.removeLayer(lightLayer);
+    if (map.hasLayer(satLayer))   map.removeLayer(satLayer);
     pdokLayer.addTo(map);
-    // OpenSeaMap altijd bovenop houden
     if (map.hasLayer(seaLayer)) seaLayer.bringToFront();
   } else {
     if (map.hasLayer(pdokLayer)) map.removeLayer(pdokLayer);
+    // Herstel basiskaart
+    if (!map.hasLayer(satLayer)) lightLayer.addTo(map);
   }
   _lagenStaten['toggle-pdok'] = aan;
   slaLagenOp();
