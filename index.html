@@ -1335,6 +1335,11 @@ const map = L.map('map', {
   bearing: 0,
 });
 
+// Maak een pane voor OpenSeaMap boven alle tile layers
+map.createPane('seamarkPane');
+map.getPane('seamarkPane').style.zIndex = 450;
+map.getPane('seamarkPane').style.pointerEvents = 'none';
+
 L.control.zoom({ position: 'topright' }).addTo(map);
 
 // Base layers
@@ -1351,7 +1356,7 @@ const satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/servic
 // PDOK waterkaart als overlay bovenop basiskaart
 const pdokLayer = L.tileLayer(
   'https://service.pdok.nl/brt/achtergrondkaart/wmts/v2_0/standaard/EPSG:3857/{z}/{x}/{y}.png',
-  { attribution: '© PDOK / Kadaster', maxZoom: 19, opacity: 1.0, zIndex: 200 }
+  { attribution: '© PDOK / Kadaster', maxZoom: 19, opacity: 0.85, zIndex: 200 }
 );
 
 function togglePdok(aan) {
@@ -1372,12 +1377,12 @@ if (_lagenStaten['toggle-pdok']) {
   if (el) el.checked = true;
 }
 
-// OpenSeaMap layer — in overlayPane zodat het altijd boven andere tile layers zit
+// OpenSeaMap layer — in eigen pane boven alle andere lagen
 const seaLayer = L.tileLayer('https://t1.openseamap.org/seamark/{z}/{x}/{y}.png', {
   attribution: '© OpenSeaMap',
   maxZoom: 18,
   opacity: 0.9,
-  pane: 'overlayPane',
+  pane: 'seamarkPane',
   errorTileUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='
 });
 
@@ -3435,8 +3440,8 @@ const GPX_ICONEN = [
   { id: 'doel',     emoji: '🎯', label: 'Doel' },
   { id: 'brug',     emoji: '🌉', label: 'Brug' },
 ];
-let _gpxGekozenIcon = GPX_ICONEN[0];
-let _gpxPendingData = null; // { punten, trkPunten } wacht op icoontje
+var _gpxGekozenIcon = GPX_ICONEN[0];
+var _gpxPendingData = null; // { punten, trkPunten } wacht op icoontje
 
 function toonIconKiezer(punten, trkPunten) {
   _gpxPendingData = { punten, trkPunten };
