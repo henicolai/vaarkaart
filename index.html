@@ -3229,11 +3229,11 @@ function toonStroom(resultaten, station) {
 
 // ── DIEPTELAGEN ───────────────────────────────────────────
 
-// EMODnet gekleurde dieptekaart (Noordzee + Waddenzee) — multicolour WMS
+// RWS bodemhoogte (vaklodingen) — gedetailleerde dieptekaart Nederlandse wateren
 const gebcoLayer = L.tileLayer.wms(
-  'https://ows.emodnet-bathymetry.eu/wms',
-  { layers: 'emodnet:mean_multicolour', format: 'image/png',
-    transparent: true, attribution: '© EMODnet Bathymetry', opacity: 0.75, maxZoom: 16 }
+  'https://geo.rijkswaterstaat.nl/services/ogc/gdr/bodemhoogte_20mtr/ows',
+  { layers: 'bodemhoogte_20mtr', format: 'image/png',
+    transparent: true, attribution: '© Rijkswaterstaat', opacity: 0.8, maxZoom: 19 }
 );
 
 // OpenSeaMap dieptecijfers (soundings)
@@ -3252,7 +3252,8 @@ diepteLegenda.onAdd = function() {
       <div style="width:60px;height:10px;background:linear-gradient(to right,#d4f5ff,#0077b6,#03045e);border-radius:2px;"></div>
       <span>ondiep → diep</span>
     </div>
-    <div style="color:#7a9ab8;font-size:10px;">© EMODnet Bathymetry</div>
+    <div style="color:#7a9ab8;font-size:10px;">© Rijkswaterstaat</div>
+    <div style="color:#7a9ab8;font-size:9px;margin-top:2px;">Zoom in voor detail</div>
   </div>`;
   return div;
 };
