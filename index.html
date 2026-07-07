@@ -2599,20 +2599,7 @@ const diepteEmodnetLayer = L.tileLayer.wms(
 );
 
 let diepteAan = false;
-
-function toggleDiepte(aan) {
-  diepteAan = aan;
-  if (aan) {
-    diepteEmodnetLayer.addTo(map);
-    diepteWMSLayer.addTo(map);
-    diepteContourLayer.addTo(map);
-    notify('Dieptecijfers laden…');
-  } else {
-    map.removeLayer(diepteContourLayer);
-    map.removeLayer(diepteWMSLayer);
-    map.removeLayer(diepteEmodnetLayer);
-  }
-}
+// (oude toggleDiepte hier verwijderd — zie definitieve versie verderop in bestand)
 
 // ── RWS BOEIEN ────────────────────────────────────────────
 // OpenSeaMap bevat alle officiële Nederlandse boeien en bakens
@@ -3242,10 +3229,11 @@ function toonStroom(resultaten, station) {
 
 // ── DIEPTELAGEN ───────────────────────────────────────────
 
-// EMODnet gekleurde dieptekaart (Noordzee + Waddenzee)
-const gebcoLayer = L.tileLayer(
-  'https://tiles.emodnet-bathymetry.eu/2020/baselayer/web_mercator/{z}/{x}/{y}.png',
-  { attribution: '© EMODnet Bathymetry', maxZoom: 16, opacity: 0.6 }
+// EMODnet gekleurde dieptekaart (Noordzee + Waddenzee) — multicolour WMS
+const gebcoLayer = L.tileLayer.wms(
+  'https://ows.emodnet-bathymetry.eu/wms',
+  { layers: 'emodnet:mean_multicolour', format: 'image/png',
+    transparent: true, attribution: '© EMODnet Bathymetry', opacity: 0.75, maxZoom: 16 }
 );
 
 // OpenSeaMap dieptecijfers (soundings)
