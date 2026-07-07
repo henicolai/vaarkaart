@@ -1340,6 +1340,10 @@ map.createPane('seamarkPane');
 map.getPane('seamarkPane').style.zIndex = 450;
 map.getPane('seamarkPane').style.pointerEvents = 'none';
 
+// Pane voor dieptelagen — boven PDOK, onder OpenSeaMap symbolen
+map.createPane('diepteOverlayPane');
+map.getPane('diepteOverlayPane').style.zIndex = 300;
+
 L.control.zoom({ position: 'topright' }).addTo(map);
 
 // Base layers
@@ -3233,7 +3237,8 @@ function toonStroom(resultaten, station) {
 const gebcoLayer = L.tileLayer.wms(
   'https://ows.emodnet-bathymetry.eu/wms',
   { layers: 'emodnet:mean_multicolour', format: 'image/png', version: '1.1.1',
-    transparent: true, attribution: '© EMODnet Bathymetry', opacity: 0.75, maxZoom: 16 }
+    transparent: true, attribution: '© EMODnet Bathymetry', opacity: 0.75, maxZoom: 16,
+    pane: 'diepteOverlayPane' }
 );
 
 // OpenSeaMap dieptecijfers (soundings)
@@ -3321,11 +3326,12 @@ function herlaadDiepteKleurOpBeweging() {
   diepteKleurMoveTimer = setTimeout(laadDiepteKleur, 700);
 }
 
-// EMODnet dieptecontourlijnen (50, 100, 200, 500, 1000, 2000, 5000m intervallen)
+// EMODnet dieptecontourlijnen (bevat labels in standaardstijl) — 50/100/200/500/1000/2000/5000m
 const diepteContourenLayer = L.tileLayer.wms(
   'https://ows.emodnet-bathymetry.eu/wms',
   { layers: 'emodnet:contours', format: 'image/png', version: '1.1.1',
-    transparent: true, attribution: '© EMODnet Bathymetry', opacity: 0.9, maxZoom: 18 }
+    transparent: true, attribution: '© EMODnet Bathymetry', opacity: 0.9, maxZoom: 18,
+    pane: 'diepteOverlayPane' }
 );
 
 function toggleDiepteCijfers(aan) {
