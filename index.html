@@ -3229,11 +3229,11 @@ function toonStroom(resultaten, station) {
 
 // ── DIEPTELAGEN ───────────────────────────────────────────
 
-// RWS bodemhoogte (vaklodingen) — gedetailleerde dieptekaart Nederlandse wateren
+// EMODnet gekleurde dieptekaart — officiële multicolour WMS laag
 const gebcoLayer = L.tileLayer.wms(
-  'https://geo.rijkswaterstaat.nl/services/ogc/gdr/bodemhoogte_20mtr/ows',
-  { layers: 'bodemhoogte_20mtr', format: 'image/png',
-    transparent: true, attribution: '© Rijkswaterstaat', opacity: 0.8, maxZoom: 19 }
+  'https://ows.emodnet-bathymetry.eu/wms',
+  { layers: 'emodnet:mean_multicolour', format: 'image/png', version: '1.1.1',
+    transparent: true, attribution: '© EMODnet Bathymetry', opacity: 0.75, maxZoom: 16 }
 );
 
 // OpenSeaMap dieptecijfers (soundings)
@@ -3321,21 +3321,25 @@ function herlaadDiepteKleurOpBeweging() {
   diepteKleurMoveTimer = setTimeout(laadDiepteKleur, 700);
 }
 
+// EMODnet dieptecontourlijnen (50, 100, 200, 500, 1000, 2000, 5000m intervallen)
+const diepteContourenLayer = L.tileLayer.wms(
+  'https://ows.emodnet-bathymetry.eu/wms',
+  { layers: 'emodnet:contours', format: 'image/png', version: '1.1.1',
+    transparent: true, attribution: '© EMODnet Bathymetry', opacity: 0.9, maxZoom: 18 }
+);
+
 function toggleDiepteCijfers(aan) {
   const statusEl = document.getElementById('dieptecijfers-status');
   const legenda  = document.getElementById('diepte-legenda');
   if (aan) {
+    diepteContourenLayer.addTo(map);
     seaLayerAanAlsAan();
     legenda.style.display = 'block';
     statusEl.style.display = 'block';
-    if (map.getZoom() < 13) {
-      map.setZoom(14);
-      statusEl.textContent = '📏 Ingezoomd naar zoom 14 — dieptecijfers zichtbaar in kaart';
-    } else {
-      statusEl.textContent = '📏 Dieptecijfers in OpenSeaMap laag (kleine zwarte cijfers)';
-    }
-    notify('Zoom in op de Waddenzee — dieptecijfers staan in de kaartlaag');
+    statusEl.textContent = '📏 Dieptecontourlijnen (EMODnet) — 50/100/200/500/1000m';
+    notify('Dieptecontouren aan');
   } else {
+    map.removeLayer(diepteContourenLayer);
     statusEl.style.display = 'none';
     if (!document.getElementById('toggle-diepte-kleur').checked)
       legenda.style.display = 'none';
