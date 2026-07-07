@@ -4873,6 +4873,13 @@ function importeerKaarten(file) {
 // Laad opgeslagen kaarten bij start
 setTimeout(() => laadOpgeslagenKaarten(), 100);
 
+// Stroompijlen staan standaard aan (checkbox is checked) — laag ook echt tonen
+setTimeout(() => {
+  if (document.getElementById('toggle-stroom')?.checked) {
+    toggleStroomlaag(true);
+  }
+}, 200);
+
 function verwerkKaartBestand(file) {
   if (!file) return;
   const statusEl = document.getElementById('kaart-status');
