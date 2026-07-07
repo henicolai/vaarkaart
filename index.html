@@ -1326,6 +1326,12 @@ function toggleWakeLock() {
 
 
 
+// ── GLOBALE INSTELLINGEN ──────────────────────────────────
+const instellingen = Object.assign(
+  { snelheid: 'kn', coordformaat: 'dd', afstand: 'nm' },
+  JSON.parse(localStorage.getItem('vaarkaart_instellingen') || '{}')
+);
+
 // ── MAP SETUP ──────────────────────────────────────────────
 const map = L.map('map', {
   center: [52.37, 4.90],
@@ -3635,11 +3641,13 @@ function slaInstellingenOp() {
     afstand:      document.querySelector('input[name="afstand"]:checked')?.value || 'nm',
   };
   localStorage.setItem('vaarkaart_instellingen', JSON.stringify(inst));
+  Object.assign(instellingen, inst);
 }
 
 function laadInstellingen() {
   try {
     const inst = JSON.parse(localStorage.getItem('vaarkaart_instellingen') || '{}');
+    Object.assign(instellingen, inst);
     if (inst.snelheid) {
       const el = document.querySelector(`input[name="snelheid"][value="${inst.snelheid}"]`);
       if (el) el.checked = true;
