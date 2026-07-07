@@ -3302,17 +3302,14 @@ function toggleDiepteKleur(aan) {
   const legenda = document.getElementById('diepte-legenda');
   if (aan) {
     diepteKleurAan = true;
-    diepteKleurAchtergrond.addTo(map);
-    diepteSeaLayer.addTo(map);
+    gebcoLayer.addTo(map);
     seaLayerAanAlsAan();
     legenda.style.display = 'block';
     notify('Dieptekaart aan');
   } else {
     diepteKleurAan = false;
-    map.removeLayer(diepteKleurAchtergrond);
-    map.removeLayer(diepteSeaLayer);
-    if (!map.hasLayer(satLayer)) lightLayer.addTo(map);
-    if (document.getElementById('toggle-sea').checked) seaLayer.addTo(map);
+    map.removeLayer(gebcoLayer);
+    if (!document.getElementById('toggle-sea').checked) {} // sea layer state onveranderd
     map.off('moveend zoomend', herlaadDiepteKleurOpBeweging);
     if (!document.getElementById('toggle-diepte-cijfers').checked)
       legenda.style.display = 'none';
