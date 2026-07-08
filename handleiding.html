@@ -394,12 +394,22 @@
       <div class="stap-nr">03</div>
       <div>
         <div class="stap-titel">Kaartlagen instellen</div>
-        <div class="stap-tekst">Zet via de schakelaars de gewenste lagen aan: OpenSeaMap vaarwegen, boeien, stroompijlen, windpijlen, dieptekaart of havens. De OpenSeaMap laag onthoudt zijn staat na herladen. Gebruik de ◀ ▶ knoppen bij stroom en wind om door de uren te bladeren.</div>
+        <div class="stap-tekst">Zet via de schakelaars de gewenste lagen aan: OpenSeaMap vaarwegen, PDOK topografische kaart, RWS boeien & bakens, boeinamen (labels), stroompijlen, windpijlen, dieptekaart of havens. De meeste lagen onthouden hun staat na herladen. Gebruik de ◀ ▶ knoppen bij stroom en wind om door de uren te bladeren.</div>
+        <span class="tip">📌 PDOK-kaart en OpenSeaMap kunnen tegelijk aan — OpenSeaMap toont dan de vaarwegsymbolen bovenop de PDOK-ondergrond</span>
       </div>
     </div>
 
     <div class="stap">
       <div class="stap-nr">04</div>
+      <div>
+        <div class="stap-titel">Dieptekaart & boeinamen</div>
+        <div class="stap-tekst">"Dieptekaart (kleur)" toont een gekleurde dieptegradiënt (EMODnet, ~125m resolutie — vooral bruikbaar in open zee). "Dieptecijfers (RWS)" toont dieptecontourlijnen met labels. "Boeinamen" haalt de naam van boeien en bakens op uit OpenStreetMap en toont ze als tekstlabel — pas zichtbaar vanaf zoomniveau 12, laadt automatisch bij verplaatsen van de kaart.</div>
+        <span class="tip">📌 Voor de meest nauwkeurige dieptecijfers per meter: gebruik de link naar de officiële RWS Bodemhoogte Viewer onder de dieptekaart-schakelaar</span>
+      </div>
+    </div>
+
+    <div class="stap">
+      <div class="stap-nr">05</div>
       <div>
         <div class="stap-titel">Bruggen & Sluizen</div>
         <div class="stap-tekst">Open de sectie Bruggen & Sluizen in de zijbalk. Zoek op naam of filter op brug of sluis. Klik een item aan om naar de locatie te vliegen. Gebruik de 🗺 knop om alle objecten als icoontjes op de kaart te tonen.</div>
@@ -408,7 +418,7 @@
     </div>
 
     <div class="stap">
-      <div class="stap-nr">05</div>
+      <div class="stap-nr">06</div>
       <div>
         <div class="stap-titel">Stremmingen controleren</div>
         <div class="stap-tekst">Open de sectie Stremmingen in de zijbalk. Klik "Open stremmingen kaart" voor een directe link naar de scheepvaartberichten van Rijkswaterstaat FIS, gecentreerd op je huidige GPS-positie. Of open vaarweginformatie.nl voor een volledig overzicht.</div>
@@ -417,7 +427,7 @@
     </div>
 
     <div class="stap">
-      <div class="stap-nr">06</div>
+      <div class="stap-nr">07</div>
       <div>
         <div class="stap-titel">WadPlanner — wantij passeren</div>
         <div class="stap-tekst">Open de WadPlanner sectie in de zijbalk. Vul je diepgang en veiligheidsmarge in. Kies het wantij of de drempel die je wilt passeren en selecteer de datum. Klik "Bereken getijvenster" voor een overzicht van wanneer je door kunt.</div>
@@ -426,7 +436,7 @@
     </div>
 
     <div class="stap">
-      <div class="stap-nr">07</div>
+      <div class="stap-nr">08</div>
       <div>
         <div class="stap-titel">Route plannen</div>
         <div class="stap-tekst">Open de Route Planner sectie. Stel een startpunt in via GPS of door op de kaart te tikken. Kies een haven als eindpunt of tik op de kaart. Voeg tussenpunten toe om land te omzeilen. Export als GPX voor gebruik in OpenCPN of Navionics.</div>
@@ -435,16 +445,24 @@
     </div>
 
     <div class="stap">
-      <div class="stap-nr">08</div>
+      <div class="stap-nr">09</div>
       <div>
         <div class="stap-titel">Eigen zeekaart laden</div>
-        <div class="stap-tekst">Sleep een PNG, JPG, BMP of GeoTIFF zeekaart op het uploadkader. Een GeoTIFF krijgt automatisch georeferentie — coördinaten worden direct ingevuld. Voor PNG/JPG/BMP vul je NW en ZO coördinaten handmatig in en klik je Laden. Meerdere kaarten tegelijk mogelijk, elk met eigen doorzichtigheid.</div>
-        <span class="tip">📌 GeoTIFF = automatische georeferentie</span>
+        <div class="stap-tekst">Sleep een PNG, JPG, BMP of GeoTIFF zeekaart op het uploadkader. Een GeoTIFF krijgt automatisch georeferentie — coördinaten worden direct ingevuld. Voor PNG/JPG/BMP vul je NW en ZO coördinaten handmatig in. Voor het laden verschijnen bijsnijd-sliders (Boven/Onder/Links/Rechts) om witte randen of kaartopdruk weg te snijden. Meerdere kaarten tegelijk mogelijk, elk met eigen doorzichtigheid.</div>
+        <span class="tip">📌 GeoTIFF's groter dan 100 megapixels moeten eerst verkleind worden via QGIS of GDAL (gdal_translate -outsize 4000 0 input.tif output.tif)</span>
       </div>
     </div>
 
     <div class="stap">
-      <div class="stap-nr">09</div>
+      <div class="stap-nr">10</div>
+      <div>
+        <div class="stap-titel">Kaart kalibreren & bijsnijden na laden</div>
+        <div class="stap-tekst">Staat een geladen kaart net iets verschoven? Klik ⊕ Kalibreer bij de kaart in de lijst, klik twee herkenbare punten op de kaart aan en voer de echte coördinaten in — de kaart wordt automatisch gecorrigeerd. Klik ✂ Bijsnijden voor een visuele bijsnijder: sleep de cyaan stippellijnen langs de randen naar binnen en klik Toepassen.</div>
+      </div>
+    </div>
+
+    <div class="stap">
+      <div class="stap-nr">11</div>
       <div>
         <div class="stap-titel">GPX laden & icoontje kiezen</div>
         <div class="stap-tekst">Sleep een GPX bestand op de dropzone of klik om te kiezen. De app laadt waypoints, routes én tracks. Na het laden kies je een icoon (⚓ 📍 ⭐ 🚩 enz.) voor de markers. Klik een icoon aan om alle punten direct bij te werken. Tracks worden als lijn op de kaart getekend.</div>
@@ -453,7 +471,7 @@
     </div>
 
     <div class="stap">
-      <div class="stap-nr">10</div>
+      <div class="stap-nr">12</div>
       <div>
         <div class="stap-titel">Route opnemen</div>
         <div class="stap-tekst">Druk op "Start opname" om je vaarroute vast te leggen als spoor op de kaart. Druk op "Stop & sla op" om de route op te slaan — ze verschijnt in de lijst Opgeslagen routes. Klik op een opgeslagen route om hem te bekijken of te verwijderen.</div>
