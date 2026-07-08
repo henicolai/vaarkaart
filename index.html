@@ -2619,6 +2619,7 @@ const boeiWMSLayer = L.tileLayer('https://t1.openseamap.org/seamark/{z}/{x}/{y}.
   attribution: '© OpenSeaMap',
   opacity: 1.0,
   maxZoom: 18,
+  pane: 'seamarkPane',
 });
 
 function toggleBoeien(on) {
@@ -3497,8 +3498,9 @@ function plaatsGpxPunten(punten, trkPunten) {
       bounds.push([p.lat, p.lon]);
       return;
     }
-    const naam = p.el.querySelector('name')?.textContent?.trim() || `WP ${i+1}`;
-    const desc = p.el.querySelector('desc')?.textContent?.trim() || '';
+    const naamEl = p.el.querySelector('name, n, Name, NAME');
+    const naam = (naamEl?.textContent?.trim()) || p.naam || `WP ${i+1}`;
+    const desc = p.el.querySelector('desc, cmt, Desc, DESC')?.textContent?.trim() || '';
     const icon = L.divIcon({
       className: '',
       html: `<div style="font-size:20px;line-height:1;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.6));">${_gpxGekozenIcon.emoji}</div>`,
@@ -3550,22 +3552,26 @@ function laadGpx(file) {
         statusEl.textContent = '⚠ GPX bestand kon niet worden gelezen';
         return;
       }
-      // Verzamel punten uit wpt, rtept en trkpt
+      // Verzamel punten uit wpt, rtept en trkpt — inclusief naam uit <name> tag
       var punten = [];
+      const haalNaam = (el) => {
+        const n = el.querySelector('name, n');
+        return n ? n.textContent.trim() : null;
+      };
       doc.querySelectorAll('wpt').forEach((el, i) => {
         const lat = parseFloat(el.getAttribute('lat'));
         const lon = parseFloat(el.getAttribute('lon'));
-        if (!isNaN(lat) && !isNaN(lon)) punten.push({ el, lat, lon, type: 'wpt', idx: i });
+        if (!isNaN(lat) && !isNaN(lon)) punten.push({ el, lat, lon, type: 'wpt', idx: i, naam: haalNaam(el) });
       });
       doc.querySelectorAll('rtept').forEach((el, i) => {
         const lat = parseFloat(el.getAttribute('lat'));
         const lon = parseFloat(el.getAttribute('lon'));
-        if (!isNaN(lat) && !isNaN(lon)) punten.push({ el, lat, lon, type: 'rte', idx: i });
+        if (!isNaN(lat) && !isNaN(lon)) punten.push({ el, lat, lon, type: 'rte', idx: i, naam: haalNaam(el) });
       });
       doc.querySelectorAll('trkpt').forEach((el, i) => {
         const lat = parseFloat(el.getAttribute('lat'));
         const lon = parseFloat(el.getAttribute('lon'));
-        if (!isNaN(lat) && !isNaN(lon)) punten.push({ el, lat, lon, type: 'trk', idx: i });
+        if (!isNaN(lat) && !isNaN(lon)) punten.push({ el, lat, lon, type: 'trk', idx: i, naam: haalNaam(el) });
       });
 
       if (!punten.length) {
