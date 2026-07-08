@@ -791,6 +791,14 @@
       </div>
 
       <div class="toggle-row">
+        <span class="toggle-label">Boeinamen (labels)</span>
+        <label class="toggle">
+          <input type="checkbox" id="toggle-boeinamen" onchange="toggleBoeiNamen(this.checked)">
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-row">
         <span class="toggle-label">Stroompijlen op kaart</span>
         <label class="toggle">
           <input type="checkbox" id="toggle-stroom" checked onchange="toggleStroomlaag(this.checked)">
@@ -2633,6 +2641,66 @@ function toggleBoeien(on) {
   } else {
     map.removeLayer(boeiWMSLayer);
     statusEl.style.display = 'none';
+  }
+}
+
+// ── BOEINAMEN (labels via Overpass API — OSM seamark data) ──
+const boeiNamenLaag = L.layerGroup();
+let boeiNamenAan = false;
+let boeiNamenTimer = null;
+
+function toggleBoeiNamen(aan) {
+  boeiNamenAan = aan;
+  if (aan) {
+    boeiNamenLaag.addTo(map);
+    laadBoeiNamen();
+    map.on('moveend', herlaadBoeiNamenOpBeweging);
+    notify('Boeinamen laden…');
+  } else {
+    map.removeLayer(boeiNamenLaag);
+    map.off('moveend', herlaadBoeiNamenOpBeweging);
+  }
+}
+
+function herlaadBoeiNamenOpBeweging() {
+  clearTimeout(boeiNamenTimer);
+  boeiNamenTimer = setTimeout(() => { if (boeiNamenAan) laadBoeiNamen(); }, 800);
+}
+
+async function laadBoeiNamen() {
+  if (map.getZoom() < 12) {
+    boeiNamenLaag.clearLayers();
+    return;
+  }
+  const b = map.getBounds();
+  const bbox = `${b.getSouth()},${b.getWest()},${b.getNorth()},${b.getEast()}`;
+  const query = `[out:json][timeout:15];
+    node["seamark:type"]["name"](${bbox});
+    out body;`;
+  try {
+    const resp = await fetch('https://overpass-api.de/api/interpreter', {
+      method: 'POST',
+      body: 'data=' + encodeURIComponent(query)
+    });
+    if (!resp.ok) throw new Error('Overpass fout ' + resp.status);
+    const data = await resp.json();
+    boeiNamenLaag.clearLayers();
+    (data.elements || []).forEach(el => {
+      if (!el.tags?.name) return;
+      const label = L.marker([el.lat, el.lon], {
+        icon: L.divIcon({
+          className: '',
+          html: `<div style="font-size:10px;font-weight:600;color:#0a1628;background:rgba(255,255,255,0.85);
+            padding:1px 5px;border-radius:3px;white-space:nowrap;transform:translate(8px,-8px);
+            box-shadow:0 1px 3px rgba(0,0,0,0.3);">${el.tags.name}</div>`,
+          iconSize: [0, 0], iconAnchor: [0, 0]
+        }),
+        interactive: false, zIndexOffset: 300
+      });
+      boeiNamenLaag.addLayer(label);
+    });
+  } catch(err) {
+    console.warn('Boeinamen laden mislukt:', err.message);
   }
 }
 
