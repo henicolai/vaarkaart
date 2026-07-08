@@ -657,6 +657,8 @@
       </div>
       <br/>
       <button class="btn btn-ghost" id="btn-center" onclick="centerOnMe()">🎯 Centreer op mij</button>
+      <button class="btn btn-ghost" id="btn-serial-gps" onclick="verbindSerieleGPS()" style="margin-top:6px;">🔌 Externe GPS koppelen (USB)</button>
+      <div id="serial-gps-status" style="display:none;font-size:11px;color:var(--muted);margin-top:4px;"></div>
     </div>
 
     <!-- Route opnemen -->
@@ -1459,6 +1461,114 @@ const boatIcon = L.divIcon({
   iconSize: [40, 40],
   iconAnchor: [20, 20]
 });
+
+// ── EXTERNE GPS (USB/serieel — NMEA0183) ────────────────────
+let serialPort = null;
+let serialReader = null;
+let serialAan = false;
+let laatsteNmeaFix = { lat: null, lon: null, speed: null, heading: null };
+
+async function verbindSerieleGPS() {
+  const statusEl = document.getElementById('serial-gps-status');
+  if (!('serial' in navigator)) {
+    statusEl.style.display = 'block';
+    statusEl.style.color = 'var(--danger)';
+    statusEl.textContent = '⚠ Web Serial niet ondersteund — gebruik Chrome of Edge op desktop';
+    return;
+  }
+  if (serialAan) {
+    // Verbinding sluiten
+    serialAan = false;
+    try { await serialReader?.cancel(); } catch(e) {}
+    try { await serialPort?.close(); } catch(e) {}
+    serialPort = null;
+    document.getElementById('btn-serial-gps').textContent = '🔌 Externe GPS koppelen (USB)';
+    statusEl.textContent = 'Externe GPS losgekoppeld';
+    return;
+  }
+  try {
+    serialPort = await navigator.serial.requestPort();
+    await serialPort.open({ baudRate: 4800 }); // standaard NMEA0183 baudrate
+    serialAan = true;
+    document.getElementById('btn-serial-gps').textContent = '🔌 Externe GPS loskoppelen';
+    statusEl.style.display = 'block';
+    statusEl.style.color = 'var(--teal)';
+    statusEl.textContent = '✓ Verbonden — wacht op NMEA data…';
+
+    // Stop browser GPS (watchPosition) zodat ze niet conflicteren
+    if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; }
+
+    const decoder = new TextDecoderStream();
+    serialPort.readable.pipeTo(decoder.writable);
+    serialReader = decoder.readable.getReader();
+    let buffer = '';
+
+    while (serialAan) {
+      const { value, done } = await serialReader.read();
+      if (done) break;
+      buffer += value;
+      const regels = buffer.split('\n');
+      buffer = regels.pop(); // laatste (mogelijk incomplete) regel bewaren
+      for (const regel of regels) {
+        verwerkNmeaRegel(regel.trim());
+      }
+    }
+  } catch(err) {
+    statusEl.style.display = 'block';
+    statusEl.style.color = 'var(--danger)';
+    statusEl.textContent = '⚠ Verbinding mislukt: ' + err.message;
+    serialAan = false;
+  }
+}
+
+function verwerkNmeaRegel(regel) {
+  if (!regel.startsWith('$')) return;
+  const delen = regel.split('*')[0].split(',');
+  const type = delen[0].slice(-3); // GGA, RMC, etc. (negeer GP/GN/GL prefix)
+
+  if (type === 'RMC') {
+    // $--RMC,tijd,status,lat,N/S,lon,E/W,snelheid(kn),koers,datum,...
+    if (delen[2] !== 'A') return; // geen geldige fix
+    const lat = nmeaCoordNaarGraden(delen[3], delen[4]);
+    const lon = nmeaCoordNaarGraden(delen[5], delen[6]);
+    const speedKn = parseFloat(delen[7]) || 0;
+    const koers = parseFloat(delen[8]) || null;
+    if (lat === null || lon === null) return;
+    laatsteNmeaFix = { lat, lon, speed: speedKn * 0.514444, heading: koers };
+    stuurNmeaFixNaarKaart();
+  } else if (type === 'GGA') {
+    // $--GGA,tijd,lat,N/S,lon,E/W,fixkwaliteit,aantal sat,hdop,hoogte,...
+    const fixKwaliteit = parseInt(delen[6]) || 0;
+    if (fixKwaliteit === 0) return; // geen fix
+    const lat = nmeaCoordNaarGraden(delen[2], delen[3]);
+    const lon = nmeaCoordNaarGraden(delen[4], delen[5]);
+    if (lat === null || lon === null) return;
+    laatsteNmeaFix.lat = lat;
+    laatsteNmeaFix.lon = lon;
+    stuurNmeaFixNaarKaart();
+  }
+}
+
+function nmeaCoordNaarGraden(waarde, richting) {
+  if (!waarde || !richting) return null;
+  const punt = waarde.indexOf('.');
+  const gradenLengte = punt - 2;
+  const graden = parseFloat(waarde.slice(0, gradenLengte));
+  const minuten = parseFloat(waarde.slice(gradenLengte));
+  let result = graden + minuten / 60;
+  if (richting === 'S' || richting === 'W') result = -result;
+  return result;
+}
+
+function stuurNmeaFixNaarKaart() {
+  const { lat, lon, speed, heading } = laatsteNmeaFix;
+  if (lat === null || lon === null) return;
+  onPosition({
+    coords: { latitude: lat, longitude: lon, accuracy: 3, speed: speed || 0, heading: heading || null }
+  });
+  const statusEl = document.getElementById('serial-gps-status');
+  if (statusEl) statusEl.textContent = '✓ Externe GPS actief';
+}
 
 function startGPS() {
   if (!navigator.geolocation) {
