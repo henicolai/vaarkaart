@@ -4963,6 +4963,9 @@ function importeerKaarten(file) {
   reader.readAsText(file);
 }
 
+// Start GPS automatisch bij laden van de pagina
+startGPS();
+
 // Laad opgeslagen kaarten bij start
 setTimeout(() => laadOpgeslagenKaarten(), 100);
 
