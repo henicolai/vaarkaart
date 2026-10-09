@@ -2884,8 +2884,6 @@ async function fetchJson(url, opties = {}) {
   const urls = [
     url,                                                                      // direct
     `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,         // allorigins
-    `https://corsproxy.io/?${encodeURIComponent(url)}`,                      // corsproxy
-    `https://proxy.cors.sh/${url}`,                                           // cors.sh
   ];
   for (const u of urls) {
     try {
