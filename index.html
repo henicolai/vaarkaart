@@ -978,6 +978,24 @@
 
       <div id="kaart-bestandsnaam" style="font-size:11px;color:var(--teal);margin-bottom:8px;display:none;"></div>
 
+      <!-- Kaart laden via URL (bijv. OneDrive directe downloadlink) -->
+      <div style="margin-bottom:10px;">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Of laad via directe link (OneDrive, Dropbox, etc.)</div>
+        <div style="display:flex;gap:4px;">
+          <input type="text" id="kaart-url-veld" placeholder="https://..."
+            style="flex:1;padding:6px 8px;background:rgba(255,255,255,0.05);border:1px solid var(--border);
+            border-radius:4px;color:var(--white);font-size:11px;">
+          <button class="btn btn-ghost" onclick="laadKaartVanUrl()" style="font-size:11px;padding:6px 10px;">Laden</button>
+        </div>
+        <div id="kaart-url-status" style="font-size:10px;color:var(--muted);margin-top:3px;display:none;"></div>
+      </div>
+
+      <!-- Mijn kaarten — snellijst uit GitHub repo /kaarten/manifest.json -->
+      <div id="mijn-kaarten-sectie" style="margin-bottom:10px;">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">📚 Mijn kaarten (wpgps.com)</div>
+        <div id="mijn-kaarten-lijst" style="font-size:11px;color:var(--muted);">Laden…</div>
+      </div>
+
       <div id="coord-sectie">
         <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">Hoekcoördinaten — decimale graden (bijv. 53.1750)</div>
         <!-- Visueel schema -->
@@ -1283,6 +1301,20 @@
 <div class="notify" id="notify"></div>
 
 <script>
+// ── TIJDELIJKE FOUTWEERGAVE (voor debuggen op tablet) ────────
+window.addEventListener('error', function(e) {
+  let banner = document.getElementById('debug-error-banner');
+  if (!banner) {
+    banner = document.createElement('div');
+    banner.id = 'debug-error-banner';
+    banner.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#e84545;color:white;' +
+      'padding:10px;font-size:12px;z-index:999999;font-family:monospace;white-space:pre-wrap;' +
+      'max-height:40vh;overflow-y:auto;';
+    document.body.appendChild(banner);
+  }
+  banner.textContent += `FOUT: ${e.message} (${e.filename}:${e.lineno})\n`;
+});
+
 // ── UI HULPFUNCTIES ────────────────────────────────────────
 function toggleSectie(id, titleEl) {
   const inhoud = document.getElementById(id);
@@ -5076,6 +5108,9 @@ function importeerKaarten(file) {
 // Start GPS automatisch bij laden van de pagina
 startGPS();
 
+// Laad "Mijn kaarten" manifest
+setTimeout(() => laadMijnKaarten(), 150);
+
 // Laad opgeslagen kaarten bij start
 setTimeout(() => laadOpgeslagenKaarten(), 100);
 
@@ -5085,6 +5120,92 @@ setTimeout(() => {
     toggleStroomlaag(true);
   }
 }, 200);
+
+// ── MIJN KAARTEN (uit GitHub repo /kaarten/manifest.json) ────
+async function laadMijnKaarten() {
+  const lijstEl = document.getElementById('mijn-kaarten-lijst');
+  try {
+    const resp = await fetch('./kaarten/manifest.json?t=' + Date.now());
+    if (!resp.ok) throw new Error('manifest.json niet gevonden');
+    const kaarten = await resp.json();
+    if (!kaarten.length) {
+      lijstEl.textContent = 'Nog geen kaarten toegevoegd in /kaarten/manifest.json';
+      return;
+    }
+    lijstEl.innerHTML = kaarten.map(k => `
+      <button onclick="laadMijnKaart('${k.bestand}','${(k.naam||k.bestand).replace(/'/g,"\\'")}')"
+        style="display:block;width:100%;text-align:left;font-size:11px;padding:5px 8px;margin-bottom:3px;
+        background:rgba(0,200,200,0.06);border:1px solid var(--border);border-radius:4px;
+        color:var(--white);cursor:pointer;">
+        🗺 ${k.naam || k.bestand}
+      </button>`).join('');
+  } catch(err) {
+    lijstEl.textContent = 'Geen manifest.json gevonden — zie handleiding om kaarten toe te voegen';
+    lijstEl.style.color = 'var(--muted)';
+  }
+}
+
+async function laadMijnKaart(bestandsnaam, naam) {
+  const statusEl = document.getElementById('kaart-url-status');
+  statusEl.style.display = 'block';
+  statusEl.style.color = 'var(--muted)';
+  statusEl.textContent = `⏳ ${naam} downloaden…`;
+  try {
+    const resp = await fetch(`./kaarten/${bestandsnaam}`);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const blob = await resp.blob();
+    const file = new File([blob], bestandsnaam, { type: blob.type });
+    statusEl.style.color = 'var(--teal)';
+    statusEl.textContent = `✓ ${naam} geladen — verwerken…`;
+    verwerkKaartBestand(file);
+  } catch(err) {
+    statusEl.style.color = 'var(--danger)';
+    statusEl.textContent = '⚠ Fout: ' + err.message;
+  }
+}
+
+async function laadKaartVanUrl() {
+  const url = document.getElementById('kaart-url-veld').value.trim();
+  const statusEl = document.getElementById('kaart-url-status');
+  statusEl.style.display = 'block';
+  if (!url) { statusEl.style.color = 'var(--danger)'; statusEl.textContent = '⚠ Vul een URL in'; return; }
+
+  statusEl.style.color = 'var(--muted)';
+  statusEl.textContent = '⏳ Downloaden…';
+
+  // OneDrive share-links omzetten naar directe download-link indien nodig
+  let downloadUrl = url;
+  if (url.includes('1drv.ms') || url.includes('onedrive.live.com')) {
+    downloadUrl = url.includes('?') ? url + '&download=1' : url + '?download=1';
+  }
+
+  try {
+    const resp = await fetch(downloadUrl, { mode: 'cors' });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const blob = await resp.blob();
+
+    // Bepaal bestandsnaam uit URL of Content-Disposition header
+    let naam = url.split('/').pop().split('?')[0] || 'kaart.tif';
+    const cd = resp.headers.get('content-disposition');
+    if (cd) {
+      const m = cd.match(/filename="?([^";]+)"?/);
+      if (m) naam = m[1];
+    }
+    if (!/\.(tif|tiff|png|jpg|jpeg|bmp)$/i.test(naam)) naam += '.tif'; // fallback aanname
+
+    const file = new File([blob], naam, { type: blob.type });
+    statusEl.style.color = 'var(--teal)';
+    statusEl.textContent = `✓ Gedownload (${Math.round(blob.size/1024)}KB) — verwerken…`;
+    verwerkKaartBestand(file);
+  } catch(err) {
+    statusEl.style.color = 'var(--danger)';
+    if (err.message.includes('Failed to fetch') || err.name === 'TypeError') {
+      statusEl.textContent = '⚠ Blokkeerde bron (CORS) — link ondersteunt geen direct laden. Download het bestand handmatig en sleep het hierboven.';
+    } else {
+      statusEl.textContent = '⚠ Fout: ' + err.message;
+    }
+  }
+}
 
 function verwerkKaartBestand(file) {
   if (!file) return;
