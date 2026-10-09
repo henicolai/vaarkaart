@@ -1457,6 +1457,28 @@ function _slaLaagOp(id, aan) {
   localStorage.setItem('vaarkaart_lagen', JSON.stringify(st));
 }
 
+// Bewaar alle toggle-staten
+function slaLagenOp() {
+  try { localStorage.setItem('vaarkaart_lagen', JSON.stringify(_lagenStaten)); } catch (e) {}
+}
+
+// Korte melding onderin beeld
+let _notifyTimer = null;
+function notify(tekst) {
+  const el = document.getElementById('notify');
+  if (!el) return;
+  el.textContent = tekst;
+  el.classList.add('show');
+  clearTimeout(_notifyTimer);
+  _notifyTimer = setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+// Kaart meedraaien met vaarrichting (leaflet-rotate)
+function updateKoersOmhoog(heading) {
+  if (heading === null || heading === undefined || isNaN(heading)) return;
+  if (typeof map.setBearing === 'function') map.setBearing(heading);
+}
+
 // OpenSeaMap standaard aan, herstel staat
 if (!('toggle-sea' in _lagenStaten) || _lagenStaten['toggle-sea']) {
   seaLayer.addTo(map);
@@ -1624,6 +1646,19 @@ function startGPS() {
     maximumAge: 2000,
     timeout: 10000
   });
+}
+
+// Afstand in meters → getal in NM of km (volgens instelling)
+function formatAfstand(m) {
+  if (m === null || m === undefined || isNaN(m)) return '0.0';
+  return instellingen.afstand === 'nm' ? (m / 1852).toFixed(2) : (m / 1000).toFixed(2);
+}
+
+// Snelheid in m/s → tekst in kn of km/h (volgens instelling)
+function formatSnelheid(ms) {
+  if (ms === null || ms === undefined || isNaN(ms)) return '--';
+  const v = instellingen.snelheid === 'kmh' ? ms * 3.6 : ms * 1.94384;
+  return v.toFixed(1);
 }
 
 function onPosition(pos) {
