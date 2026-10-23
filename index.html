@@ -1454,12 +1454,17 @@ lightLayer.addTo(map);
 function _slaLaagOp(id, aan) {
   const st = JSON.parse(localStorage.getItem('vaarkaart_lagen') || '{}');
   st[id] = aan;
+  _lagenStaten[id] = aan;
   localStorage.setItem('vaarkaart_lagen', JSON.stringify(st));
 }
 
 // Bewaar alle toggle-staten
 function slaLagenOp() {
-  try { localStorage.setItem('vaarkaart_lagen', JSON.stringify(_lagenStaten)); } catch (e) {}
+  try {
+    const st = JSON.parse(localStorage.getItem('vaarkaart_lagen') || '{}');
+    Object.assign(st, _lagenStaten);
+    localStorage.setItem('vaarkaart_lagen', JSON.stringify(st));
+  } catch (e) {}
 }
 
 // Korte melding onderin beeld
@@ -1478,6 +1483,15 @@ function updateKoersOmhoog(heading) {
   if (heading === null || heading === undefined || isNaN(heading)) return;
   if (typeof map.setBearing === 'function') map.setBearing(heading);
 }
+
+// Eenmalig: OpenSeaMap weer aanzetten (oude opgeslagen 'uit'-stand uit eerdere foutieve versies)
+try {
+  if (!localStorage.getItem('vaarkaart_sea_reset2')) {
+    _lagenStaten['toggle-sea'] = true;
+    localStorage.setItem('vaarkaart_sea_reset2', '1');
+    slaLagenOp();
+  }
+} catch (e) {}
 
 // OpenSeaMap standaard aan, herstel staat
 if (!('toggle-sea' in _lagenStaten) || _lagenStaten['toggle-sea']) {
