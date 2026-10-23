@@ -5192,11 +5192,67 @@ async function laadMijnKaarten() {
   }
 }
 
+// ── TEGELKAARTEN (scherp op elke zoom): kaarten/<naam>.json + <naam>.bin ──
+async function laadTegelKaart(indexBestand, naam) {
+  const basis = './kaarten/' + indexBestand.replace(/[^/]*$/, '');
+  const idx = await (await fetch('./kaarten/' + indexBestand + '?t=' + Date.now())).json();
+  const binUrl = basis + (idx.bin || indexBestand.replace(/\.json$/i, '.bin')).replace(/^.*\//, '');
+  const tiles = idx.tiles;
+  let heleBin = null; // fallback als server geen Range ondersteunt
+  const [zuid, west, noord, oost] = idx.bounds;
+  const bounds = [[zuid, west], [noord, oost]];
+
+  const Layer = L.GridLayer.extend({
+    createTile: function(c, done) {
+      const img = document.createElement('img');
+      const t = tiles[c.z + '/' + c.x + '/' + c.y];
+      if (!t) { done(null, img); return img; }
+      (async () => {
+        try {
+          let buf;
+          if (heleBin) {
+            buf = heleBin.slice(t[0], t[0] + t[1]);
+          } else {
+            const r = await fetch(binUrl, { headers: { Range: 'bytes=' + t[0] + '-' + (t[0] + t[1] - 1) } });
+            if (r.status === 206) buf = await r.arrayBuffer();
+            else { heleBin = await r.arrayBuffer(); buf = heleBin.slice(t[0], t[0] + t[1]); }
+          }
+          const url = URL.createObjectURL(new Blob([buf], { type: 'image/jpeg' }));
+          img.onload = () => { URL.revokeObjectURL(url); done(null, img); };
+          img.onerror = () => done(null, img);
+          img.src = url;
+        } catch (e) { done(null, img); }
+      })();
+      return img;
+    }
+  });
+  const overlay = new Layer({
+    tileSize: 256, opacity: 0.9, zIndex: 200, pane: 'overlayPane',
+    minNativeZoom: idx.minzoom, maxNativeZoom: idx.maxzoom,
+    bounds: L.latLngBounds(bounds), keepBuffer: 2
+  }).addTo(map);
+  const id = Date.now();
+  eigenKaarten.push({ id, naam, dataUrl: null, bounds, overlay, opacity: 0.9, zichtbaar: true });
+  renderKaartenLijst();
+  map.fitBounds(bounds);
+}
+
 async function laadMijnKaart(bestandsnaam, naam) {
   const statusEl = document.getElementById('kaart-url-status');
   statusEl.style.display = 'block';
   statusEl.style.color = 'var(--muted)';
   statusEl.textContent = `⏳ ${naam} downloaden…`;
+  if (/\.json$/i.test(bestandsnaam)) {
+    try {
+      await laadTegelKaart(bestandsnaam, naam);
+      statusEl.style.color = 'var(--teal)';
+      statusEl.textContent = `✓ ${naam} geladen`;
+    } catch (err) {
+      statusEl.style.color = 'var(--danger)';
+      statusEl.textContent = '⚠ Fout: ' + err.message;
+    }
+    return;
+  }
   try {
     const resp = await fetch(`./kaarten/${bestandsnaam}`);
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
