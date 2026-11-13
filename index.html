@@ -3335,52 +3335,27 @@ async function laadStroomPijlen() {
       .slice(0, 3);
   }
 
+  await laadGetijData();
+  await laadStroomMetingen();
+  const metingen = stroomUurOffset === 0 ? verseStroomMetingen() : [];
+  for (const p of metingen) {
+    const kn = p.ms * 1.94384;
+    const txt = instellingen.snelheid === 'kmh' ? `${(kn * 1.852).toFixed(1)} km/h` : `${kn.toFixed(1)} kn`;
+    L.marker([p.lat, p.lon], { icon: maakStroomPijlIcon(p.graden, kn, true), zIndexOffset: 600, interactive: true })
+      .bindPopup(`
+        <b>🌊 ${p.naam}</b><br>
+        Snelheid: <b>${txt}</b><br>
+        Stroomt naar: <b>${Math.round(p.graden)}° (${richtingNaarTekst(p.graden)})</b><br>
+        Gemeten: <b>${p.tijdDate.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}</b><br>
+        <small style="color:#888">✓ Meting Rijkswaterstaat</small>
+      `, { maxWidth: 200 })
+      .addTo(stroomlaag);
+  }
+
   for (const station of zichtbaar) {
+    // Geen schatting tekenen waar al een echte meting staat
+    if (metingen.some(p => Math.hypot(p.lat - station.lat, p.lon - station.lon) < 0.08)) continue;
     var snelheidKn = null, richtingGr = null, isLive = false;
-
-    // Alleen RWS data ophalen voor heden en verleden (niet toekomst)
-    if (!isToekomst) {
-      const eindTijd  = new Date(tijdstip.getTime() + 10 * 60000);
-      const beginTijd = new Date(tijdstip.getTime() - 90 * 60000);
-      const body = {
-        AquoPlusWaarnemingMetadataLijst: [
-          { AquoMetadata: { Compartiment: { Code: 'OW' }, Grootheid: { Code: 'STROOMSHD' } } },
-          { AquoMetadata: { Compartiment: { Code: 'OW' }, Grootheid: { Code: 'STROOMRTG' } } },
-        ],
-        LocatieLijst: [{ Code: station.code, X: station.lon, Y: station.lat }],
-        Periode: {
-          Begindatumtijd: beginTijd.toISOString(),
-          Einddatumtijd:  eindTijd.toISOString()
-        }
-      };
-
-      const data = await fetchJson(rwsUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
-
-      if (data?.WaarnemingenLijst) {
-        for (const wl of data.WaarnemingenLijst) {
-          const metingen = wl.MetingenLijst;
-          if (!metingen?.length) continue;
-          // Zoek de meting dichtstbij het gewenste tijdstip
-          const doelMs = tijdstip.getTime();
-          const dichtstbij = metingen.reduce((best, m) => {
-            const mTijd = new Date(m.Tijdstip).getTime();
-            const bestTijd = best ? new Date(best.Tijdstip).getTime() : Infinity;
-            return Math.abs(mTijd - doelMs) < Math.abs(bestTijd - doelMs) ? m : best;
-          }, null);
-          if (!dichtstbij) continue;
-          const code = wl.AquoMetadata?.Grootheid?.Code;
-          const val  = dichtstbij.Meetwaarde?.Waarde_Numeriek ?? null;
-          if (val === null) continue;
-          if (code === 'STROOMSHD') snelheidKn = Math.abs(val * 1.94384);
-          if (code === 'STROOMRTG') richtingGr = val;
-          isLive = !isToekomst && stroomUurOffset === 0;
-        }
-      }
-    }
 
     // Fallback of toekomst: bereken eb/vloed
     if (snelheidKn === null || richtingGr === null) {
@@ -3411,7 +3386,7 @@ async function laadStroomPijlen() {
         Snelheid: <b>${snelheidTxt}</b><br>
         Richting: <b>${Math.round(richtingGr)}° (${richtingNaarTekst(richtingGr)})</b><br>
         Tijd: <b>${tijdLabel}</b><br>
-        <small style="color:#888">${isLive ? '✓ RWS live meting' : isToekomst ? '~ Berekend (eb/vloed)' : '~ Historisch/berekend'}</small>
+        <small style="color:#888">~ Schatting uit hoog- en laagwater (geen meting)</small>
       `, { maxWidth: 200 })
       .addTo(stroomlaag);
   }
@@ -3489,45 +3464,19 @@ async function laadStroomsnelheid(lat, lon) {
     return;
   }
 
-  const rwsUrl = 'https://waterwebservices.rijkswaterstaat.nl/ONLINEWAARNEMINGENSERVICES_DBO/OphalenLaatsteWaarnemingen';
+  // Echte meting gebruiken als er een meetpunt dichtbij is (± 15 km) en de meting vers is
+  await laadGetijData();
+  await laadStroomMetingen();
   const resultaten = {};
-  const eindTijd  = new Date(tijdstip.getTime() + 10 * 60000);
-  const beginTijd = new Date(tijdstip.getTime() - 90 * 60000);
-
-  for (const { grootheid, label } of [
-    { grootheid: 'STROOMSHD', label: 'snelheid' },
-    { grootheid: 'STROOMRTG', label: 'richting' },
-  ]) {
-    const body = {
-      AquoPlusWaarnemingMetadataLijst: [{
-        AquoMetadata: { Compartiment: { Code: 'OW' }, Grootheid: { Code: grootheid } }
-      }],
-      LocatieLijst: [{ Code: station.code, X: station.lon, Y: station.lat }],
-      Periode: {
-        Begindatumtijd: beginTijd.toISOString(),
-        Einddatumtijd:  eindTijd.toISOString()
-      }
-    };
-    const data = await fetchJson(rwsUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-    const metingen = data?.WaarnemingenLijst?.[0]?.MetingenLijst;
-    if (metingen?.length) {
-      // Kies meting dichtstbij het gewenste tijdstip
-      const doelMs = tijdstip.getTime();
-      const dichtstbij = metingen.reduce((best, m) => {
-        const mTijd = new Date(m.Tijdstip).getTime();
-        const bestTijd = best ? new Date(best.Tijdstip).getTime() : Infinity;
-        return Math.abs(mTijd - doelMs) < Math.abs(bestTijd - doelMs) ? m : best;
-      }, null);
-      if (dichtstbij) {
-        resultaten[label] = {
-          waarde: dichtstbij.Meetwaarde?.Waarde_Numeriek ?? null,
-          tijd:   new Date(dichtstbij.Tijdstip)
-        };
-      }
+  var meetStation = station;
+  if (stroomUurOffset === 0) {
+    const dichtbij = verseStroomMetingen()
+      .map(p => ({ p, d: Math.hypot(p.lat - lat, (p.lon - lon) * 0.6) }))
+      .filter(x => x.d < 0.14).sort((a, b) => a.d - b.d)[0];
+    if (dichtbij) {
+      resultaten.snelheid = { waarde: dichtbij.p.ms, tijd: dichtbij.p.tijdDate };
+      resultaten.richting = { waarde: dichtbij.p.graden, tijd: dichtbij.p.tijdDate };
+      meetStation = { naam: dichtbij.p.naam + ' (meting)', code: dichtbij.p.code, lat: dichtbij.p.lat, lon: dichtbij.p.lon };
     }
   }
 
@@ -3537,10 +3486,41 @@ async function laadStroomsnelheid(lat, lon) {
     return;
   }
 
-  toonStroom(resultaten, station);
+  toonStroom(resultaten, meetStation);
+}
+
+// Laatste stroommetingen (data/stroom.json, elk half uur bijgewerkt)
+let _stroomData = null, _stroomDataTijd = 0;
+async function laadStroomMetingen() {
+  if (_stroomData && Date.now() - _stroomDataTijd < 10 * 60000) return _stroomData;
+  try {
+    const r = await fetch('./data/stroom.json?t=' + Math.floor(Date.now() / 600000), { cache: 'no-store' });
+    if (!r.ok) return _stroomData;
+    const d = await r.json();
+    _stroomData = (d.punten || []).map(p => Object.assign({}, p, { tijdDate: new Date(p.tijd * 60000) }));
+    _stroomDataTijd = Date.now();
+  } catch (e) {}
+  return _stroomData;
+}
+// Verse metingen (jonger dan 2 uur)
+function verseStroomMetingen() {
+  return (_stroomData || []).filter(p => Date.now() - p.tijdDate.getTime() < 2 * 3600000);
 }
 
 function bepaalEbVloed(station, now) {
+  // Met echte hoog- en laagwatertijden van Rijkswaterstaat, als die geladen zijn
+  const ext = _getijData && _getijData.stations && _getijData.stations[station.code] && _getijData.stations[station.code].extremen;
+  if (ext) {
+    const tMin = now.getTime() / 60000;
+    for (let i = 0; i < ext.length - 1; i++) {
+      if (tMin >= ext[i][0] && tMin <= ext[i + 1][0]) {
+        const isEb = ext[i][2] === 1; // na hoogwater = eb
+        const voortgang = (tMin - ext[i][0]) / (ext[i + 1][0] - ext[i][0]);
+        const snelheid = Math.abs(Math.sin(voortgang * Math.PI)) * 1.2;
+        return { isEb, snelheid: snelheid.toFixed(1), voortgang };
+      }
+    }
+  }
   // Gebruik zelfde getijcyclus als astronomische berekening
   const corr = {
     'VLISSGN': -65, 'HOEKVHLD': 0, 'SCHEVNGN': 30, 'IJMDBTHVN': 95,
