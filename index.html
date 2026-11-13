@@ -1401,7 +1401,7 @@ async function berekenWadPlanner() {
     html += vensters.map(v => '<span style="color:var(--teal)">✓ ' + uur(new Date(v[0])) + ' – ' + uur(new Date(v[1])) + '</span>').join('<br>') + '<br>';
   }
   html += '<div style="margin-top:6px;color:var(--muted)">' + dagExt.map(e =>
-    (e.type === 'hoog' ? '▲ HW ' : '▼ LW ') + uur(e.tijd) + ' · ' + (e.hoogte / 100).toFixed(2) + ' m NAP · ' + diepteOp(e.tijd).toFixed(2) + ' m boven drempel').join('<br>') + '</div>' +
+    (e.type === 'hoog' ? '▲ HW ' : '▼ LW ') + uur(e.tijd) + ' · ' + (e.hoogte / 100).toFixed(2) + ' m NAP · ' + diepteOp(e.tijd).toFixed(2) + ' m water op de drempel').join('<br>') + '</div>' +
     '<div style="margin-top:6px;color:var(--amber)">⚠ Astronomisch getij van Rijkswaterstaat, zonder wind. Wind kan de waterstand decimeters verhogen of verlagen. ' +
     'De drempeldiepte is een richtwaarde bij gemiddeld laagwater; controleer altijd de actuele kaart en lodingen.</div>';
   el.innerHTML = kader('var(--border)', html);
