@@ -172,6 +172,12 @@
       margin-bottom: 12px;
     }
 
+    .sidebar-title.menu-kop { cursor:pointer; display:flex; justify-content:space-between; align-items:center; user-select:none; }
+    .sidebar-title.menu-kop .menu-pijl { font-size:12px; color:var(--muted); }
+    .sidebar-section.menu-dicht { padding-top:11px; padding-bottom:11px; }
+    .sidebar-section.menu-dicht > .sidebar-title { margin-bottom:0; color:var(--text, #cfe); opacity:0.85; }
+    .sidebar-section.menu-dicht > .menu-inhoud { display:none; }
+
     /* GPS Panel */
     .gps-card {
       background: rgba(0,200,200,0.07);
@@ -617,21 +623,13 @@
   <!-- SIDEBAR -->
   <aside class="sidebar" id="sidebar">
 
-    <!-- Instellingen knop -->
+    <!-- Instellingen / Handleiding / Doneer -->
     <div class="sidebar-section" style="padding:10px 16px;">
-      <button onclick="toggleInstellingen()" class="btn btn-ghost" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;">
-        ⚙ Instellingen
-      </button>
-      <a href="handleiding.html" target="_blank" class="btn btn-ghost" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:6px;text-decoration:none;">
-        📖 Handleiding
-      </a>
-      <a href="https://bunq.me/HendrikEeuwe" target="_blank" style="
-        width:100%;display:flex;align-items:center;justify-content:center;gap:8px;
-        margin-top:6px;padding:8px;border-radius:6px;text-decoration:none;
-        background:rgba(0,200,200,0.1);border:1px solid rgba(0,200,200,0.3);
-        color:var(--teal);font-size:13px;font-family:'Teko',sans-serif;letter-spacing:1px;">
-        ☕ Doneer via Bunq
-      </a>
+      <div style="display:flex;gap:6px;">
+        <button onclick="toggleInstellingen()" class="btn btn-ghost" style="flex:1;padding:8px 4px;font-size:12px;">⚙ Instellingen</button>
+        <a href="handleiding.html" target="_blank" class="btn btn-ghost" style="flex:1;padding:8px 4px;font-size:12px;text-decoration:none;text-align:center;">📖 Handleiding</a>
+        <a href="https://bunq.me/HendrikEeuwe" target="_blank" class="btn btn-ghost" title="Doneer via Bunq" style="flex:0 0 auto;padding:8px 10px;font-size:12px;text-decoration:none;text-align:center;color:var(--teal);">☕ Doneer</a>
+      </div>
     </div>
 
     <!-- GPS -->
@@ -1316,6 +1314,56 @@ window.addEventListener('error', function(e) {
 });
 
 // ── UI HULPFUNCTIES ────────────────────────────────────────
+// ── INKLAPBAAR MENU ───────────────────────────────────────
+// Elk onderdeel van het menu kan open of dicht; de stand wordt onthouden.
+(function maakMenuInklapbaar() {
+  const sidebar = document.getElementById('sidebar');
+  if (!sidebar) return;
+  let stand = {};
+  try { stand = JSON.parse(localStorage.getItem('vaarkaart_menu') || '{}'); } catch (e) {}
+  const standaardOpen = ['GPS Positie', 'Route'];
+  const volgorde = ['GPS Positie', 'Route', 'Lagen', 'Eigen Zeekaarten', 'Stroom & Getijden', 'Wind',
+    'Route Planner', 'Wad', 'Waypoints', 'Opgeslagen routes', 'Havens', 'Bruggen', 'Stremmingen'];
+  const secties = [];
+  sidebar.querySelectorAll(':scope > .sidebar-section').forEach(sec => {
+    const kop = sec.querySelector(':scope > .sidebar-title');
+    if (!kop) return;
+    const naam = kop.textContent.replace(/[▼▶]/g, '').replace(/[^\p{L}\p{N}& ]/gu, '').trim();
+    secties.push({ sec, naam });
+    // Oude eigen inklapper van deze kop uitschakelen: inhoud altijd tonen binnen de nieuwe inklapper
+    const oud = /toggleSectie\('([^']+)'/.exec(kop.getAttribute('onclick') || '');
+    kop.removeAttribute('onclick');
+    kop.querySelectorAll('span[id$="-pijl"]').forEach(s => s.remove());
+    const inhoud = document.createElement('div');
+    inhoud.className = 'menu-inhoud';
+    while (kop.nextSibling) inhoud.appendChild(kop.nextSibling);
+    sec.appendChild(inhoud);
+    if (oud) { const el = document.getElementById(oud[1]); if (el) el.style.display = 'block'; }
+    const pijl = document.createElement('span');
+    pijl.className = 'menu-pijl';
+    kop.classList.add('menu-kop');
+    kop.appendChild(pijl);
+    const zet = open => {
+      sec.classList.toggle('menu-dicht', !open);
+      pijl.textContent = open ? '▼' : '▶';
+      if (open && oud && oud[1] === 'bruggen-inhoud' && typeof renderBruggenLijst === 'function') {
+        setTimeout(() => { try { renderBruggenLijst(); } catch (e) {} }, 0);
+      }
+    };
+    zet(naam in stand ? stand[naam] : standaardOpen.includes(naam));
+    kop.addEventListener('click', () => {
+      const open = sec.classList.contains('menu-dicht');
+      zet(open);
+      stand[naam] = open;
+      try { localStorage.setItem('vaarkaart_menu', JSON.stringify(stand)); } catch (e) {}
+      if (open) setTimeout(() => sec.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 50);
+    });
+  });
+  // Meest gebruikte onderdelen bovenaan
+  const rang = n => { const i = volgorde.findIndex(v => n.startsWith(v)); return i < 0 ? 99 : i; };
+  secties.sort((a, b) => rang(a.naam) - rang(b.naam)).forEach(s => sidebar.appendChild(s.sec));
+})();
+
 function toggleSectie(id, titleEl) {
   const inhoud = document.getElementById(id);
   if (!inhoud) return;
