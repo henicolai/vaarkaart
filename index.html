@@ -1179,7 +1179,7 @@
 
     <!-- GPX Waypoints -->
     <div class="sidebar-section">
-      <div class="sidebar-title">📌 Waypoints</div>
+      <div class="sidebar-title">📌 GPX laden (waypoints)</div>
 
       <!-- Los waypoint toevoegen -->
       <button class="btn btn-ghost" id="btn-waypoint-modus" onclick="toggleWaypointModus()"
@@ -1323,7 +1323,7 @@ window.addEventListener('error', function(e) {
   try { stand = JSON.parse(localStorage.getItem('vaarkaart_menu') || '{}'); } catch (e) {}
   const standaardOpen = ['GPS Positie', 'Route'];
   const volgorde = ['GPS Positie', 'Route', 'Lagen', 'Eigen Zeekaarten', 'Stroom & Getijden', 'Wind',
-    'Route Planner', 'Wad', 'Waypoints', 'Opgeslagen routes', 'Havens', 'Bruggen', 'Stremmingen'];
+    'GPX laden', 'Route Planner', 'Wad', 'Opgeslagen routes', 'Havens', 'Bruggen', 'Stremmingen'];
   const secties = [];
   sidebar.querySelectorAll(':scope > .sidebar-section').forEach(sec => {
     const kop = sec.querySelector(':scope > .sidebar-title');
