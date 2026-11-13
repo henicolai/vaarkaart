@@ -3574,7 +3574,7 @@ function toonStroom(resultaten, station) {
     ? (Math.abs(snelheidMs) > 1.5 ? '#f5a623' : '#4fc3f7') : 'var(--muted)';
 
   const richtingTekst = richtingGr !== null
-    ? `${richtingNaarTekst(richtingGr)} (${Math.round(richtingGr)}°) · ${isEb ? 'Eb' : 'Vloed'}`
+    ? `naar ${richtingNaarTekst(richtingGr)} (${Math.round(richtingGr)}°)`
     : (snelheidMs !== null ? (isEb ? '← Eb' : '→ Vloed') : '—');
   document.getElementById('stroom-richting').textContent = richtingTekst;
 
