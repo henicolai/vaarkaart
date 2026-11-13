@@ -2929,6 +2929,21 @@ const OVERPASS_SERVERS = [
   'https://overpass.kumi.systems/api/interpreter',
 ];
 let _boeiNamenBezig = 0;
+let _boeiNamenBestand; // undefined = nog niet geprobeerd, null = niet beschikbaar
+
+function maakBoeiLabel(lat, lon, naam) {
+  const veilig = String(naam).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+  return L.marker([lat, lon], {
+    icon: L.divIcon({
+      className: '',
+      html: `<div style="font-size:10px;font-weight:600;color:#0a1628;background:rgba(255,255,255,0.85);
+        padding:1px 5px;border-radius:3px;white-space:nowrap;transform:translate(8px,-8px);
+        box-shadow:0 1px 3px rgba(0,0,0,0.3);">${veilig}</div>`,
+      iconSize: [0, 0], iconAnchor: [0, 0]
+    }),
+    interactive: false, zIndexOffset: 300
+  });
+}
 
 async function laadBoeiNamen() {
   if (map.getZoom() < 12) {
@@ -2937,6 +2952,20 @@ async function laadBoeiNamen() {
     return;
   }
   const b = map.getBounds();
+  // Eerst het eigen bestand (wekelijks opgehaald uit OpenStreetMap) — snel en altijd bereikbaar
+  if (_boeiNamenBestand === undefined) {
+    try {
+      const r = await fetch('./data/boeinamen.json?d=' + new Date().toISOString().slice(0, 10));
+      _boeiNamenBestand = r.ok ? (await r.json()).punten : null;
+    } catch (e) { _boeiNamenBestand = null; }
+  }
+  if (_boeiNamenBestand) {
+    boeiNamenLaag.clearLayers();
+    const inBeeld = _boeiNamenBestand.filter(p => b.contains([p[0], p[1]])).slice(0, 500);
+    inBeeld.forEach(p => boeiNamenLaag.addLayer(maakBoeiLabel(p[0], p[1], p[2])));
+    if (!inBeeld.length) notify('Geen boeinamen bekend in dit gebied');
+    return;
+  }
   const bbox = `${b.getSouth()},${b.getWest()},${b.getNorth()},${b.getEast()}`;
   // Alleen boeien en bakens — geen havens, sluizen of bruggen
   const query = `[out:json][timeout:15];
@@ -2962,17 +2991,7 @@ async function laadBoeiNamen() {
     const t = el.tags || {};
     const naam = t['seamark:name'] || t.name || t['seamark:ref'] || t.ref;
     if (!naam) return;
-    const veilig = String(naam).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
-    boeiNamenLaag.addLayer(L.marker([el.lat, el.lon], {
-      icon: L.divIcon({
-        className: '',
-        html: `<div style="font-size:10px;font-weight:600;color:#0a1628;background:rgba(255,255,255,0.85);
-          padding:1px 5px;border-radius:3px;white-space:nowrap;transform:translate(8px,-8px);
-          box-shadow:0 1px 3px rgba(0,0,0,0.3);">${veilig}</div>`,
-        iconSize: [0, 0], iconAnchor: [0, 0]
-      }),
-      interactive: false, zIndexOffset: 300
-    }));
+    boeiNamenLaag.addLayer(maakBoeiLabel(el.lat, el.lon, naam));
     aantal++;
   });
   if (!aantal) notify('Geen boeinamen bekend in dit gebied');
