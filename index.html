@@ -1355,14 +1355,56 @@ function zoomNaarWantij(waarde) {
   if (!isNaN(lat) && !isNaN(lon)) map.setView([lat, lon], 12);
 }
 
-// Wadplanner: getijvenster (nog niet beschikbaar — geen betrouwbare waterstanden)
-function berekenWadPlanner() {
+// Wadplanner: wanneer staat er genoeg water boven de drempel?
+async function berekenWadPlanner() {
   const el = document.getElementById('wp-resultaat');
   if (!el) return;
   el.style.display = 'block';
-  el.innerHTML = '<div style="font-size:12px;color:var(--amber);padding:8px;border:1px solid rgba(245,166,35,0.3);border-radius:5px;">' +
-    '⚠ Het getijvenster kan nu niet worden berekend: de waterstanden van Rijkswaterstaat zijn niet bereikbaar. ' +
-    'Gebruik de officiële getijtafels (waterinfo.rws.nl).</div>';
+  const kader = (kleur, html) => '<div style="font-size:12px;line-height:1.5;padding:8px;border:1px solid ' + kleur + ';border-radius:5px;">' + html + '</div>';
+  el.innerHTML = kader('var(--border)', '⏳ Getijden laden…');
+
+  const [code, drempelStr] = document.getElementById('wp-wantij').value.split(':');
+  const drempel = parseFloat(drempelStr);
+  const diepgang = parseFloat(document.getElementById('wp-diepgang').value) || 0;
+  const marge = parseFloat(document.getElementById('wp-marge').value) || 0;
+  const nodig = diepgang + marge;
+  const datumStr = document.getElementById('wp-datum').value;
+  const dag = datumStr ? new Date(datumStr + 'T00:00:00') : new Date(new Date().setHours(0, 0, 0, 0));
+  const eind = new Date(dag.getTime() + 86400000);
+
+  const reeks = await getijReeks(code);
+  if (!reeks || getijHoogteOp(reeks, dag) === null || getijHoogteOp(reeks, eind) === null) {
+    el.innerHTML = kader('rgba(245,166,35,0.4)', '⚠ Voor deze datum zijn geen getijgegevens beschikbaar. Gebruik de officiële getijtafels (waterinfo.rws.nl).');
+    return;
+  }
+  // Drempeldiepte geldt bij gemiddeld laagwater van dit station
+  const lagen = reeks.filter(e => e.type === 'laag');
+  const gemLW = lagen.reduce((s, e) => s + e.hoogte, 0) / lagen.length;
+  const diepteOp = t => drempel + (getijHoogteOp(reeks, t) - gemLW) / 100;
+
+  const uur = t => t.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
+  const vensters = []; let start = null, maxDiepte = -99;
+  for (let t = dag.getTime(); t <= eind.getTime(); t += 5 * 60000) {
+    const d = diepteOp(new Date(t));
+    if (d > maxDiepte) maxDiepte = d;
+    if (d >= nodig && start === null) start = t;
+    if ((d < nodig || t === eind.getTime()) && start !== null) { vensters.push([start, d < nodig ? t - 5 * 60000 : t]); start = null; }
+  }
+  const dagExt = reeks.filter(e => e.tijd >= dag && e.tijd < eind);
+  let html = '<b>' + dag.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' }) + '</b><br>' +
+    'Nodig: ' + nodig.toFixed(2) + ' m (diepgang ' + diepgang.toFixed(2) + ' + marge ' + marge.toFixed(2) + ')<br>';
+  if (vensters.length === 0) {
+    html += '<span style="color:var(--danger)">✗ Deze dag komt er niet genoeg water te staan (hoogstens ' + maxDiepte.toFixed(2) + ' m).</span><br>';
+  } else if (vensters.length === 1 && vensters[0][0] === dag.getTime() && vensters[0][1] === eind.getTime()) {
+    html += '<span style="color:var(--teal)">✓ De hele dag genoeg water.</span><br>';
+  } else {
+    html += vensters.map(v => '<span style="color:var(--teal)">✓ ' + uur(new Date(v[0])) + ' – ' + uur(new Date(v[1])) + '</span>').join('<br>') + '<br>';
+  }
+  html += '<div style="margin-top:6px;color:var(--muted)">' + dagExt.map(e =>
+    (e.type === 'hoog' ? '▲ HW ' : '▼ LW ') + uur(e.tijd) + ' · ' + (e.hoogte / 100).toFixed(2) + ' m NAP · ' + diepteOp(e.tijd).toFixed(2) + ' m boven drempel').join('<br>') + '</div>' +
+    '<div style="margin-top:6px;color:var(--amber)">⚠ Astronomisch getij van Rijkswaterstaat, zonder wind. Wind kan de waterstand decimeters verhogen of verlagen. ' +
+    'De drempeldiepte is een richtwaarde bij gemiddeld laagwater; controleer altijd de actuele kaart en lodingen.</div>';
+  el.innerHTML = kader('var(--border)', html);
 }
 
 function toggleWakeLock() {
@@ -2940,6 +2982,46 @@ const GETIJ_STATIONS = [
   { code: 'LAUWOG',    naam: 'Lauwersoog',          lat: 53.413, lon: 6.198, tideId: 'LAUWOG'    },
 ];
 
+// ── GETIJBESTAND (data/getij.json) ─────────────────────────
+let _getijData = null, _getijDataTijd = 0;
+async function laadGetijData() {
+  if (_getijData && Date.now() - _getijDataTijd < 6 * 3600000) return _getijData;
+  try {
+    const r = await fetch('./data/getij.json?d=' + new Date().toISOString().slice(0, 10));
+    if (!r.ok) return null;
+    _getijData = await r.json(); _getijDataTijd = Date.now();
+    return _getijData;
+  } catch (e) { return null; }
+}
+
+// Alle extremen van een station als [{type, tijd, hoogte(cm NAP)}]
+async function getijReeks(code) {
+  const d = await laadGetijData();
+  const st = d && d.stations && d.stations[code];
+  if (!st) return null;
+  return st.extremen.map(e => ({ type: e[2] ? 'hoog' : 'laag', tijd: new Date(e[0] * 60000), hoogte: e[1] }));
+}
+
+// Extremen op één (lokale) dag
+async function getijExtremenUitBestand(code, dag) {
+  const reeks = await getijReeks(code);
+  if (!reeks) return null;
+  const eind = new Date(dag.getTime() + 86400000);
+  return reeks.filter(e => e.tijd >= dag && e.tijd < eind);
+}
+
+// Waterhoogte (cm NAP) op tijdstip t, cosinus-interpolatie tussen hoog- en laagwater
+function getijHoogteOp(reeks, t) {
+  for (let i = 0; i < reeks.length - 1; i++) {
+    const a = reeks[i], b = reeks[i + 1];
+    if (t >= a.tijd && t <= b.tijd) {
+      const f = (t - a.tijd) / (b.tijd - a.tijd);
+      return a.hoogte + (b.hoogte - a.hoogte) * (1 - Math.cos(Math.PI * f)) / 2;
+    }
+  }
+  return null;
+}
+
 function dichtstbijzijndStation(lat, lon) {
   let best = null, bestDist = Infinity;
   for (const s of GETIJ_STATIONS) {
@@ -2998,7 +3080,15 @@ async function laadGetijden(lat, lon) {
     `&startDate=${vandaag}T00:00:00.000Z&endDate=${morgen}T00:00:00.000Z`;
 
   var extremen = null;
-  const data = await fetchJson(rwsInfoUrl);
+
+  // Eerst: astronomisch getij uit het eigen bestand (dagelijks opgehaald bij Rijkswaterstaat)
+  const eigen = await getijExtremenUitBestand(station.code, new Date(now.getFullYear(), now.getMonth(), now.getDate()));
+  if (eigen && eigen.length) {
+    extremen = eigen;
+    statEl.textContent = `📍 ${station.naam} · RWS astronomisch`;
+  }
+
+  const data = extremen ? null : await fetchJson(rwsInfoUrl);
 
   if (data && Array.isArray(data) && data.length > 0) {
     extremen = data.map(e => ({
