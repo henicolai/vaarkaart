@@ -1342,6 +1342,29 @@ function toggleInstellingen() {
   modal.style.display = modal.style.display === 'flex' ? 'none' : 'flex';
 }
 
+// Instellingen sluiten bij klik naast het venster
+function sluitInstellingen(e) {
+  const modal = document.getElementById('instellingen-modal');
+  if (modal && (!e || e.target === modal)) modal.style.display = 'none';
+}
+
+// Wadplanner: kaart naar het gekozen wantij
+function zoomNaarWantij(waarde) {
+  const d = String(waarde).split(':');
+  const lat = parseFloat(d[2]), lon = parseFloat(d[3]);
+  if (!isNaN(lat) && !isNaN(lon)) map.setView([lat, lon], 12);
+}
+
+// Wadplanner: getijvenster (nog niet beschikbaar — geen betrouwbare waterstanden)
+function berekenWadPlanner() {
+  const el = document.getElementById('wp-resultaat');
+  if (!el) return;
+  el.style.display = 'block';
+  el.innerHTML = '<div style="font-size:12px;color:var(--amber);padding:8px;border:1px solid rgba(245,166,35,0.3);border-radius:5px;">' +
+    '⚠ Het getijvenster kan nu niet worden berekend: de waterstanden van Rijkswaterstaat zijn niet bereikbaar. ' +
+    'Gebruik de officiële getijtafels (waterinfo.rws.nl).</div>';
+}
+
 function toggleWakeLock() {
   const btn = document.getElementById('wakelock-btn');
   if (!('wakeLock' in navigator)) {
