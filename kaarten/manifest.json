@@ -1,6 +1,22 @@
 [
-  {"bestand":"overzicht-ijsselmeer-1820-1.json","naam":"1820.1 Overzichtskaart IJsselmeer"},
-  {"bestand":"noordzeekanaal-1820-2.json","naam":"1820.2 Noordzeekanaal (IJmuiden–Oranjesluizen)"},
-  {"bestand":"ijmuiden-1820-2-inzet.json","naam":"1820.2 IJmuiden (inzet, 1:20.000)"},
-  {"bestand":"markermeer-1820-3.json","naam":"1820.3 Markermeer"}
+ {
+  "bestand": "overzicht-ijsselmeer-1820-1.json",
+  "naam": "1820.1 Overzichtskaart IJsselmeer"
+ },
+ {
+  "bestand": "noordzeekanaal-1820-2.json",
+  "naam": "1820.2 Noordzeekanaal (IJmuiden–Oranjesluizen)"
+ },
+ {
+  "bestand": "ijmuiden-1820-2-inzet.json",
+  "naam": "1820.2 IJmuiden (inzet, 1:20.000)"
+ },
+ {
+  "bestand": "markermeer-1820-3.json",
+  "naam": "1820.3 Markermeer"
+ },
+ {
+  "bestand": "ijsselmeer-1820-4.json",
+  "naam": "1820.4 IJsselmeer"
+ }
 ]
