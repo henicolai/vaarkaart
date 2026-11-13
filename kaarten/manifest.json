@@ -18,5 +18,17 @@
  {
   "bestand": "ijsselmeer-1820-4.json",
   "naam": "1820.4 IJsselmeer"
+ },
+ {
+  "bestand": "waddenzee-west-1811-1.json",
+  "naam": "1811.1 Overzichtskaart Waddenzee (west)"
+ },
+ {
+  "bestand": "terschelling-harlingen-1811-4.json",
+  "naam": "1811.4 Zeegat van Terschelling tot Harlingen"
+ },
+ {
+  "bestand": "harlingen-aanloop-1811-5.json",
+  "naam": "1811.5 Harlingen en aanloop (1:25.000)"
  }
 ]
