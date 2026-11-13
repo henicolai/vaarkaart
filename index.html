@@ -5196,9 +5196,10 @@ async function laadMijnKaarten() {
 async function laadTegelKaart(indexBestand, naam) {
   const basis = './kaarten/' + indexBestand.replace(/[^/]*$/, '');
   const idx = await (await fetch('./kaarten/' + indexBestand + '?t=' + Date.now())).json();
-  const binUrl = basis + (idx.bin || indexBestand.replace(/\.json$/i, '.bin')).replace(/^.*\//, '');
+  const binBasis = basis + (idx.bin || indexBestand.replace(/\.json$/i, '')).replace(/^.*\//, '').replace(/\.bin$/i, '');
+  const binUrlVan = (deel) => binBasis + (deel ? '.' + deel : '') + '.bin';
   const tiles = idx.tiles;
-  let heleBin = null; // fallback als server geen Range ondersteunt
+  const heleBin = {}; // fallback als server geen Range ondersteunt
   const [zuid, west, noord, oost] = idx.bounds;
   const bounds = [[zuid, west], [noord, oost]];
 
@@ -5209,13 +5210,13 @@ async function laadTegelKaart(indexBestand, naam) {
       if (!t) { done(null, img); return img; }
       (async () => {
         try {
-          let buf;
-          if (heleBin) {
-            buf = heleBin.slice(t[0], t[0] + t[1]);
+          let buf; const deel = t[2] || 0;
+          if (heleBin[deel]) {
+            buf = heleBin[deel].slice(t[0], t[0] + t[1]);
           } else {
-            const r = await fetch(binUrl, { headers: { Range: 'bytes=' + t[0] + '-' + (t[0] + t[1] - 1) } });
+            const r = await fetch(binUrlVan(deel), { headers: { Range: 'bytes=' + t[0] + '-' + (t[0] + t[1] - 1) } });
             if (r.status === 206) buf = await r.arrayBuffer();
-            else { heleBin = await r.arrayBuffer(); buf = heleBin.slice(t[0], t[0] + t[1]); }
+            else { heleBin[deel] = await r.arrayBuffer(); buf = heleBin[deel].slice(t[0], t[0] + t[1]); }
           }
           const url = URL.createObjectURL(new Blob([buf], { type: 'image/jpeg' }));
           img.onload = () => { URL.revokeObjectURL(url); done(null, img); };
