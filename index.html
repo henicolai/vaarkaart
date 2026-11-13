@@ -2923,41 +2923,59 @@ function herlaadBoeiNamenOpBeweging() {
   boeiNamenTimer = setTimeout(() => { if (boeiNamenAan) laadBoeiNamen(); }, 800);
 }
 
+const OVERPASS_SERVERS = [
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.private.coffee/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter',
+];
+let _boeiNamenBezig = 0;
+
 async function laadBoeiNamen() {
   if (map.getZoom() < 12) {
     boeiNamenLaag.clearLayers();
+    notify('Zoom verder in voor boeinamen');
     return;
   }
   const b = map.getBounds();
   const bbox = `${b.getSouth()},${b.getWest()},${b.getNorth()},${b.getEast()}`;
+  // Alleen boeien en bakens — geen havens, sluizen of bruggen
   const query = `[out:json][timeout:15];
-    node["seamark:type"]["name"](${bbox});
+    node["seamark:type"~"^(buoy|beacon)_"](${bbox});
     out body;`;
-  try {
-    const resp = await fetch('https://overpass-api.de/api/interpreter', {
-      method: 'POST',
-      body: 'data=' + encodeURIComponent(query)
-    });
-    if (!resp.ok) throw new Error('Overpass fout ' + resp.status);
-    const data = await resp.json();
-    boeiNamenLaag.clearLayers();
-    (data.elements || []).forEach(el => {
-      if (!el.tags?.name) return;
-      const label = L.marker([el.lat, el.lon], {
-        icon: L.divIcon({
-          className: '',
-          html: `<div style="font-size:10px;font-weight:600;color:#0a1628;background:rgba(255,255,255,0.85);
-            padding:1px 5px;border-radius:3px;white-space:nowrap;transform:translate(8px,-8px);
-            box-shadow:0 1px 3px rgba(0,0,0,0.3);">${el.tags.name}</div>`,
-          iconSize: [0, 0], iconAnchor: [0, 0]
-        }),
-        interactive: false, zIndexOffset: 300
-      });
-      boeiNamenLaag.addLayer(label);
-    });
-  } catch(err) {
-    console.warn('Boeinamen laden mislukt:', err.message);
+  const beurt = ++_boeiNamenBezig;
+  let data = null;
+  for (const server of OVERPASS_SERVERS) {
+    const stop = new AbortController();
+    const klok = setTimeout(() => stop.abort(), 12000);
+    try {
+      const resp = await fetch(server, { method: 'POST', body: 'data=' + encodeURIComponent(query), signal: stop.signal });
+      if (resp.ok) { data = await resp.json(); clearTimeout(klok); break; }
+    } catch (err) { /* volgende server proberen */ }
+    clearTimeout(klok);
   }
+  if (beurt !== _boeiNamenBezig) return; // kaart is intussen verschoven
+  if (!data) { notify('Boeinamen nu niet beschikbaar (OpenStreetMap-server reageert niet)'); return; }
+
+  boeiNamenLaag.clearLayers();
+  let aantal = 0;
+  (data.elements || []).forEach(el => {
+    const t = el.tags || {};
+    const naam = t['seamark:name'] || t.name || t['seamark:ref'] || t.ref;
+    if (!naam) return;
+    const veilig = String(naam).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+    boeiNamenLaag.addLayer(L.marker([el.lat, el.lon], {
+      icon: L.divIcon({
+        className: '',
+        html: `<div style="font-size:10px;font-weight:600;color:#0a1628;background:rgba(255,255,255,0.85);
+          padding:1px 5px;border-radius:3px;white-space:nowrap;transform:translate(8px,-8px);
+          box-shadow:0 1px 3px rgba(0,0,0,0.3);">${veilig}</div>`,
+        iconSize: [0, 0], iconAnchor: [0, 0]
+      }),
+      interactive: false, zIndexOffset: 300
+    }));
+    aantal++;
+  });
+  if (!aantal) notify('Geen boeinamen bekend in dit gebied');
 }
 
 function getBbox() {
@@ -3844,13 +3862,14 @@ function plaatsGpxPunten(punten, trkPunten) {
   }
 
   punten.forEach((p, i) => {
-    if (p.type === 'trk' && i !== 0 && i !== trkPunten.length - 1) {
+    // Van een track alleen begin- en eindpunt als markering tonen
+    if (p.type === 'trk' && p.idx !== 0 && p.idx !== trkPunten.length - 1) {
       bounds.push([p.lat, p.lon]);
       return;
     }
-    const naamEl = p.el.querySelector('name, n, Name, NAME');
+    const naamEl = p.el ? p.el.querySelector('name, n, Name, NAME') : null;
     const naam = (naamEl?.textContent?.trim()) || p.naam || `WP ${i+1}`;
-    const desc = p.el.querySelector('desc, cmt, Desc, DESC')?.textContent?.trim() || '';
+    const desc = (p.el ? p.el.querySelector('desc, cmt, Desc, DESC')?.textContent?.trim() : p.desc) || '';
     const icon = L.divIcon({
       className: '',
       html: `<div style="font-size:20px;line-height:1;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.6));">${_gpxGekozenIcon.emoji}</div>`,
@@ -3875,6 +3894,29 @@ function handleGpxDrop(event) {
   document.getElementById('gpx-dropzone').style.background = 'rgba(245,166,35,0.04)';
   const file = event.dataTransfer.files[0];
   if (file) laadGpx(file);
+}
+
+// Leest wpt/rtept/trkpt rechtstreeks uit de tekst (werkt ook bij ongeldige XML)
+function gpxPuntenUitTekst(tekst) {
+  const ontsnap = s => s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').replace(/<[^>]+>/g, '')
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, '&').trim();
+  const veld = (inhoud, namen) => {
+    const m = new RegExp('<(?:\\w+:)?(' + namen + ')\\b[^>]*>([\\s\\S]*?)<\\/(?:\\w+:)?\\1\\s*>', 'i').exec(inhoud || '');
+    return m ? ontsnap(m[2]) : null;
+  };
+  const soort = { wpt: 'wpt', rtept: 'rte', trkpt: 'trk' };
+  const tel = { wpt: 0, rte: 0, trk: 0 };
+  const uit = [];
+  const re = /<(?:\w+:)?(wpt|rtept|trkpt)\b([^>]*?)(?:\/>|>([\s\S]*?)<\/(?:\w+:)?\1\s*>)/gi;
+  let m;
+  while ((m = re.exec(tekst))) {
+    const lat = parseFloat((/\blat\s*=\s*["']([^"']+)["']/i.exec(m[2]) || [])[1]);
+    const lon = parseFloat((/\blon\s*=\s*["']([^"']+)["']/i.exec(m[2]) || [])[1]);
+    if (isNaN(lat) || isNaN(lon)) continue;
+    const type = soort[m[1].toLowerCase()];
+    uit.push({ el: null, lat, lon, type, idx: tel[type]++, naam: veld(m[3], 'name|n'), desc: veld(m[3], 'desc|cmt') });
+  }
+  return uit;
 }
 
 function laadGpx(file) {
@@ -3923,6 +3965,11 @@ function laadGpx(file) {
         const lon = parseFloat(el.getAttribute('lon'));
         if (!isNaN(lat) && !isNaN(lon)) punten.push({ el, lat, lon, type: 'trk', idx: i, naam: haalNaam(el) });
       });
+
+      // Is het bestand geen nette XML (bv. een losse & in een naam), dan stopt de XML-lezer
+      // na het eerste punt. Lees de punten dan rechtstreeks uit de tekst.
+      const ruw = gpxPuntenUitTekst(tekst);
+      if (ruw.length > punten.length) punten = ruw;
 
       if (!punten.length) {
         statusEl.style.color = 'var(--amber)';
