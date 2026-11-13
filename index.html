@@ -173,9 +173,16 @@
     }
 
     .sidebar-title.menu-kop { cursor:pointer; display:flex; justify-content:space-between; align-items:center; user-select:none; }
+    .sidebar-title.menu-kop { text-transform:none; letter-spacing:0.5px; font-size:17px; color:#fff; }
+    .menu-tekst { display:flex; flex-direction:column; gap:1px; min-width:0; }
+    .menu-uitleg { font-family:system-ui,sans-serif; font-size:11px; letter-spacing:0; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .sidebar-section:not(.menu-dicht) > .menu-kop .menu-naam { color:var(--teal); }
+    .sidebar-section:not(.menu-dicht) > .menu-kop .menu-uitleg { display:none; }
+    .menu-groep { font-family:'Teko',sans-serif; font-size:12px; letter-spacing:2.5px; text-transform:uppercase; color:var(--amber);
+      padding:14px 16px 5px; background:rgba(0,0,0,0.25); border-top:1px solid var(--border); }
     .sidebar-title.menu-kop .menu-pijl { font-size:12px; color:var(--muted); }
     .sidebar-section.menu-dicht { padding-top:11px; padding-bottom:11px; }
-    .sidebar-section.menu-dicht > .sidebar-title { margin-bottom:0; color:var(--text, #cfe); opacity:0.85; }
+    .sidebar-section.menu-dicht > .sidebar-title { margin-bottom:0; }
     .sidebar-section.menu-dicht > .menu-inhoud { display:none; }
 
     /* GPS Panel */
@@ -1322,8 +1329,25 @@ window.addEventListener('error', function(e) {
   let stand = {};
   try { stand = JSON.parse(localStorage.getItem('vaarkaart_menu') || '{}'); } catch (e) {}
   const standaardOpen = ['GPS Positie', 'Route'];
-  const volgorde = ['GPS Positie', 'Route', 'Lagen', 'Eigen Zeekaarten', 'Stroom & Getijden', 'Wind',
-    'GPX laden', 'Route Planner', 'Wad', 'Opgeslagen routes', 'Havens', 'Bruggen', 'Stremmingen'];
+  // [begin van de oude naam, nieuwe naam, korte uitleg, groep]
+  const indeling = [
+    ['GPS Positie',       'Mijn positie',        'GPS, centreren, externe GPS',            'Varen'],
+    ['Route Planner',     'Route plannen',       'Van A naar B met tussenpunten',          'Varen'],
+    ['Route',             'Tocht opnemen',       'Start, stop en bewaar je gevaren spoor', 'Varen'],
+    ['Opgeslagen routes', 'Bewaarde tochten',    'Eerder opgenomen sporen',                'Varen'],
+    ['Lagen',             'Kaartlagen',          'Zeetekens, boeinamen, PDOK, diepte',     'Kaart'],
+    ['Eigen Zeekaarten',  'Mijn zeekaarten',     'Eigen kaarten laden, tonen, weghalen',   'Kaart'],
+    ['GPX laden',         'GPX-bestand laden',   'Waypoints en tracks uit een bestand',    'Kaart'],
+    ['Stroom & Getijden', 'Stroom en getij',     'Hoog- en laagwater, stroming',           'Water en weer'],
+    ['Wad',               'Wadplanner',          'Wanneer kan ik over het wantij?',        'Water en weer'],
+    ['Wind',              'Wind',                'Windpijlen en verwachting',              'Water en weer'],
+    ['Havens',            'Havens',              'Jachthavens op de kaart',                'Onderweg'],
+    ['Bruggen',           'Bruggen en sluizen',  'Hoogtes en bediening',                   'Onderweg'],
+    ['Stremmingen',       'Stremmingen',         'Actuele vaarwegmeldingen',               'Onderweg'],
+  ];
+  const volgorde = indeling.slice().sort((x, y) =>
+    ['Varen', 'Kaart', 'Water en weer', 'Onderweg'].indexOf(x[3]) - ['Varen', 'Kaart', 'Water en weer', 'Onderweg'].indexOf(y[3]));
+  const zoek = n => indeling.find(r => n.startsWith(r[0]));
   const secties = [];
   sidebar.querySelectorAll(':scope > .sidebar-section').forEach(sec => {
     const kop = sec.querySelector(':scope > .sidebar-title');
@@ -1333,6 +1357,19 @@ window.addEventListener('error', function(e) {
     // Oude eigen inklapper van deze kop uitschakelen: inhoud altijd tonen binnen de nieuwe inklapper
     const oud = /toggleSectie\('([^']+)'/.exec(kop.getAttribute('onclick') || '');
     kop.removeAttribute('onclick');
+    kop.removeAttribute('style');
+    const info = zoek(naam);
+    if (info) {
+      const emoji = (kop.textContent.trim().match(/^[^\p{L}\p{N}]+/u) || [''])[0].replace(/[▼▶]/g, '').trim();
+      kop.textContent = '';
+      const tekst = document.createElement('span');
+      tekst.className = 'menu-tekst';
+      tekst.innerHTML = '<span class="menu-naam"></span><span class="menu-uitleg"></span>';
+      tekst.firstChild.textContent = (emoji ? emoji + ' ' : '') + info[1];
+      tekst.lastChild.textContent = info[2];
+      kop.appendChild(tekst);
+      sec.dataset.groep = info[3];
+    }
     kop.querySelectorAll('span[id$="-pijl"]').forEach(s => s.remove());
     const inhoud = document.createElement('div');
     inhoud.className = 'menu-inhoud';
@@ -1359,9 +1396,20 @@ window.addEventListener('error', function(e) {
       if (open) setTimeout(() => sec.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 50);
     });
   });
-  // Meest gebruikte onderdelen bovenaan
-  const rang = n => { const i = volgorde.findIndex(v => n.startsWith(v)); return i < 0 ? 99 : i; };
-  secties.sort((a, b) => rang(a.naam) - rang(b.naam)).forEach(s => sidebar.appendChild(s.sec));
+  // Onderdelen per groep onder een tussenkopje zetten
+  const rang = n => { const i = volgorde.findIndex(v => n.startsWith(v[0]) && v === zoek(n)); return i < 0 ? 99 : i; };
+  let vorigeGroep = null;
+  secties.sort((a, b) => rang(a.naam) - rang(b.naam)).forEach(s => {
+    const g = s.sec.dataset.groep;
+    if (g && g !== vorigeGroep) {
+      const kopje = document.createElement('div');
+      kopje.className = 'menu-groep';
+      kopje.textContent = g;
+      sidebar.appendChild(kopje);
+      vorigeGroep = g;
+    }
+    sidebar.appendChild(s.sec);
+  });
 })();
 
 function toggleSectie(id, titleEl) {
