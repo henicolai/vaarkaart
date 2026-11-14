@@ -42,5 +42,21 @@
  {
   "bestand": "noordzee-noord-1706.json",
   "naam": "Hollandse kust: Hoek van Holland–Den Helder (NZN 1706)"
+ },
+ {
+  "bestand": "sneek-17.json",
+  "naam": "Friesland: Sneek en Sneekermeer (blad 17)"
+ },
+ {
+  "bestand": "makkum-16.json",
+  "naam": "Friesland: Makkum en Afsluitdijk-oost (blad 16)"
+ },
+ {
+  "bestand": "lemmer-26.json",
+  "naam": "Friesland: Lemmer en Noordoostpolder-noord (blad 26)"
+ },
+ {
+  "bestand": "leeuwarden-dokkum.json",
+  "naam": "Friesland: Leeuwarden–Dokkum"
  }
 ]
