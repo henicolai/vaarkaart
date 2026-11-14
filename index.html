@@ -605,6 +605,19 @@
       </label>
     </div>
 
+    <!-- Kaartrichting -->
+    <div class="setting-group">
+      <div class="setting-group-title">Kaartrichting tijdens varen</div>
+      <label class="setting-option" id="opt-north">
+        <input type="radio" name="orientatie" value="north" checked onchange="slaInstellingenOp()">
+        <div><div class="setting-label">Noord boven</div><div class="setting-sublabel">De kaart blijft stilstaan, noorden altijd boven</div></div>
+      </label>
+      <label class="setting-option" id="opt-course">
+        <input type="radio" name="orientatie" value="course" onchange="slaInstellingenOp()">
+        <div><div class="setting-label">Koers boven</div><div class="setting-sublabel">De kaart draait mee, je vaarrichting wijst omhoog</div></div>
+      </label>
+    </div>
+
     <!-- Wake Lock -->
     <div class="setting-group">
       <div class="setting-group-title">Scherm</div>
@@ -1659,9 +1672,22 @@ function notify(tekst) {
 }
 
 // Kaart meedraaien met vaarrichting (leaflet-rotate)
-function updateKoersOmhoog(heading) {
+// Alleen tijdens bewegen (stilliggend is de GPS-koers onbetrouwbaar) en pas bij 3° verschil, tegen trillen.
+let _kaartKoers = 0;
+function updateKoersOmhoog(heading, speed) {
+  if (typeof map.setBearing !== 'function') return;
   if (heading === null || heading === undefined || isNaN(heading)) return;
-  if (typeof map.setBearing === 'function') map.setBearing(heading);
+  if (!(speed > 0.5)) return;               // < ca. 1 knoop: laatste richting vasthouden
+  let d = Math.abs(heading - _kaartKoers) % 360; if (d > 180) d = 360 - d;
+  if (d < 3) return;
+  _kaartKoers = heading;
+  map.setBearing(-heading);                 // kaart tegen de koers in draaien => koers wijst omhoog
+}
+function pasOrientatieToe() {
+  if (instellingen.orientatie !== 'course' && typeof map.setBearing === 'function') {
+    _kaartKoers = 0;
+    map.setBearing(0);
+  }
 }
 
 // Eenmalig: OpenSeaMap weer aanzetten (oude opgeslagen 'uit'-stand uit eerdere foutieve versies)
@@ -1870,7 +1896,7 @@ function onPosition(pos) {
 
   // Koers omhoog — draai kaart mee met vaarrichting
   if (instellingen.orientatie === 'course') {
-    updateKoersOmhoog(heading);
+    updateKoersOmhoog(heading, speed);
   }
 
   // Kompasroos meedraaiend met GPS heading
@@ -4189,9 +4215,11 @@ function slaInstellingenOp() {
     snelheid:     document.querySelector('input[name="snelheid"]:checked')?.value || 'kn',
     coordformaat: document.querySelector('input[name="coordformaat"]:checked')?.value || 'dd',
     afstand:      document.querySelector('input[name="afstand"]:checked')?.value || 'nm',
+    orientatie:   document.querySelector('input[name="orientatie"]:checked')?.value || 'north',
   };
   localStorage.setItem('vaarkaart_instellingen', JSON.stringify(inst));
   Object.assign(instellingen, inst);
+  pasOrientatieToe();
 }
 
 function laadInstellingen() {
@@ -4208,6 +4236,10 @@ function laadInstellingen() {
     }
     if (inst.afstand) {
       const el = document.querySelector(`input[name="afstand"][value="${inst.afstand}"]`);
+      if (el) el.checked = true;
+    }
+    if (inst.orientatie) {
+      const el = document.querySelector(`input[name="orientatie"][value="${inst.orientatie}"]`);
       if (el) el.checked = true;
     }
   } catch(e) {}
