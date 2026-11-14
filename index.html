@@ -1503,31 +1503,50 @@ async function berekenWadPlanner() {
   el.innerHTML = kader('var(--border)', html);
 }
 
-function toggleWakeLock() {
-  const btn = document.getElementById('wakelock-btn');
+// Scherm wakker houden (Wake Lock). Het slot vervalt als de app naar de achtergrond gaat; daarom opnieuw vragen bij terugkeer.
+let _wakeGewenst = false;
+function wakeUI(aan, tekst) {
+  const st = document.getElementById('wakelock-status');
+  const tg = document.getElementById('wakelock-toggle');
+  const kn = document.getElementById('wakelock-knop');
+  if (st) st.textContent = tekst;
+  if (tg) tg.style.background = aan ? 'var(--accent, #2a9d8f)' : 'rgba(255,255,255,0.1)';
+  if (kn) { kn.style.left = aan ? '21px' : '3px'; kn.style.background = aan ? '#fff' : 'var(--muted)'; }
+}
+async function vraagWakeLock() {
   if (!('wakeLock' in navigator)) {
-    if (btn) btn.textContent = 'Niet beschikbaar op dit apparaat';
+    _wakeGewenst = false;
+    wakeUI(false, 'Niet ondersteund door deze browser');
     return;
   }
-  if (window._wakeLock) {
-    window._wakeLock.release();
-    window._wakeLock = null;
-    if (btn) btn.textContent = 'Tik om te activeren';
-  } else {
-    navigator.wakeLock.request('screen').then(lock => {
-      window._wakeLock = lock;
-      if (btn) btn.textContent = 'Actief — tik om te deactiveren';
-      lock.addEventListener('release', () => {
-        window._wakeLock = null;
-        if (btn) btn.textContent = 'Tik om te activeren';
-      });
-    }).catch(() => {
-      if (btn) btn.textContent = 'Activeren mislukt';
+  try {
+    const lock = await navigator.wakeLock.request('screen');
+    window._wakeLock = lock;
+    wakeUI(true, 'Actief — tik om uit te zetten');
+    lock.addEventListener('release', () => {
+      window._wakeLock = null;
+      if (_wakeGewenst && document.visibilityState === 'visible') vraagWakeLock();
+      else if (!_wakeGewenst) wakeUI(false, 'Tik om te activeren');
     });
+  } catch (e) {
+    window._wakeLock = null;
+    _wakeGewenst = false;
+    wakeUI(false, 'Activeren mislukt: ' + (e && e.name ? e.name : 'onbekend') + ' (batterijbesparing aan?)');
   }
 }
-
-
+function toggleWakeLock() {
+  if (_wakeGewenst) {
+    _wakeGewenst = false;
+    if (window._wakeLock) { try { window._wakeLock.release(); } catch (e) {} window._wakeLock = null; }
+    wakeUI(false, 'Tik om te activeren');
+  } else {
+    _wakeGewenst = true;
+    vraagWakeLock();
+  }
+}
+document.addEventListener('visibilitychange', () => {
+  if (_wakeGewenst && !window._wakeLock && document.visibilityState === 'visible') vraagWakeLock();
+});
 
 // ── GLOBALE INSTELLINGEN ──────────────────────────────────
 const instellingen = Object.assign(
