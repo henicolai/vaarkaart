@@ -34,5 +34,13 @@
  {
   "bestand": "noordzee-zuid-1706.json",
   "naam": "Zeeland en Belgische kust (NZZ 1706)"
+ },
+ {
+  "bestand": "ijsselmeer-waddenzee-west.json",
+  "naam": "IJsselmeer en Waddenzee West (overzicht 2017)"
+ },
+ {
+  "bestand": "noordzee-noord-1706.json",
+  "naam": "Hollandse kust: Hoek van Holland–Den Helder (NZN 1706)"
  }
 ]
