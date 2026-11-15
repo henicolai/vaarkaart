@@ -787,6 +787,14 @@
       </div>
 
       <div class="toggle-row">
+        <span class="toggle-label">ENC zeekaart (Hydrografie)</span>
+        <label class="toggle">
+          <input type="checkbox" id="toggle-enc" onchange="toggleEnc(this.checked)">
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-row">
         <span class="toggle-label">Satelliet ondergrond</span>
         <label class="toggle">
           <input type="checkbox" id="toggle-sat" onchange="toggleSatellite(this.checked)">
@@ -5687,5 +5695,6 @@ function verwerkKaartBestand(file) {
 
 
 </script>
+<script src="enc.js?v=1"></script>
 </body>
 </html>
