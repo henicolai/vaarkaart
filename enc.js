@@ -380,7 +380,7 @@
   window.toggleEnc = function (aan) {
     ENC.aan = aan;
     if (aan) {
-      if (!map.getPane('encPane')) { map.createPane('encPane'); map.getPane('encPane').style.zIndex = 250; }
+      if (!map.getPane('encPane')) { map.createPane('encPane', map.getPane('rotatePane') || undefined); map.getPane('encPane').style.zIndex = 250; }   // in de draaiende laag, boven de ondergrond
       if (!ENC.laag) ENC.laag = new Laag({ pane: 'encPane', tileSize: 256, minZoom: 6, maxZoom: 20, updateWhenZooming: false, keepBuffer: 1, attribution: 'ENC © Dienst der Hydrografie' });
       ENC.laag.addTo(map);
     } else if (ENC.laag) map.removeLayer(ENC.laag);
