@@ -3475,24 +3475,35 @@ const KAART_STROOM_STATIONS = [
 const _KUST_STATIONS = { SCHEVNGN: 1, IJMDBTHVN: 1, HOEKVHLD: 1 };   // bestaande punten aan open zee
 
 function maakStroomPijlIcon(richtingGr, snelheidKn, isLive) {
-  const kleur = snelheidKn > 2.0 ? '#e84545'
-              : snelheidKn > 1.0 ? '#f5a623'
-              : '#4fc3f7';
-  const grootte = Math.max(24, Math.min(44, 24 + snelheidKn * 8));
-  const opacity = isLive ? 1.0 : 0.65;
-
+  // Donkere kleuren met witte rand en donkere schaduw, zodat de pijl ook op de lichtblauwe zeekaart opvalt
+  const kleur = snelheidKn > 2.0 ? '#d32f2f'
+              : snelheidKn > 1.0 ? '#ef6c00'
+              : '#0d47a1';
+  const grootte = Math.round(Math.max(28, Math.min(48, 28 + snelheidKn * 8)));
+  const schaduw = 'filter: drop-shadow(0 0 2px #fff) drop-shadow(0 1px 2px rgba(0,0,0,.7));';
+  // Kentering: bijna geen stroom -> rondje in plaats van een pijl
+  if (snelheidKn < 0.15) {
+    return L.divIcon({
+      className: '',
+      html: `<div style="width:18px;height:18px;border-radius:50%;background:#fff;border:3px solid ${kleur};box-sizing:border-box;${schaduw}cursor:pointer;"></div>`,
+      iconSize: [18, 18], iconAnchor: [9, 9], popupAnchor: [0, -9]
+    });
+  }
+  // Meting = gevulde pijl; schatting = witte pijl met gekleurde rand
+  const vul  = isLive ? kleur : '#ffffff';
+  const rand = isLive ? '#ffffff' : kleur;
+  const dikte = isLive ? 1.5 : 2.6;
   return L.divIcon({
     className: '',
     html: `<div style="
       width:${grootte}px; height:${grootte}px;
       display:flex; align-items:center; justify-content:center;
       transform: rotate(${richtingGr}deg);
-      opacity:${opacity};
-      filter: drop-shadow(0 0 4px ${kleur});
+      ${schaduw}
       cursor:pointer;
     ">
       <svg viewBox="0 0 24 24" width="${grootte}" height="${grootte}" xmlns="http://www.w3.org/2000/svg">
-        <polygon points="12,2 22,22 12,17 2,22" fill="${kleur}" stroke="white" stroke-width="1"/>
+        <polygon points="12,2 21,21 12,16.5 3,21" fill="${vul}" stroke="${rand}" stroke-width="${dikte}" stroke-linejoin="round"/>
       </svg>
     </div>`,
     iconSize: [grootte, grootte],
