@@ -3433,7 +3433,46 @@ const KAART_STROOM_STATIONS = [
   { code: 'OUDSD',     naam: 'Oudeschild',           lat: 53.041, lon: 4.851 },
   { code: 'SCHEVNGN',  naam: 'Scheveningen',         lat: 52.105, lon: 4.272 },
   { code: 'HUIBGT',    naam: 'Huibertgat',           lat: 53.577, lon: 6.404 },
+  // ── Extra schattingspunten in geulen en zeegaten ──
+  // code = getijstation waarvan hoog/laagwater wordt gebruikt, vloed = richting waarheen de vloed stroomt,
+  // max = geschatte topsnelheid (kn) bij gemiddeld tij, minz = zoomniveau vanaf waar de pijl verschijnt.
+  { code: 'DENHDR',    naam: 'Schulpengat',          lat: 52.900, lon: 4.660, vloed: 20,  max: 2.0, minz: 10 },
+  { code: 'DENHDR',    naam: 'Molengat',             lat: 53.030, lon: 4.670, vloed: 165, max: 1.5, minz: 10 },
+  { code: 'DENHDR',    naam: 'Malzwin',              lat: 52.980, lon: 4.900, vloed: 120, max: 1.5, minz: 10 },
+  { code: 'DENHDR',    naam: 'Amsteldiep',           lat: 52.930, lon: 4.960, vloed: 150, max: 1.0, minz: 11 },
+  { code: 'OUDSD',     naam: 'Texelstroom',          lat: 53.020, lon: 4.910, vloed: 50,  max: 2.5, minz: 9 },
+  { code: 'OUDSD',     naam: 'Texelstroom oost',     lat: 53.060, lon: 5.030, vloed: 75,  max: 2.0, minz: 10 },
+  { code: 'KORNWDZBTN',naam: 'Doove Balg',           lat: 53.075, lon: 5.200, vloed: 90,  max: 1.5, minz: 10 },
+  { code: 'HARVT',     naam: 'Boontjes',             lat: 53.120, lon: 5.375, vloed: 185, max: 1.0, minz: 10 },
+  { code: 'HARVT',     naam: 'Pollendam',            lat: 53.192, lon: 5.350, vloed: 110, max: 1.5, minz: 11 },
+  { code: 'HARVT',     naam: 'Blauwe Slenk',         lat: 53.225, lon: 5.250, vloed: 130, max: 1.8, minz: 10 },
+  { code: 'HARVT',     naam: 'Inschot',              lat: 53.200, lon: 5.120, vloed: 175, max: 1.5, minz: 10 },
+  { code: 'WESTTSLG',  naam: 'Vliestroom',           lat: 53.295, lon: 5.140, vloed: 140, max: 2.5, minz: 9 },
+  { code: 'WESTTSLG',  naam: 'Zeegat het Vlie',      lat: 53.320, lon: 5.020, vloed: 100, max: 2.2, minz: 9 },
+  { code: 'WESTTSLG',  naam: 'Schuitengat',          lat: 53.350, lon: 5.185, vloed: 60,  max: 1.2, minz: 11 },
+  { code: 'WESTTSLG',  naam: 'West Meep',            lat: 53.330, lon: 5.280, vloed: 80,  max: 1.5, minz: 10 },
+  { code: 'WESTTSLG',  naam: 'Borndiep',             lat: 53.440, lon: 5.600, vloed: 150, max: 2.5, minz: 9 },
+  { code: 'LAUWOG',    naam: 'Dantziggat',           lat: 53.420, lon: 5.760, vloed: 90,  max: 1.0, minz: 10 },
+  { code: 'LAUWOG',    naam: 'Westgat',              lat: 53.500, lon: 6.050, vloed: 120, max: 1.8, minz: 10 },
+  { code: 'LAUWOG',    naam: 'Zoutkamperlaag',       lat: 53.465, lon: 6.130, vloed: 150, max: 2.0, minz: 9 },
+  { code: 'HUIBGT',    naam: 'Westereems',           lat: 53.600, lon: 6.520, vloed: 110, max: 2.0, minz: 9 },
+  { code: 'DELFZL',    naam: 'Doekegat',             lat: 53.430, lon: 6.920, vloed: 150, max: 2.2, minz: 10 },
+  { code: 'DELFZL',    naam: 'Bocht van Watum',      lat: 53.360, lon: 6.960, vloed: 160, max: 2.0, minz: 10 },
+  { code: 'VLISSGN',   naam: 'Wielingen',            lat: 51.420, lon: 3.400, vloed: 90,  max: 2.0, minz: 9 },
+  { code: 'VLISSGN',   naam: 'Pas van Terneuzen',    lat: 51.360, lon: 3.800, vloed: 100, max: 2.5, minz: 9 },
+  { code: 'VLISSGN',   naam: 'Hansweert',            lat: 51.430, lon: 4.000, vloed: 60,  max: 2.5, minz: 9 },
+  // Open kust: daar loopt de vloedstroom het hardst rond hoogwater en kentert hij halverwege
+  { code: 'HOEKVHLD',  naam: 'Kust bij Goeree',      lat: 51.850, lon: 3.850, vloed: 40,  max: 1.3, minz: 9, kust: true },
+  { code: 'IJMDBTHVN', naam: 'Kust bij Noordwijk',   lat: 52.270, lon: 4.350, vloed: 30,  max: 1.3, minz: 9, kust: true },
+  { code: 'IJMDBTHVN', naam: 'Kust bij Egmond',      lat: 52.620, lon: 4.550, vloed: 10,  max: 1.3, minz: 9, kust: true },
+  { code: 'DENHDR',    naam: 'Kust bij Callantsoog', lat: 52.840, lon: 4.620, vloed: 10,  max: 1.3, minz: 9, kust: true },
+  { code: 'DENHDR',    naam: 'Texel westkust',       lat: 53.100, lon: 4.650, vloed: 20,  max: 1.3, minz: 9, kust: true },
+  { code: 'WESTTSLG',  naam: 'Vlieland noordkust',   lat: 53.330, lon: 4.900, vloed: 60,  max: 1.3, minz: 9, kust: true },
+  { code: 'WESTTSLG',  naam: 'Terschelling noordkust', lat: 53.470, lon: 5.350, vloed: 80, max: 1.3, minz: 9, kust: true },
+  { code: 'LAUWOG',    naam: 'Ameland noordkust',    lat: 53.500, lon: 5.750, vloed: 85,  max: 1.3, minz: 9, kust: true },
+  { code: 'HUIBGT',    naam: 'Schiermonnikoog noordkust', lat: 53.540, lon: 6.200, vloed: 90, max: 1.3, minz: 9, kust: true },
 ];
+const _KUST_STATIONS = { SCHEVNGN: 1, IJMDBTHVN: 1, HOEKVHLD: 1 };   // bestaande punten aan open zee
 
 function maakStroomPijlIcon(richtingGr, snelheidKn, isLive) {
   const kleur = snelheidKn > 2.0 ? '#e84545'
@@ -3521,10 +3560,11 @@ async function laadStroomPijlen() {
   const centrumLon = (bounds.getEast() + bounds.getWest()) / 2;
 
   // Altijd zichtbaar: stations in beeld, of dichtstbijzijnde als er geen in beeld zijn
-  var zichtbaar = KAART_STROOM_STATIONS.filter(s => bounds.contains([s.lat, s.lon]));
+  var zichtbaar = KAART_STROOM_STATIONS.filter(s => bounds.contains([s.lat, s.lon]) && zoom >= (s.minz || 0));
   if (!zichtbaar.length) {
     // Geen stations in beeld — toon de 3 dichtstbijzijnde
     zichtbaar = [...KAART_STROOM_STATIONS]
+      .filter(s => !s.minz)
       .sort((a, b) => Math.hypot(a.lat-centrumLat, a.lon-centrumLon) - Math.hypot(b.lat-centrumLat, b.lon-centrumLon))
       .slice(0, 3);
   }
@@ -3554,15 +3594,20 @@ async function laadStroomPijlen() {
     // Fallback of toekomst: bereken eb/vloed
     if (snelheidKn === null || richtingGr === null) {
       const ev = bepaalEbVloed(station, tijdstip);
-      snelheidKn = snelheidKn ?? parseFloat(ev.snelheid);
+      const kust = station.kust || (!station.vloed && _KUST_STATIONS[station.code]);
+      const v = ev.voortgang === undefined ? 0.5 : ev.voortgang;
+      // geul: stil bij hoog- en laagwater, hardst bij halftij; open kust: hardst rond hoog- en laagwater
+      const vorm = kust ? Math.abs(Math.cos(v * Math.PI)) : Math.abs(Math.sin(v * Math.PI));
+      const ebRichting = kust ? (ev.isEb ? v >= 0.5 : v < 0.5) : ev.isEb;
+      snelheidKn = vorm * (station.max || 1.2) * (ev.factor || 1);
       const vloedRichtingen = {
         'HARVT': 125, 'DENHDR': 160, 'IJMDBTHVN': 170,
         'HOEKVHLD': 95, 'VLISSGN': 70, 'WESTTSLG': 110,
         'DELFZL': 250, 'LAUWOG': 210, 'KORNWDZBTN': 130,
         'OUDSD': 145, 'SCHEVNGN': 175, 'HUIBGT': 230,
       };
-      const vloedRichting = vloedRichtingen[station.code] ?? 90;
-      richtingGr = richtingGr ?? (ev.isEb ? (vloedRichting + 180) % 360 : vloedRichting);
+      const vloedRichting = station.vloed ?? vloedRichtingen[station.code] ?? 90;
+      richtingGr = ebRichting ? (vloedRichting + 180) % 360 : vloedRichting;
       isLive = false;
     }
 
@@ -3580,7 +3625,7 @@ async function laadStroomPijlen() {
         Snelheid: <b>${snelheidTxt}</b><br>
         Richting: <b>${Math.round(richtingGr)}° (${richtingNaarTekst(richtingGr)})</b><br>
         Tijd: <b>${tijdLabel}</b><br>
-        <small style="color:#888">~ Schatting uit hoog- en laagwater (geen meting)</small>
+        <small style="color:#888">~ Ruwe schatting uit hoog- en laagwater${station.vloed !== undefined ? ' bij ' + ((KAART_STROOM_STATIONS.find(x => x.code === station.code && x.vloed === undefined) || {}).naam || station.code) : ''} — geen meting, geen stroomatlas</small>
       `, { maxWidth: 200 })
       .addTo(stroomlaag);
   }
@@ -3711,7 +3756,14 @@ function bepaalEbVloed(station, now) {
         const isEb = ext[i][2] === 1; // na hoogwater = eb
         const voortgang = (tMin - ext[i][0]) / (ext[i + 1][0] - ext[i][0]);
         const snelheid = Math.abs(Math.sin(voortgang * Math.PI)) * 1.2;
-        return { isEb, snelheid: snelheid.toFixed(1), voortgang };
+        // springtij/doodtij: verval van dit tij t.o.v. het gemiddelde verval van het station
+        let factor = 1;
+        if (typeof ext[i][1] === 'number') {
+          let som = 0; for (let j = 0; j < ext.length - 1; j++) som += Math.abs(ext[j + 1][1] - ext[j][1]);
+          const gem = som / (ext.length - 1);
+          if (gem > 0) factor = Math.max(0.6, Math.min(1.4, Math.abs(ext[i + 1][1] - ext[i][1]) / gem));
+        }
+        return { isEb, snelheid: snelheid.toFixed(1), voortgang, factor };
       }
     }
   }
