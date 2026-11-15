@@ -3,7 +3,9 @@
 // boeien, bakens, lichten, wrakken en gebieden. Vereenvoudigde weergave, geen officiële ECDIS.
 (function () {
   'use strict';
-  const ENC = { cat: null, cel: {}, bezig: {}, laag: null, aan: false };
+  const ENC = { cat: null, cel: {}, bezig: {}, laag: null, aan: false, zee: false, binnen: false };
+  const isBinnen = n => n.charAt(0) !== 'N';      // Rijkswaterstaat-cellen (1R7...) = binnenwater, NL... = zeekaart
+  const soortAan = n => isBinnen(n) ? ENC.binnen : ENC.zee;
   window.ENC = ENC;
 
   // ── hulpfuncties ──
@@ -149,10 +151,11 @@
   }
   function cellenVoorTegel(z, tx0, ty0, tx1, ty1) {
     const m = (tx1 - tx0) * 0.2;
-    let lijst = ENC.cat.filter(e => z >= e.mz && e.x0 < tx1 + m && e.x1 > tx0 - m && e.y0 < ty1 + m && e.y1 > ty0 - m);
+    const cat = ENC.cat.filter(e => soortAan(e.n));
+    let lijst = cat.filter(e => z >= e.mz && e.x0 < tx1 + m && e.x1 > tx0 - m && e.y0 < ty1 + m && e.y1 > ty0 - m);
     if (!lijst.length) {
       // uitgezoomd: neem de grofste cel(len) die de tegel raken
-      const raak = ENC.cat.filter(e => e.x0 < tx1 && e.x1 > tx0 && e.y0 < ty1 && e.y1 > ty0);
+      const raak = cat.filter(e => e.x0 < tx1 && e.x1 > tx0 && e.y0 < ty1 && e.y1 > ty0);
       if (raak.length) { const grofst = raak[0].s; lijst = raak.filter(e => e.s >= grofst * 0.5 && z >= e.mz - 3); }
     }
     // grovere cellen overslaan als een fijnere de tegel helemaal dekt
@@ -400,7 +403,7 @@
     let beste = null, bd = tol * tol, bc = null;
     for (const n in ENC.cel) {
       const cel = ENC.cel[n];
-      if (!cel || z < cel.mz - 3) continue;
+      if (!cel || z < cel.mz - 3 || !soortAan(n)) continue;
       for (const f of cel.pt) {
         if (!NAAM[f.c]) continue;
         const d = (f.x - x) * (f.x - x) + (f.y - y) * (f.y - y);
@@ -413,7 +416,7 @@
       let opp = Infinity; const t2 = 6 / S;
       for (const n in ENC.cel) {
         const cel = ENC.cel[n];
-        if (!cel || z < cel.mz) continue;
+        if (!cel || z < cel.mz || !soortAan(n)) continue;
         for (const lijst of [cel.vl, cel.ln]) for (const f of lijst) {
           if (!VL[f.c] || x < f.x0 - t2 || x > f.x1 + t2 || y < f.y0 - t2 || y > f.y1 + t2) continue;
           if (lijst === cel.vl && f.c !== 'BRIDGE' && !inRing(f.r[0], x, y)) continue;
@@ -426,20 +429,28 @@
   }
 
   // ── aan/uit ──
-  window.toggleEnc = function (aan) {
-    ENC.aan = aan;
-    if (aan) {
+  function werkLaagBij() {
+    ENC.aan = ENC.zee || ENC.binnen;
+    if (ENC.aan) {
       if (!map.getPane('encPane')) { map.createPane('encPane', map.getPane('rotatePane') || undefined); map.getPane('encPane').style.zIndex = 250; }   // in de draaiende laag, boven de ondergrond
-      if (!ENC.laag) ENC.laag = new Laag({ pane: 'encPane', tileSize: 256, minZoom: 6, maxZoom: 20, updateWhenZooming: false, keepBuffer: 1, attribution: 'ENC © Dienst der Hydrografie' });
-      ENC.laag.addTo(map);
-    } else if (ENC.laag) map.removeLayer(ENC.laag);
+      if (!ENC.laag) ENC.laag = new Laag({ pane: 'encPane', tileSize: 256, minZoom: 6, maxZoom: 20, updateWhenZooming: false, keepBuffer: 1, attribution: 'ENC © Dienst der Hydrografie / Rijkswaterstaat' });
+      if (map.hasLayer(ENC.laag)) ENC.laag.redraw(); else ENC.laag.addTo(map);
+    } else if (ENC.laag && map.hasLayer(ENC.laag)) map.removeLayer(ENC.laag);
+  }
+  window.toggleEnc = function (aan) {
+    ENC.zee = aan; werkLaagBij();
     if (typeof _slaLaagOp === 'function') _slaLaagOp('toggle-enc', aan);
+  };
+  window.toggleEncBinnen = function (aan) {
+    ENC.binnen = aan; werkLaagBij();
+    if (typeof _slaLaagOp === 'function') _slaLaagOp('toggle-enc-binnen', aan);
   };
   map.on('click', bijKlik);
   try {
-    if (typeof _lagenStaten !== 'undefined' && _lagenStaten['toggle-enc']) {
-      const el = document.getElementById('toggle-enc'); if (el) el.checked = true;
-      window.toggleEnc(true);
+    if (typeof _lagenStaten !== 'undefined') {
+      for (const [id, fn] of [['toggle-enc', window.toggleEnc], ['toggle-enc-binnen', window.toggleEncBinnen]]) {
+        if (_lagenStaten[id]) { const el = document.getElementById(id); if (el) el.checked = true; fn(true); }
+      }
     }
   } catch (e) {}
   // voor tests

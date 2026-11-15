@@ -787,9 +787,17 @@
       </div>
 
       <div class="toggle-row">
-        <span class="toggle-label">ENC zee- en binnenkaart</span>
+        <span class="toggle-label">ENC zeekaart</span>
         <label class="toggle">
           <input type="checkbox" id="toggle-enc" onchange="toggleEnc(this.checked)">
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-row">
+        <span class="toggle-label">ENC binnenwater</span>
+        <label class="toggle">
+          <input type="checkbox" id="toggle-enc-binnen" onchange="toggleEncBinnen(this.checked)">
           <span class="slider"></span>
         </label>
       </div>
@@ -5695,6 +5703,6 @@ function verwerkKaartBestand(file) {
 
 
 </script>
-<script src="enc.js?v=3"></script>
+<script src="enc.js?v=4"></script>
 </body>
 </html>
