@@ -30,7 +30,10 @@
   // vlakstijl: [vulkleur|null, lijnkleur|null, lijndikte, streep]
   function vlakStijl(c, p) {
     switch (c) {
-      case 'DEPARE': return [dieptekleur(p.DRVAL1), null, 0];
+      case 'DEPARE': return [p.DRVAL2 === undefined && !p.DRVAL1 ? '#aed8f1' : dieptekleur(p.DRVAL1), null, 0];
+      case 'HRBBSN': case 'LKBSPT': return ['#aed8f1', '#5c7f99', 0.6];
+      case 'TRNBSN': return [null, '#5c7f99', 0.8, [6, 4]];
+      case 'TERMNL': return ['#ddd6c4', '#8a8672', 0.6];
       case 'DRGARE': return [dieptekleur(p.DRVAL1), '#6b8fa8', 0.8, [4, 3]];
       case 'UNSARE': return ['#d9d9d9', null, 0];
       case 'LNDARE': return ['#f2e3ad', '#5c4a1c', 0.8];
@@ -60,6 +63,7 @@
   function lijnStijl(c, p) {
     switch (c) {
       case 'DEPCNT': return ['#6f9cbd', 0.7];
+      case 'WTWAXS': return ['rgba(60,90,130,0.45)', 0.7, [10, 6]];
       case 'COALNE': return ['#3b3113', 1];
       case 'SLCONS': case 'DYKCON': case 'DAMCON': case 'CAUSWY': case 'GATCON': case 'FORSTC': case 'MORFAC': case 'PONTON': return ['#1f1f1f', 1.4];
       case 'BRIDGE': return ['#3a3a3a', 3];
@@ -77,8 +81,9 @@
   }
 
   // ── cel inladen en voorbereiden ──
-  function bereidVoor(o) {
-    const cel = { n: o.n, s: o.s, mz: minZoom(o.s), ed: o.ed, up: o.up, d: o.d, vl: [], ln: [], pt: [], snd: null };
+  function bereidVoor(o, mz) {
+    const q = o.q || 0;
+    const cel = { n: o.n, s: o.s, mz: mz || minZoom(o.s), ed: o.ed, up: o.up, d: o.d, vl: [], ln: [], pt: [], snd: null };
     for (const f of o.f) {
       const c = f[0], t = f[1], co = f[2], p = f[3] || {};
       if (t === 0) {
@@ -88,8 +93,10 @@
         let x0 = 9, y0 = 9, x1 = -9, y1 = -9;
         const rr = ringen.map(r => {
           const a = new Float64Array(r.length);
+          let lo = 0, la = 0;
           for (let i = 0; i < r.length; i += 2) {
-            const x = mx(r[i]), y = my(r[i + 1]);
+            if (q) { lo += r[i]; la += r[i + 1]; } else { lo = r[i] * 1; la = r[i + 1] * 1; }   // q: gehele verschillen
+            const x = mx(q ? lo / q : lo), y = my(q ? la / q : la);
             a[i] = x; a[i + 1] = y;
             if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
           }
@@ -103,11 +110,11 @@
     for (let i = 0; i < s.length; i += 3) { cel.snd[i] = mx(s[i]); cel.snd[i + 1] = my(s[i + 1]); cel.snd[i + 2] = s[i + 2]; }
     return cel;
   }
-  function laadCel(n) {
+  function laadCel(n, mz) {
     if (ENC.cel[n]) return Promise.resolve(ENC.cel[n]);
     if (!ENC.bezig[n]) {
       ENC.bezig[n] = fetch('./enc/' + n + '.json').then(r => { if (!r.ok) throw new Error(n); return r.json(); })
-        .then(o => (ENC.cel[n] = bereidVoor(o)))
+        .then(o => (ENC.cel[n] = bereidVoor(o, mz)))
         .catch(e => { delete ENC.bezig[n]; console.warn('ENC-cel niet geladen:', n, e); return null; });
     }
     return ENC.bezig[n];
@@ -117,7 +124,7 @@
     if (!ENC._catP) {
       ENC._catP = fetch('./enc/index.json?t=' + Date.now()).then(r => r.json()).then(c => {
         c.forEach(e => {
-          e.mz = minZoom(e.s);
+          e.mz = e.mz || minZoom(e.s);
           e.x0 = mx(e.bb[0]); e.x1 = mx(e.bb[2]); e.y0 = my(e.bb[3]); e.y1 = my(e.bb[1]);
           e.covm = (e.cov || []).map(r => { const a = []; for (let i = 0; i < r.length; i += 2) a.push(mx(r[i]), my(r[i + 1])); return a; });
         });
@@ -291,10 +298,25 @@
         for (const f of cel.vl) {
           if (!f.p.OBJNAM || !raakt(f) || !zichtbaar(f.p)) continue;
           const c = f.c;
-          if (c !== 'SEAARE' && c !== 'LNDRGN' && c !== 'BUAARE' && c !== 'LNDARE' && c !== 'ACHARE' && c !== 'HRBFAC' && c !== 'BRIDGE' && c !== 'FAIRWY') continue;
+          if (c !== 'SEAARE' && c !== 'LNDRGN' && c !== 'BUAARE' && c !== 'LNDARE' && c !== 'ACHARE' && c !== 'HRBFAC' && c !== 'FAIRWY' && !((c === 'LOKBSN' || c === 'HRBARE') && detail >= 3)) continue;
           const w = (f.x1 - f.x0) * S;
-          if (w < 30 && c !== 'BRIDGE') continue;
+          if (w < 30) continue;
           label(g, f.p.OBJNAM, X((f.x0 + f.x1) / 2), Y((f.y0 + f.y1) / 2), { midden: true, schuin: c === 'SEAARE' || c === 'FAIRWY', px: c === 'BUAARE' ? 11 : 10, kleur: c === 'SEAARE' || c === 'FAIRWY' ? '#2f5f86' : '#3a2f10', vet: c === 'BUAARE' });
+        }
+      }
+      // bruggen: doorvaarthoogte
+      if (detail >= 2) {
+        for (const lijst of [cel.vl, cel.ln]) for (const f of lijst) {
+          if (f.c !== 'BRIDGE' || !raakt(f)) continue;
+          const t = f.p.VERCLR !== undefined ? 'H ' + f.p.VERCLR : (detail >= 3 && f.p.OBJNAM ? f.p.OBJNAM : '');
+          if (t) label(g, t, X((f.x0 + f.x1) / 2), Y((f.y0 + f.y1) / 2), { midden: true, px: 10, vet: true, kleur: '#7a1f1f' });
+        }
+        // namen van vaarwegen langs de as
+        if (detail >= 2) for (const f of cel.ln) {
+          if (f.c !== 'WTWAXS' || !f.p.OBJNAM || !raakt(f)) continue;
+          const r = f.r[0], i = (r.length >> 2) << 1;
+          const px = X(r[i]), py = Y(r[i + 1]);
+          if (px > 20 && px < 236 && py > 10 && py < 246) label(g, f.p.OBJNAM, px, py, { midden: true, schuin: true, px: 10, kleur: '#2f5f86' });
         }
       }
       // dieptecijfers
@@ -310,15 +332,20 @@
         if (f.x < bx0 || f.x > bx1 || f.y < by0 || f.y > by1 || !zichtbaar(f.p)) continue;
         const x = X(f.x), y = Y(f.y), c = f.c;
         if (c.startsWith('BOY')) { tekenBoei(g, f, x, y, detail < 1); if (f.p.OBJNAM && detail >= 2) label(g, f.p.OBJNAM, x + 8, y - 4, { px: 10, vet: true }); }
+        else if (c === 'DAYMAR') { if (detail >= 2) tekenBaken(g, f, x, y); }
+        else if (c === 'NOTMRK') { if (detail >= 4) { g.fillStyle = '#fff'; g.strokeStyle = '#d02020'; g.lineWidth = 1.5; g.beginPath(); g.rect(x - 3.5, y - 3.5, 7, 7); g.fill(); g.stroke(); } }
+        else if (c === 'DISMAR') { if (detail >= 3 && f.p.INFORM && String(f.p.INFORM).length < 6) label(g, 'km ' + f.p.INFORM, x, y, { midden: true, px: 9, kleur: '#555' }); }
+        else if (c === 'BUNSTA') { if (detail >= 2) { g.beginPath(); g.arc(x, y, 5, 0, 2 * Math.PI); g.fillStyle = '#fff'; g.fill(); g.strokeStyle = '#c040a0'; g.lineWidth = 1.2; g.stroke(); label(g, 'B', x, y + 0.5, { midden: true, px: 8, vet: true, kleur: '#c040a0' }); } }
+        else if (c === 'PYLONS' || c === 'CRANES') { if (detail >= 3) { g.fillStyle = '#555'; g.fillRect(x - 1.5, y - 1.5, 3, 3); } }
         else if (c.startsWith('BCN')) { tekenBaken(g, f, x, y); if (f.p.OBJNAM && detail >= 2) label(g, f.p.OBJNAM, x + 7, y - 4, { px: 10 }); }
         else if (c === 'LIGHTS' || c === 'LITFLT' || c === 'LITVES') { tekenLicht(g, f, x, y); if (detail >= 3) { const t = lichtTekst(f.p); if (t) label(g, t, x + 9, y + 9, { px: 9, kleur: '#7a1f70' }); } }
         else if (c === 'WRECKS') tekenWrak(g, f, x, y);
         else if (c === 'OBSTRN' || c === 'UWTROC') tekenObstakel(g, f, x, y);
-        else if (c === 'PILPNT' || c === 'MORFAC') { g.beginPath(); g.arc(x, y, c === 'PILPNT' ? 1.6 : 2.4, 0, 2 * Math.PI); g.fillStyle = c === 'PILPNT' ? '#222' : '#fff'; g.fill(); g.strokeStyle = '#222'; g.lineWidth = 1; g.stroke(); }
+        else if (c === 'PILPNT' || c === 'MORFAC') { if (detail < 2) continue; g.beginPath(); g.arc(x, y, c === 'PILPNT' ? 1.6 : 2.4, 0, 2 * Math.PI); g.fillStyle = c === 'PILPNT' ? '#222' : '#fff'; g.fill(); g.strokeStyle = '#222'; g.lineWidth = 1; g.stroke(); }
         else if (c === 'LNDMRK' || c === 'BUISGL' || c === 'SILTNK') { if (detail >= 1) { g.beginPath(); g.arc(x, y, 3, 0, 2 * Math.PI); g.strokeStyle = '#3a2f10'; g.lineWidth = 1; g.stroke(); g.beginPath(); g.arc(x, y, 0.9, 0, 2 * Math.PI); g.fillStyle = '#3a2f10'; g.fill(); if (f.p.OBJNAM && detail >= 2) label(g, f.p.OBJNAM, x + 6, y, { px: 9, kleur: '#3a2f10' }); } }
         else if (c === 'LNDARE') { g.beginPath(); g.arc(x, y, 2, 0, 2 * Math.PI); g.fillStyle = '#f2e3ad'; g.fill(); g.strokeStyle = '#5c4a1c'; g.stroke(); }
         else if (c === 'SEAARE' || c === 'LNDRGN' || c === 'BUAARE' || c === 'HRBFAC' || c === 'SMCFAC' || c === 'BERTHS' || c === 'ACHBRT') { if (f.p.OBJNAM && detail >= (c === 'BERTHS' ? 2 : 0)) label(g, f.p.OBJNAM, x, y, { midden: true, schuin: c === 'SEAARE', px: 10, kleur: c === 'SEAARE' ? '#2f5f86' : '#3a2f10' }); }
-        else if (c === 'RSCSTA' || c === 'CGUSTA' || c === 'SISTAT' || c === 'SISTAW' || c === 'RDOCAL' || c === 'PILBOP' || c === 'RTPBCN' || c === 'FOGSIG' || c === 'DISMAR') {
+        else if (c === 'RSCSTA' || c === 'CGUSTA' || c === 'SISTAT' || c === 'SISTAW' || c === 'RDOCAL' || c === 'PILBOP' || c === 'RTPBCN' || c === 'FOGSIG') {
           if (detail >= 1) { g.beginPath(); g.arc(x, y, 3.2, 0, 2 * Math.PI); g.strokeStyle = '#c040a0'; g.lineWidth = 1.1; g.stroke(); }
         }
       }
@@ -335,7 +362,7 @@
       laadCatalogus().then(() => {
         const lijst = cellenVoorTegel(z, tx0, ty0, tx1, ty1);
         if (!lijst.length) { klaar(null, canvas); return; }
-        return Promise.all(lijst.map(e => laadCel(e.n))).then(cellen => {
+        return Promise.all(lijst.map(e => laadCel(e.n, e.mz))).then(cellen => {
           try { tekenTegel(canvas, z, coords.x, coords.y, cellen); } catch (e) { console.warn('ENC tekenfout', e); }
           klaar(null, canvas);
         });
@@ -345,7 +372,7 @@
   });
 
   // ── info bij aantikken ──
-  const NAAM = { BOYLAT: 'Laterale boei', BOYCAR: 'Kardinale boei', BOYSPP: 'Bijzondere markering (boei)', BOYSAW: 'Veiligvaarwaterboei', BOYISD: 'Boei geïsoleerd gevaar', BOYINB: 'Installatieboei', BCNLAT: 'Lateraal baken', BCNCAR: 'Kardinaal baken', BCNSPP: 'Bijzonder baken', BCNSAW: 'Veiligvaarwaterbaken', BCNISD: 'Baken geïsoleerd gevaar', LIGHTS: 'Licht', LITFLT: 'Lichtvlot', LITVES: 'Lichtschip', WRECKS: 'Wrak', OBSTRN: 'Obstakel', UWTROC: 'Onderwaterrots', PILPNT: 'Paal', MORFAC: 'Meerpaal / meerboei', LNDMRK: 'Landmerk' };
+  const NAAM = { BOYLAT: 'Laterale boei', BOYCAR: 'Kardinale boei', BOYSPP: 'Bijzondere markering (boei)', BOYSAW: 'Veiligvaarwaterboei', BOYISD: 'Boei geïsoleerd gevaar', BOYINB: 'Installatieboei', BCNLAT: 'Lateraal baken', BCNCAR: 'Kardinaal baken', BCNSPP: 'Bijzonder baken', BCNSAW: 'Veiligvaarwaterbaken', BCNISD: 'Baken geïsoleerd gevaar', LIGHTS: 'Licht', LITFLT: 'Lichtvlot', LITVES: 'Lichtschip', WRECKS: 'Wrak', OBSTRN: 'Obstakel', UWTROC: 'Onderwaterrots', PILPNT: 'Paal', MORFAC: 'Meerpaal / meerboei', LNDMRK: 'Landmerk', NOTMRK: 'Verkeersteken', BUNSTA: 'Bunkerstation', DISMAR: 'Kilometerraai', BRIDGE: 'Brug', LOKBSN: 'Sluiskolk', BERTHS: 'Ligplaats', HRBARE: 'Haven', TERMNL: 'Terminal' };
   const KLNAAM = { 1: 'wit', 2: 'zwart', 3: 'rood', 4: 'groen', 5: 'blauw', 6: 'geel', 7: 'grijs', 8: 'bruin', 9: 'amber', 11: 'oranje' };
   function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
   function infoHtml(f, cel) {
@@ -354,7 +381,14 @@
     if (p.COLOUR) r.push('Kleur: ' + String(p.COLOUR).split(',').map(k => KLNAAM[k] || k).join('/'));
     if (f.c === 'LIGHTS' || f.c === 'LITFLT') { const t = lichtTekst(p); if (t) r.push('Licht: ' + esc(t)); if (p.SECTR1 !== undefined) r.push('Sector: ' + p.SECTR1 + '°–' + p.SECTR2 + '°'); }
     if (p.VALSOU !== undefined) r.push('Diepte: ' + p.VALSOU + ' m');
-    if (p.INFORM) r.push(esc(p.INFORM));
+    if (p.VERCLR !== undefined) r.push('Doorvaarthoogte: ' + p.VERCLR + ' m' + (f.c === 'BRIDGE' && p.INFORM && String(p.INFORM).length < 12 ? ' (t.o.v. ' + esc(p.INFORM) + ')' : ''));
+    if (p.VERCCL !== undefined) r.push('Hoogte gesloten: ' + p.VERCCL + ' m');
+    if (p.VERCOP !== undefined) r.push('Hoogte geopend: ' + p.VERCOP + ' m');
+    if (p.HORCLR !== undefined) r.push('Doorvaartbreedte: ' + p.HORCLR + ' m');
+    if (p.HORLEN !== undefined) r.push('Kolk: ' + p.HORLEN + ' × ' + (p.HORWID !== undefined ? p.HORWID : '?') + ' m');
+    if (p.COMCHA) r.push('Marifoon: kanaal ' + esc(p.COMCHA));
+    if (f.c === 'NOTMRK' && p.CATNMK !== undefined) r.push('CEVNI-categorie ' + p.CATNMK);
+    if (p.INFORM && !(f.c === 'BRIDGE' && String(p.INFORM).length < 12)) r.push(esc(p.INFORM));
     if (p.NINFOM) r.push(esc(p.NINFOM));
     r.push('<span style="opacity:.6;font-size:11px">ENC ' + esc(cel.n) + ' · editie ' + esc(cel.ed) + '.' + esc(cel.up) + ' · ' + esc(cel.d) + '</span>');
     return r.join('<br>');
@@ -371,6 +405,21 @@
         if (!NAAM[f.c]) continue;
         const d = (f.x - x) * (f.x - x) + (f.y - y) * (f.y - y);
         if (d < bd || (d === bd && bc && cel.s < bc.s)) { bd = d; beste = f; bc = cel; }
+      }
+    }
+    if (!beste) {
+      // geen puntobject: brug, sluiskolk, ligplaats of haven onder de vinger?
+      const VL = { BRIDGE: 1, LOKBSN: 1, BERTHS: 1, HRBARE: 1, TERMNL: 1 };
+      let opp = Infinity; const t2 = 6 / S;
+      for (const n in ENC.cel) {
+        const cel = ENC.cel[n];
+        if (!cel || z < cel.mz) continue;
+        for (const lijst of [cel.vl, cel.ln]) for (const f of lijst) {
+          if (!VL[f.c] || x < f.x0 - t2 || x > f.x1 + t2 || y < f.y0 - t2 || y > f.y1 + t2) continue;
+          if (lijst === cel.vl && f.c !== 'BRIDGE' && !inRing(f.r[0], x, y)) continue;
+          const o = (f.x1 - f.x0 + t2) * (f.y1 - f.y0 + t2) * (f.c === 'BRIDGE' ? 0.01 : 1);
+          if (o < opp) { opp = o; beste = { c: f.c, p: f.p, lat: e.latlng.lat, lon: e.latlng.lng }; bc = cel; }
+        }
       }
     }
     if (beste) L.popup({ maxWidth: 260 }).setLatLng([beste.lat, beste.lon]).setContent(infoHtml(beste, bc)).openOn(map);
