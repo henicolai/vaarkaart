@@ -982,6 +982,21 @@
     <div class="sidebar-section">
       <div class="sidebar-title">⚠️ Stremmingen</div>
       <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">Actuele scheepvaartberichten via Rijkswaterstaat FIS</div>
+      <div class="toggle-row">
+        <span class="toggle-label">Stremmingen op kaart</span>
+        <label class="toggle">
+          <input type="checkbox" id="toggle-stremmingen" onchange="toggleStremmingen(this.checked)">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-label">Ook hinder en beperkingen</span>
+        <label class="toggle">
+          <input type="checkbox" id="toggle-hinder" onchange="toggleHinder(this.checked)">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div id="stremmingen-status" style="font-size:11px;color:var(--muted);margin:4px 0 10px;"></div>
       <button class="btn btn-ghost" onclick="openStremmingen()" style="margin-bottom:6px;">
         ↗ Open stremmingen kaart
       </button>
@@ -2673,6 +2688,79 @@ function openAIS() {
   const zoom = Math.min(map.getZoom(), 14);
   window.open(`https://www.vesselfinder.com/?lat=${lat}&lon=${lon}&zoom=${zoom}`, '_blank');
 }
+
+// ── STREMMINGEN OP DE KAART ──────────────────────────────
+// Berichten komen uit data/stremmingen.json (door GitHub om de paar uur opgehaald bij vaarweginformatie.nl).
+const STREM_CODES = {
+  OBSTRU: 'Stremming', NOSERV: 'Geen bediening', PAROBS: 'Gedeeltelijke stremming', CAUTIO: 'Voorzichtig varen',
+  CLEHEI: 'Beperkte doorvaarthoogte', CLEWID: 'Beperkte doorvaartbreedte', AVADEP: 'Beperkte diepte', AVALEN: 'Beperkte lengte',
+  VESDRA: 'Diepgangsbeperking', VESBRE: 'Breedtebeperking', VESLEN: 'Lengtebeperking', VESHEI: 'Hoogtebeperking',
+  SPEED: 'Snelheidsbeperking', WAVWAS: 'Hinderlijke waterbeweging vermijden', NOMOOR: 'Afmeerverbod', ANCHOR: 'Ankerverbod',
+  NOBERT: 'Ligplaatsverbod', DELAY: 'Oponthoud', SERVIC: 'Gewijzigde bediening', PASSIN: 'Ontmoetingsverbod',
+  OVRTAK: 'Voorbijloopverbod', ALTER: 'Beurtelings verkeer', NOSHORE: 'Niet aan wal gaan', LEADEP: 'Minste diepte', NOLIM: 'Geen beperking'
+};
+let stremLaag = null, _stremData = null, _stremTijd = 0, _stremAan = false, _hinderAan = false;
+async function laadStremmingen() {
+  if (_stremData && Date.now() - _stremTijd < 15 * 60000) return _stremData;
+  try {
+    const r = await fetch('./data/stremmingen.json?t=' + Math.floor(Date.now() / 900000), { cache: 'no-store' });
+    if (r.ok) { _stremData = await r.json(); _stremTijd = Date.now(); }
+  } catch (e) {}
+  return _stremData;
+}
+function stremDatum(min) {
+  if (!min) return 'onbekend';
+  return new Date(min * 60000).toLocaleString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+function stremIcon(blok, nu) {
+  const kleur = blok ? '#d32f2f' : '#ef6c00';
+  const teken = blok ? '<rect x="5" y="10" width="14" height="4" fill="#fff"/>' : '<text x="12" y="17" font-size="14" font-weight="700" text-anchor="middle" fill="#fff" font-family="sans-serif">!</text>';
+  const g = blok ? 24 : 20;
+  return L.divIcon({
+    className: '',
+    html: `<svg viewBox="0 0 24 24" width="${g}" height="${g}" style="filter:drop-shadow(0 1px 2px rgba(0,0,0,.6));opacity:${nu ? 1 : 0.6}"><circle cx="12" cy="12" r="11" fill="${kleur}" stroke="#fff" stroke-width="2"/>${teken}</svg>`,
+    iconSize: [g, g], iconAnchor: [g / 2, g / 2], popupAnchor: [0, -g / 2]
+  });
+}
+async function tekenStremmingen() {
+  if (!stremLaag) stremLaag = L.layerGroup();
+  stremLaag.clearLayers();
+  const st = document.getElementById('stremmingen-status');
+  if (!_stremAan && !_hinderAan) { if (map.hasLayer(stremLaag)) map.removeLayer(stremLaag); if (st) st.textContent = ''; return; }
+  const d = await laadStremmingen();
+  if (!d || !d.berichten) { if (st) st.textContent = 'Stremmingen konden niet geladen worden.'; return; }
+  const nuMin = Date.now() / 60000;
+  let nBlok = 0, nHinder = 0;
+  for (const b of d.berichten) {
+    if (b.code === 'NOLIM') continue;
+    if (b.tot && b.tot < nuMin) continue;                       // al afgelopen
+    if (b.blok ? !_stremAan : !_hinderAan) continue;
+    const actief = b.van <= nuMin;
+    if (b.blok) nBlok++; else nHinder++;
+    const html = `<b>${b.blok ? '⛔' : '⚠️'} ${STREM_CODES[b.code] || b.code}</b><br>` +
+      `${b.loc ? '<b>' + b.loc + '</b><br>' : ''}${b.vw ? b.vw + '<br>' : ''}` +
+      `${actief ? 'Sinds' : '<b>Vanaf</b>'} ${stremDatum(b.van)}<br>` +
+      `${b.tot ? 'Tot ' + stremDatum(b.tot) : 'Tot nader bericht'}<br>` +
+      `<small style="color:#888">Bericht ${b.nr} · Rijkswaterstaat FIS<br>Lees het volledige bericht op vaarweginformatie.nl</small>`;
+    // één teken per bericht (eerste punt); bij een traject ook een lijn
+    if (b.p.length > 1) L.polyline(b.p, { color: b.blok ? '#d32f2f' : '#ef6c00', weight: 4, opacity: actief ? 0.8 : 0.45, dashArray: b.blok ? null : '6 6' }).bindPopup(html, { maxWidth: 260 }).addTo(stremLaag);
+    const m = b.p[Math.floor(b.p.length / 2)];
+    L.marker(m, { icon: stremIcon(b.blok, actief), zIndexOffset: b.blok ? 700 : 400 }).bindPopup(html, { maxWidth: 260 }).addTo(stremLaag);
+  }
+  if (!map.hasLayer(stremLaag)) stremLaag.addTo(map);
+  if (st) {
+    const oud = Math.round((Date.now() - new Date(d.gemaakt).getTime()) / 3600000);
+    st.textContent = `${_stremAan ? nBlok + ' stremmingen' : ''}${_stremAan && _hinderAan ? ', ' : ''}${_hinderAan ? nHinder + ' beperkingen' : ''} · komende 7 dagen · opgehaald ${oud < 1 ? 'minder dan een uur' : oud + ' uur'} geleden`;
+    st.style.color = oud > 12 ? 'var(--amber, #f5a623)' : 'var(--muted)';
+  }
+}
+function toggleStremmingen(aan) { _stremAan = aan; _slaLaagOp('toggle-stremmingen', aan); tekenStremmingen(); }
+function toggleHinder(aan) { _hinderAan = aan; _slaLaagOp('toggle-hinder', aan); tekenStremmingen(); }
+try {
+  if (_lagenStaten['toggle-stremmingen']) { _stremAan = true; document.getElementById('toggle-stremmingen').checked = true; }
+  if (_lagenStaten['toggle-hinder']) { _hinderAan = true; document.getElementById('toggle-hinder').checked = true; }
+  if (_stremAan || _hinderAan) setTimeout(tekenStremmingen, 1500);
+} catch (e) {}
 
 function openStremmingen() {
   const pos = window._laatsteGpsPositie;
