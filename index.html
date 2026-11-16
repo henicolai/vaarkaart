@@ -2666,6 +2666,7 @@ map.on('click', function(e) {
   if (waypointModus) return;
   const lat = e.latlng.lat;
   const lon = e.latlng.lng;
+  if (rpTussenModus || rpModus) window._routeKlik = Date.now();   // de zeekaart toont dan geen info-ballon
   if (rpTussenModus) {
     const icon = L.divIcon({className:'',html:`<div style="width:12px;height:12px;background:#f5a623;border:2px solid white;border-radius:50%;box-shadow:0 2px 4px rgba(0,0,0,0.5);"></div>`,iconSize:[12,12],iconAnchor:[6,6]});
     const marker = L.marker([lat,lon],{icon,zIndexOffset:650}).bindPopup(`🟡 Tussenpunt ${rpTussen.length+1}`).addTo(map);
@@ -5854,6 +5855,6 @@ function verwerkKaartBestand(file) {
 
 
 </script>
-<script src="enc.js?v=4"></script>
+<script src="enc.js?v=5"></script>
 </body>
 </html>

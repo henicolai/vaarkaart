@@ -398,6 +398,8 @@
   }
   function bijKlik(e) {
     if (!ENC.aan) return;
+    // tijdens het zetten van routepunten geen kaartinfo tonen
+    if (window._routeKlik && Date.now() - window._routeKlik < 500) return;
     const z = map.getZoom(), S = 256 * Math.pow(2, z);
     const x = mx(e.latlng.lng), y = my(e.latlng.lat), tol = 14 / S;
     let beste = null, bd = tol * tol, bc = null;
