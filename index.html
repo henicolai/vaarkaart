@@ -2329,12 +2329,9 @@ async function laadWindPijlen() {
     const bf = knaarBeaufort(snelheidKn);
 
     const icon = maakWindPijlIcon(richtingGr, snelheidKn);
-    const snelheidTxt = instellingen.snelheid === 'kmh'
-      ? `${(snelheidKn * 1.852).toFixed(1)} km/h`
-      : `${snelheidKn.toFixed(1)} kn`;
-    const gustsTxt = instellingen.snelheid === 'kmh'
-      ? `${(gustsKn * 1.852).toFixed(1)} km/h`
-      : `${gustsKn.toFixed(1)} kn`;
+    // Wind altijd in knopen (ongeacht snelheidsinstelling)
+    const snelheidTxt = `${snelheidKn.toFixed(1)} kn`;
+    const gustsTxt = `${gustsKn.toFixed(1)} kn`;
     L.marker([punt.lat, punt.lon], { icon, zIndexOffset: 450, interactive: true })
       .bindPopup(`
         <b>💨 Wind</b><br>
