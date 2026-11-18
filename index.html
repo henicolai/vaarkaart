@@ -2213,10 +2213,10 @@ function knaarBeaufort(kn) {
 }
 
 function windKleur(kn) {
-  if (kn < 6)  return '#4fc3f7'; // zwak - blauw
-  if (kn < 16) return '#a78bfa'; // matig - paars
-  if (kn < 27) return '#f5a623'; // krachtig - oranje
-  return '#e84545';               // storm - rood
+  const bf = knaarBeaufort(kn).bf;
+  if (bf <= 3) return '#2f80ed'; // Bft 0-3 - blauw
+  if (bf <= 5) return '#f5a623'; // Bft 4-5 - oranje
+  return '#e84545';               // Bft 6+ - rood
 }
 
 function maakWindPijlIcon(richtingGr, snelheidKn) {
