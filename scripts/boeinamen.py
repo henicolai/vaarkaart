@@ -12,19 +12,24 @@ VAKKEN = [(50.7, 2.5, 52.3, 4.9), (50.7, 4.9, 52.3, 7.3), (52.3, 2.5, 53.9, 4.9)
 def query(b):
     return '[out:json][timeout:120];node["seamark:type"~"^(buoy|beacon)_"](%s,%s,%s,%s);out body;' % b
 
+START = time.time()
+BUDGET = 15 * 60  # maximaal 15 minuten proberen
+
 def haal(b):
     data = urllib.parse.urlencode({'data': query(b)}).encode()
     fout = None
     for ronde in range(3):
         for s in SERVERS:
+            if time.time() - START > BUDGET:
+                raise TimeoutError('tijdsbudget op')
             try:
                 req = urllib.request.Request(s, data=data, headers={'User-Agent': 'VaarKaart (github.com/henicolai/vaarkaart)'})
-                with urllib.request.urlopen(req, timeout=150) as r:
+                with urllib.request.urlopen(req, timeout=90) as r:
                     return json.load(r)
             except Exception as e:  # noqa
                 fout = e
                 print('mislukt', s, e, file=sys.stderr)
-        time.sleep(30)
+        time.sleep(10)
     raise fout
 
 def main():
