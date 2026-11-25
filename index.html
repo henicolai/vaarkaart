@@ -2681,10 +2681,33 @@ map.on('click', function(e) {
 // ── AIS SCHEEPVAART ───────────────────────────────────────
 function openAIS() {
   const pos = window._laatsteGpsPositie;
-  const lat = pos ? pos.lat.toFixed(4) : map.getCenter().lat.toFixed(4);
-  const lon = pos ? pos.lon.toFixed(4) : map.getCenter().lng.toFixed(4);
-  const zoom = Math.min(map.getZoom(), 14);
-  window.open(`https://www.vesselfinder.com/?lat=${lat}&lon=${lon}&zoom=${zoom}`, '_blank');
+  const lat = (pos ? pos.lat : map.getCenter().lat).toFixed(4);
+  const lon = (pos ? pos.lon : map.getCenter().lng).toFixed(4);
+  const zoom = pos ? 11 : Math.max(8, Math.min(map.getZoom(), 13));
+  let ov = document.getElementById('ais-overlay');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'ais-overlay';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:5000;background:#0d1b2a;display:flex;flex-direction:column;';
+    document.body.appendChild(ov);
+  }
+  const h = Math.max(300, window.innerHeight - 48);
+  ov.innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;height:36px;color:#fff;font-size:14px;">
+      <b style="flex:1">🚢 AIS rond ${pos ? 'mijn positie' : 'kaartmidden'}</b>
+      <a href="https://www.vesselfinder.com/?lat=${lat}&lon=${lon}&zoom=${zoom}" target="_blank" class="btn btn-ghost" style="padding:4px 10px;font-size:12px;">↗ VesselFinder</a>
+      <button class="btn btn-ghost" onclick="sluitAIS()" style="padding:4px 12px;font-size:16px;">✕</button>
+    </div>
+    <iframe id="ais-frame" style="flex:1;border:0;width:100%;" title="AIS"></iframe>`;
+  // Officiële VesselFinder-embed (document.write) in een eigen iframe
+  document.getElementById('ais-frame').srcdoc =
+    `<html><body style="margin:0"><script>var width="100%";var height="${h}";var latitude="${lat}";var longitude="${lon}";var zoom="${zoom}";var names=true;<\/script>` +
+    `<script src="https://www.vesselfinder.com/aismap.js"><\/script></body></html>`;
+  ov.style.display = 'flex';
+}
+function sluitAIS() {
+  const ov = document.getElementById('ais-overlay');
+  if (ov) { ov.style.display = 'none'; ov.innerHTML = ''; }
 }
 
 // ── STREMMINGEN OP DE KAART ──────────────────────────────
