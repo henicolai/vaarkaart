@@ -6,6 +6,8 @@
   try { WORKER = localStorage.getItem('vaarkaart_ais_url') || WORKER; } catch (e) {}
 
   var schepen = {}, laag = null, ws = null, aan = false, vak = null, herTimer = null, opruimTimer = null, pogingen = 0, laatsteBericht = 0;
+  var bron = 'wacht', bronTimer = null, bronTekst = '';  // stand van de verbinding Worker -> aisstream.io
+  var BRON_TIMEOUT = 20000;
   var MAX_LEEFTIJD = 12 * 60000;
   var alleenVarend = false;
   try { alleenVarend = !!JSON.parse(localStorage.getItem('vaarkaart_lagen') || '{}')['toggle-ais-varend']; } catch (e) {}
@@ -140,7 +142,9 @@
       if (!s.t || nu - s.t > MAX_LEEFTIJD) { if (s.m && laag) laag.removeLayer(s.m); delete schepen[k]; }
       else if (s.m) n++;
     });
-    if (aan && ws && ws.readyState === 1) status(n ? n + ' schepen in beeld (aisstream.io)' : (nu - laatsteBericht > 60000 ? 'Verbonden — nog geen schepen ontvangen in dit gebied' : 'Verbonden — wachten op schepen…'));
+    if (!aan || !ws || ws.readyState !== 1) return;
+    if (bron !== 'ok') { status(bronTekst); return; }  // nog geen (werkende) verbinding met aisstream
+    status(n ? n + ' schepen in beeld (aisstream.io)' : (nu - laatsteBericht > 60000 ? 'Verbonden — nog geen schepen ontvangen in dit gebied' : 'Verbonden — wachten op schepen…'));
   }
 
   // Vak rond de kaart, hooguit ±0,5° (ca. 30 NM) rond het midden
@@ -167,18 +171,41 @@
     try { sock = new WebSocket(WORKER + '?s=' + vak.s + '&w=' + vak.w + '&n=' + vak.n + '&e=' + vak.e); }
     catch (e) { status('AIS niet bereikbaar'); return; }
     ws = sock;
-    sock.onopen = function () { pogingen = 0; laatsteBericht = Date.now(); status('Verbonden — wachten op schepen…'); setTimeout(ruimOp, 4000); };
-    sock.onmessage = function (ev) {
+    bron = 'wacht'; bronTekst = 'AIS: verbinden met aisstream…';
+    sock.onopen = function () {
       laatsteBericht = Date.now();
-      var verw = function (t) { try { var d = JSON.parse(t); if (d.error) { status('AIS: ' + d.error); return; } if (d.status) { if (/sloot|weigert|onbereikbaar/.test(d.status)) status('AIS: ' + d.status); return; } verwerk(d); } catch (e) {} };
+      status(bronTekst);
+      clearTimeout(bronTimer);
+      bronTimer = setTimeout(function () {
+        if (ws !== sock || bron === 'ok') return;
+        bron = 'traag'; bronTekst = 'AIS: aisstream.io reageert niet — blijft proberen…';
+        status(bronTekst);
+      }, BRON_TIMEOUT);
+    };
+    sock.onmessage = function (ev) {
+      var verw = function (t) {
+        try {
+          var d = JSON.parse(t);
+          if (d.error) { bron = 'fout'; bronTekst = 'AIS: ' + d.error; status(bronTekst); return; }
+          if (d.status) {
+            if (/^verbonden met/.test(d.status)) { bron = 'ok'; pogingen = 0; laatsteBericht = Date.now(); clearTimeout(bronTimer); status('Verbonden — wachten op schepen…'); }
+            else if (bron !== 'traag' || /sloot|weigert|onbereikbaar/.test(d.status)) { bronTekst = 'AIS: ' + d.status; status(bronTekst); }
+            return;
+          }
+          if (bron !== 'ok') { bron = 'ok'; pogingen = 0; clearTimeout(bronTimer); }
+          laatsteBericht = Date.now();
+          verwerk(d);
+        } catch (e) {}
+      };
       if (typeof ev.data === 'string') verw(ev.data); else if (ev.data && ev.data.text) ev.data.text().then(verw);
     };
     sock.onclose = function () {
       if (ws !== sock) return;
       ws = null;
+      clearTimeout(bronTimer);
       if (!aan) return;
       pogingen++;
-      status('AIS-verbinding verbroken — opnieuw proberen…');
+      status(bron === 'ok' ? 'AIS-verbinding verbroken — opnieuw proberen…' : (bronTekst || 'AIS niet bereikbaar') + ' — opnieuw proberen…');
       herTimer = setTimeout(verbind, Math.min(60000, 3000 * pogingen));
     };
     sock.onerror = function () { try { sock.close(); } catch (e) {} };
@@ -200,7 +227,7 @@
       verbind();
       clearInterval(opruimTimer); opruimTimer = setInterval(ruimOp, 10000);
     } else {
-      clearTimeout(herTimer); clearInterval(opruimTimer);
+      clearTimeout(herTimer); clearInterval(opruimTimer); clearTimeout(bronTimer);
       if (ws) { var w = ws; ws = null; try { w.close(); } catch (e) {} }
       if (laag) { laag.clearLayers(); map.removeLayer(laag); }
       schepen = {};
