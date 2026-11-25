@@ -877,8 +877,11 @@
       </div>
 
       <div class="toggle-row">
-        <span class="toggle-label">AIS scheepvaart</span>
-        <button class="btn btn-ghost" onclick="openAIS()" style="padding:4px 10px;font-size:12px;">↗ Open</button>
+        <span class="toggle-label">AIS scheepvaart <button class="btn btn-ghost" onclick="openAIS()" style="padding:2px 8px;font-size:11px;margin-left:6px;">↗ VesselFinder</button></span>
+        <label class="toggle">
+          <input type="checkbox" id="toggle-ais" onchange="toggleAIS(this.checked)">
+          <span class="slider"></span>
+        </label>
       </div>
       <div id="ais-status" style="display:none;font-size:11px;color:var(--muted);margin-top:2px;margin-bottom:4px;"></div>
 
@@ -1962,6 +1965,7 @@ function onPosition(pos) {
 
   // Sla GPS positie op voor uur-navigatie
   window._laatsteGpsPositie = { lat, lon };
+  window._eigenBeweging = { heading, speed };
 
   // Getijden en stroom laden op basis van positie
   laadGetijden(lat, lon);
@@ -5876,5 +5880,6 @@ function verwerkKaartBestand(file) {
 
 </script>
 <script src="enc.js?v=5"></script>
+<script src="ais.js?v=1"></script>
 </body>
 </html>
