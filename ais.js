@@ -2,7 +2,7 @@
 // Gegevens: aisstream.io via een eigen Cloudflare Worker (worker/ais-worker.js).
 (function () {
   'use strict';
-  var WORKER = '';  // wss://…workers.dev — adres van de AIS-doorgever
+  var WORKER = 'wss://vaarkaart-ais.hnicolai.workers.dev';  // AIS-doorgever (Cloudflare Worker)
   try { WORKER = localStorage.getItem('vaarkaart_ais_url') || WORKER; } catch (e) {}
 
   var schepen = {}, laag = null, ws = null, aan = false, vak = null, herTimer = null, opruimTimer = null, pogingen = 0, laatsteBericht = 0;
