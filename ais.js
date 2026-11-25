@@ -7,6 +7,9 @@
 
   var schepen = {}, laag = null, ws = null, aan = false, vak = null, herTimer = null, opruimTimer = null, pogingen = 0, laatsteBericht = 0;
   var MAX_LEEFTIJD = 12 * 60000;
+  var alleenVarend = false;
+  try { alleenVarend = !!JSON.parse(localStorage.getItem('vaarkaart_lagen') || '{}')['toggle-ais-varend']; } catch (e) {}
+  function verborgen(s) { return alleenVarend && !((s.sog || 0) >= 0.5); }
 
   function status(t) {
     var el = document.getElementById('ais-status');
@@ -90,6 +93,7 @@
 
   function teken(s) {
     if (!laag || s.lat == null) return;
+    if (verborgen(s)) { if (s.m) { laag.removeLayer(s.m); s.m = null; } return; }
     if (!s.m) {
       s.m = L.marker([s.lat, s.lon], { icon: icoon(s), zIndexOffset: 700 }).addTo(laag);
       s.m.bindPopup(function () { return popup(s); }, { maxWidth: 230 });
@@ -203,10 +207,17 @@
       status('');
     }
   };
+  window.toggleAISVarend = function (zet) {
+    alleenVarend = zet;
+    if (typeof _slaLaagOp === 'function') _slaLaagOp('toggle-ais-varend', zet);
+    Object.keys(schepen).forEach(function (k) { teken(schepen[k]); });
+    ruimOp();
+  };
   window._aisTest = { verwerk: verwerk, schepen: function () { return schepen; }, cpa: cpa };
 
   function start() {
     if (typeof map === 'undefined' || !map) { setTimeout(start, 300); return; }
+    var cv = document.getElementById('toggle-ais-varend'); if (cv) cv.checked = alleenVarend;
     map.on('moveend', verschoven);
     map.on('rotate', herteken);
     // Bij terugkeer naar de app meteen opnieuw verbinden

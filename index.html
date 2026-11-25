@@ -883,6 +883,13 @@
           <span class="slider"></span>
         </label>
       </div>
+      <div class="toggle-row" style="padding-left:14px;">
+        <span class="toggle-label" style="font-size:12px;">↳ Alleen varende schepen</span>
+        <label class="toggle">
+          <input type="checkbox" id="toggle-ais-varend" onchange="toggleAISVarend(this.checked)">
+          <span class="slider"></span>
+        </label>
+      </div>
       <div id="ais-status" style="display:none;font-size:11px;color:var(--muted);margin-top:2px;margin-bottom:4px;"></div>
 
       <div id="diepte-legenda" style="display:none;margin-top:6px;padding:7px 10px;background:rgba(0,0,0,0.2);border-radius:6px;">
@@ -5880,6 +5887,6 @@ function verwerkKaartBestand(file) {
 
 </script>
 <script src="enc.js?v=5"></script>
-<script src="ais.js?v=3"></script>
+<script src="ais.js?v=4"></script>
 </body>
 </html>
