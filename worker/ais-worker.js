@@ -27,33 +27,33 @@ export default {
     const [client, server] = Object.values(new WebSocketPair());
     server.accept();
     const melding = t => { try { server.send(JSON.stringify({ status: t })); } catch (e) {} };
-    // Verbinding naar aisstream.io (via fetch met Upgrade; betrouwbaarder dan new WebSocket in Workers)
-    let up;
-    try {
-      const url = (env.AIS_URL || 'wss://stream.aisstream.io/v0/stream').replace(/^ws/, 'http');
-      const resp = await fetch(url, { headers: { Upgrade: 'websocket' } });
-      up = resp.webSocket;
-      if (!up) { melding('aisstream weigert verbinding (HTTP ' + resp.status + ')'); server.close(1011, 'upstream'); return new Response(null, { status: 101, webSocket: client }); }
-      up.accept();
-    } catch (e) {
-      melding('aisstream onbereikbaar: ' + e.message); server.close(1011, 'upstream'); return new Response(null, { status: 101, webSocket: client });
-    }
-    const abonneer = () => { try { up.send(JSON.stringify({ APIKey: env.AIS_KEY, BoundingBoxes: box, FilterMessageTypes: TYPES })); } catch (e) {} };
-    abonneer();
-    melding('verbonden met aisstream');
-    const dec = new TextDecoder();
-    up.addEventListener('message', ev => {
-      try { server.send(typeof ev.data === 'string' ? ev.data : dec.decode(ev.data)); } catch (e) {}
-    });
-    const sluit = () => { try { up.close(); } catch (e) {} try { server.close(); } catch (e) {} };
-    up.addEventListener('close', ev => { melding('aisstream sloot verbinding (' + ev.code + ' ' + (ev.reason || '') + ')'); sluit(); });
-    up.addEventListener('error', sluit);
+    let up = null, box2 = box, dicht = false;
+    const abonneer = () => { try { if (up) up.send(JSON.stringify({ APIKey: env.AIS_KEY, BoundingBoxes: box2, FilterMessageTypes: TYPES })); } catch (e) {} };
+    const sluit = () => { dicht = true; try { up && up.close(); } catch (e) {} try { server.close(); } catch (e) {} };
     server.addEventListener('close', sluit);
     server.addEventListener('error', sluit);
     // De app kan een nieuw vak sturen als de kaart verschuift
     server.addEventListener('message', ev => {
-      try { const b = vak(JSON.parse(ev.data)); if (b) { box = b; abonneer(); } } catch (e) {}
+      try { const b = vak(JSON.parse(ev.data)); if (b) { box2 = b; abonneer(); } } catch (e) {}
     });
+    melding('verbinden met aisstream…');
+    // Verbinding naar aisstream.io op de achtergrond, zodat de app meteen verbonden is
+    (async () => {
+      try {
+        const url = (env.AIS_URL || 'wss://stream.aisstream.io/v0/stream').replace(/^ws/, 'http');
+        const resp = await fetch(url, { headers: { Upgrade: 'websocket' } });
+        if (dicht) { try { resp.webSocket && resp.webSocket.close(); } catch (e) {} return; }
+        if (!resp.webSocket) { melding('aisstream weigert verbinding (HTTP ' + resp.status + ')'); sluit(); return; }
+        up = resp.webSocket;
+        up.accept();
+        abonneer();
+        melding('verbonden met aisstream');
+        const dec = new TextDecoder();
+        up.addEventListener('message', ev => { try { server.send(typeof ev.data === 'string' ? ev.data : dec.decode(ev.data)); } catch (e) {} });
+        up.addEventListener('close', ev => { melding('aisstream sloot verbinding (' + ev.code + ' ' + (ev.reason || '') + ')'); sluit(); });
+        up.addEventListener('error', sluit);
+      } catch (e) { melding('aisstream onbereikbaar: ' + e.message); sluit(); }
+    })();
     return new Response(null, { status: 101, webSocket: client });
   }
 };
