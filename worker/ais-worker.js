@@ -26,21 +26,33 @@ export default {
 
     const [client, server] = Object.values(new WebSocketPair());
     server.accept();
-    const up = new WebSocket(env.AIS_URL || 'wss://stream.aisstream.io/v0/stream');
+    const melding = t => { try { server.send(JSON.stringify({ status: t })); } catch (e) {} };
+    // Verbinding naar aisstream.io (via fetch met Upgrade; betrouwbaarder dan new WebSocket in Workers)
+    let up;
+    try {
+      const url = (env.AIS_URL || 'wss://stream.aisstream.io/v0/stream').replace(/^ws/, 'http');
+      const resp = await fetch(url, { headers: { Upgrade: 'websocket' } });
+      up = resp.webSocket;
+      if (!up) { melding('aisstream weigert verbinding (HTTP ' + resp.status + ')'); server.close(1011, 'upstream'); return new Response(null, { status: 101, webSocket: client }); }
+      up.accept();
+    } catch (e) {
+      melding('aisstream onbereikbaar: ' + e.message); server.close(1011, 'upstream'); return new Response(null, { status: 101, webSocket: client });
+    }
     const abonneer = () => { try { up.send(JSON.stringify({ APIKey: env.AIS_KEY, BoundingBoxes: box, FilterMessageTypes: TYPES })); } catch (e) {} };
+    abonneer();
+    melding('verbonden met aisstream');
     const dec = new TextDecoder();
-    up.addEventListener('open', abonneer);
     up.addEventListener('message', ev => {
       try { server.send(typeof ev.data === 'string' ? ev.data : dec.decode(ev.data)); } catch (e) {}
     });
     const sluit = () => { try { up.close(); } catch (e) {} try { server.close(); } catch (e) {} };
-    up.addEventListener('close', sluit);
+    up.addEventListener('close', ev => { melding('aisstream sloot verbinding (' + ev.code + ' ' + (ev.reason || '') + ')'); sluit(); });
     up.addEventListener('error', sluit);
     server.addEventListener('close', sluit);
     server.addEventListener('error', sluit);
     // De app kan een nieuw vak sturen als de kaart verschuift
     server.addEventListener('message', ev => {
-      try { const b = vak(JSON.parse(ev.data)); if (b) { box = b; if (up.readyState === 1) abonneer(); } } catch (e) {}
+      try { const b = vak(JSON.parse(ev.data)); if (b) { box = b; abonneer(); } } catch (e) {}
     });
     return new Response(null, { status: 101, webSocket: client });
   }

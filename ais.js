@@ -166,7 +166,7 @@
     sock.onopen = function () { pogingen = 0; laatsteBericht = Date.now(); status('Verbonden — wachten op schepen…'); setTimeout(ruimOp, 4000); };
     sock.onmessage = function (ev) {
       laatsteBericht = Date.now();
-      var verw = function (t) { try { var d = JSON.parse(t); if (d.error) { status('AIS: ' + d.error); return; } verwerk(d); } catch (e) {} };
+      var verw = function (t) { try { var d = JSON.parse(t); if (d.error) { status('AIS: ' + d.error); return; } if (d.status) { if (/sloot|weigert|onbereikbaar/.test(d.status)) status('AIS: ' + d.status); return; } verwerk(d); } catch (e) {} };
       if (typeof ev.data === 'string') verw(ev.data); else if (ev.data && ev.data.text) ev.data.text().then(verw);
     };
     sock.onclose = function () {
