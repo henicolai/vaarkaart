@@ -50,6 +50,32 @@
         '<path d="M12 1 L18.5 21 L12 17.5 L5.5 21 Z" fill="' + kleur + '" fill-opacity="' + (vaart ? 1 : 0.55) + '" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg>' });
   }
 
+  // Land uit de eerste drie cijfers van het MMSI (MID) — de in onze wateren gangbare landen
+  var MID = { 244: 'Nederland', 245: 'Nederland', 246: 'Nederland', 205: 'België', 211: 'Duitsland', 218: 'Duitsland', 219: 'Denemarken', 220: 'Denemarken',
+    226: 'Frankrijk', 227: 'Frankrijk', 228: 'Frankrijk', 232: 'Verenigd Koninkrijk', 233: 'Verenigd Koninkrijk', 234: 'Verenigd Koninkrijk', 235: 'Verenigd Koninkrijk',
+    257: 'Noorwegen', 258: 'Noorwegen', 259: 'Noorwegen', 265: 'Zweden', 266: 'Zweden', 230: 'Finland', 209: 'Cyprus', 210: 'Cyprus', 212: 'Cyprus',
+    215: 'Malta', 229: 'Malta', 248: 'Malta', 249: 'Malta', 256: 'Malta', 236: 'Gibraltar', 237: 'Griekenland', 239: 'Griekenland', 240: 'Griekenland', 241: 'Griekenland',
+    247: 'Italië', 224: 'Spanje', 225: 'Spanje', 263: 'Portugal', 255: 'Portugal (Madeira)', 250: 'Ierland', 261: 'Polen', 269: 'Zwitserland', 203: 'Oostenrijk',
+    273: 'Rusland', 276: 'Estland', 275: 'Letland', 277: 'Litouwen', 271: 'Turkije', 304: 'Antigua en Barbuda', 305: 'Antigua en Barbuda',
+    308: 'Bahama’s', 309: 'Bahama’s', 311: 'Bahama’s', 310: 'Bermuda', 319: 'Kaaimaneilanden', 306: 'Curaçao / Sint Maarten', 307: 'Aruba',
+    351: 'Panama', 352: 'Panama', 353: 'Panama', 354: 'Panama', 355: 'Panama', 356: 'Panama', 357: 'Panama', 370: 'Panama', 371: 'Panama', 372: 'Panama', 373: 'Panama', 374: 'Panama',
+    636: 'Liberia', 637: 'Liberia', 538: 'Marshalleilanden', 563: 'Singapore', 564: 'Singapore', 565: 'Singapore', 566: 'Singapore',
+    477: 'Hongkong', 412: 'China', 413: 'China', 414: 'China', 431: 'Japan', 440: 'Zuid-Korea', 441: 'Zuid-Korea', 338: 'Verenigde Staten', 366: 'Verenigde Staten', 367: 'Verenigde Staten', 368: 'Verenigde Staten', 369: 'Verenigde Staten',
+    316: 'Canada', 341: 'Saint Kitts en Nevis', 375: 'Saint Vincent', 376: 'Saint Vincent', 377: 'Saint Vincent', 378: 'Britse Maagdeneilanden', 620: 'Comoren', 657: 'Nigeria' };
+  function mmsiInfo(mmsi) {
+    var t = String(mmsi);
+    if (t.length !== 9) return '';
+    if (t.slice(0, 2) === '00') return 'kuststation ' + (MID[+t.slice(2, 5)] || '');
+    if (t.charAt(0) === '0') return 'groepsoproep';
+    if (t.slice(0, 3) === '111') return 'SAR-luchtvaartuig';
+    if (t.slice(0, 2) === '97') return t.slice(0, 3) === '970' ? 'AIS-SART (noodbaken)' : t.slice(0, 3) === '972' ? 'MOB-baken' : 'EPIRB';
+    if (t.slice(0, 2) === '99') return 'hulp voor de navigatie (AtoN)';
+    if (t.slice(0, 2) === '98') return 'bijboot / vaartuig bij moederschip';
+    if (t.charAt(0) === '8') return 'marifoon (handheld) ' + (MID[+t.slice(1, 4)] || '');
+    return MID[+t.slice(0, 3)] || ('landcode ' + t.slice(0, 3));
+  }
+  var NAVSTATUS = ['Varend op motor', 'Voor anker', 'Niet onder commando', 'Beperkt manoeuvreerbaar', 'Beperkt door diepgang', 'Afgemeerd', 'Aan de grond', 'Vissend', 'Zeilend'];
+
   function rad(g) { return g * Math.PI / 180; }
   function afstandNm(a, b, c, d) { return haversine(a, b, c, d) / 1852; }
   function peiling(lat1, lon1, lat2, lon2) {
@@ -78,9 +104,17 @@
   function popup(s) {
     var g = groep(s.type);
     var oud = Math.round((Date.now() - s.t) / 1000);
-    var h = '<b>🚢 ' + (s.naam || 'MMSI ' + s.mmsi) + '</b><br>' + g[0];
-    if (s.len) h += ' · ' + s.len + ' m';
-    h += '<br>Snelheid: <b>' + (s.sog != null ? s.sog.toFixed(1) + ' kn' : '—') + '</b>';
+    var land = mmsiInfo(s.mmsi);
+    var h = '<b>🚢 ' + (s.naam || 'Onbekende naam') + '</b><br>' + g[0];
+    if (s.len) h += ' · ' + s.len + ' m' + (s.br ? ' × ' + s.br + ' m' : '');
+    if (s.diep) h += ' · diepgang ' + s.diep.toFixed(1) + ' m';
+    h += '<div style="margin:4px 0;padding:4px 6px;background:rgba(0,0,0,0.06);border-radius:4px;font-size:12px;line-height:1.5">' +
+      'MMSI: <b>' + s.mmsi + '</b>' + (land ? ' (' + land + ')' : '') +
+      (s.call ? '<br>Roepnaam: <b>' + s.call + '</b>' : '') +
+      (s.imo ? '<br>IMO: <b>' + s.imo + '</b>' : '') +
+      (s.klasse ? '<br>AIS-klasse: ' + s.klasse : '') + '</div>';
+    if (s.nav != null && NAVSTATUS[s.nav]) h += 'Status: <b>' + NAVSTATUS[s.nav] + '</b><br>';
+    h += 'Snelheid: <b>' + (s.sog != null ? s.sog.toFixed(1) + ' kn' : '—') + '</b>';
     if (s.cog != null && s.cog < 360 && (s.sog || 0) >= 0.5) h += ' · koers <b>' + Math.round(s.cog) + '°</b>';
     if (s.best) h += '<br>Bestemming: ' + s.best;
     var p = window._laatsteGpsPositie;
@@ -89,7 +123,8 @@
       var c = cpa(s);
       if (c) h += '<br>Dichtste nadering: <b>' + c.nm.toFixed(2) + ' NM</b> over ' + Math.round(c.min) + ' min';
     }
-    h += '<br><small style="color:#888">MMSI ' + s.mmsi + ' · ' + (oud < 90 ? oud + ' s' : Math.round(oud / 60) + ' min') + ' geleden · aisstream.io</small>';
+    h += '<br><a href="https://www.vesselfinder.com/vessels/details/' + s.mmsi + '" target="_blank" rel="noopener">Meer over dit schip ↗</a>';
+    h += '<br><small style="color:#888">' + (oud < 90 ? oud + ' s' : Math.round(oud / 60) + ' min') + ' geleden · aisstream.io</small>';
     return h;
   }
 
@@ -117,6 +152,8 @@
     if (pr) {
       if (Math.abs(pr.Latitude) > 90 || Math.abs(pr.Longitude) > 180) return;
       s.lat = pr.Latitude; s.lon = pr.Longitude; s.sog = pr.Sog < 102 ? pr.Sog : null; s.cog = pr.Cog; s.hdg = pr.TrueHeading; s.t = Date.now();
+      s.klasse = msg.PositionReport ? 'A' : 'B';
+      if (msg.PositionReport && pr.NavigationalStatus != null) s.nav = pr.NavigationalStatus;
       if (msg.ExtendedClassBPositionReport) { s.type = pr.Type || s.type; if ((pr.Name || '').trim()) s.naam = pr.Name.trim(); }
       teken(s);
     }
@@ -124,13 +161,16 @@
     if (st) {
       s.type = st.Type; s.best = (st.Destination || '').replace(/@+/g, '').trim();
       if ((st.Name || '').trim()) s.naam = st.Name.trim();
-      if (st.Dimension) s.len = (st.Dimension.A || 0) + (st.Dimension.B || 0) || null;
+      if (st.Dimension) { s.len = (st.Dimension.A || 0) + (st.Dimension.B || 0) || null; s.br = (st.Dimension.C || 0) + (st.Dimension.D || 0) || null; }
+      if ((st.CallSign || '').trim()) s.call = st.CallSign.replace(/@+/g, '').trim();
+      if (st.ImoNumber) s.imo = st.ImoNumber;
+      if (st.MaximumStaticDraught) s.diep = st.MaximumStaticDraught;
       if (s.m) s.m.setIcon(icoon(s));
     }
     var sr = msg.StaticDataReport;
     if (sr) {
       if (sr.ReportA && (sr.ReportA.Name || '').trim()) s.naam = sr.ReportA.Name.trim();
-      if (sr.ReportB) { if (sr.ReportB.ShipType) s.type = sr.ReportB.ShipType; var dm = sr.ReportB.Dimension; if (dm) s.len = (dm.A || 0) + (dm.B || 0) || s.len; }
+      if (sr.ReportB) { if (sr.ReportB.ShipType) s.type = sr.ReportB.ShipType; var dm = sr.ReportB.Dimension; if (dm) { s.len = (dm.A || 0) + (dm.B || 0) || s.len; s.br = (dm.C || 0) + (dm.D || 0) || s.br; } if ((sr.ReportB.CallSign || '').trim()) s.call = sr.ReportB.CallSign.replace(/@+/g, '').trim(); }
       if (s.m) s.m.setIcon(icoon(s));
     }
   }
