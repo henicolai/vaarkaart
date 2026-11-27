@@ -9,7 +9,10 @@
   <title>VaarKaart — Pleziervaart Navigator</title>
 
   <!-- PWA -->
-  <link rel="manifest" href="manifest.json" />
+  <link rel="manifest" href="app.webmanifest" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="VaarKaart" />
   <meta name="theme-color" content="#0a1628" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -5888,5 +5891,11 @@ function verwerkKaartBestand(file) {
 </script>
 <script src="enc.js?v=5"></script>
 <script src="ais.js?v=5"></script>
+<script>
+// Service worker: maakt de app installeerbaar en bruikbaar zonder verbinding
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(e => console.warn('SW', e)));
+}
+</script>
 </body>
 </html>
